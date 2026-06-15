@@ -1,0 +1,54 @@
+# Tautufin — fichier de configuration d'exemple.
+# Copiez-le vers config.ini (ou laissez l'app le générer au premier lancement
+# via le wizard de setup) puis adaptez les valeurs.
+
+[Web]
+# Adresse et port d'écoute du serveur web.
+host = 0.0.0.0
+port = 8181
+
+[Jellyfin]
+# URL complète du serveur Jellyfin, ex: http://192.168.1.10:8096
+url =
+# Clé API admin, à générer dans Jellyfin : Tableau de bord > Clés API.
+api_key =
+# Vérification du certificat TLS (mettre false pour un certificat auto-signé).
+verify_ssl = true
+
+[Auth]
+# Durée de vie des sessions en secondes (défaut : 7 jours).
+session_lifetime = 604800
+
+# Activer ou non l'authentification via les comptes Jellyfin.
+jellyfin_auth_enabled = true
+
+# Activer ou non les comptes locaux (table local_users).
+local_auth_enabled = true
+
+# Secret pour signer les cookies de session.
+# Généré automatiquement au premier lancement — ne pas partager.
+secret_key =
+
+[Monitoring]
+# Durée minimale en secondes avant qu'une session soit enregistrée.
+# 0 = désactivé. Valeur recommandée : 300 (5 minutes).
+minimum_duration = 300
+
+# Pourcentage minimal du média regardé pour être comptabilisé.
+# 0 = désactivé. Condition OR avec minimum_duration (comme Tautulli) :
+# la session est enregistrée si AU MOINS UN des deux seuils est atteint.
+minimum_percent = 0
+
+# Intervalle de polling de /Sessions, en secondes.
+poll_interval = 15
+
+# Intervalle de synchronisation (utilisateurs, bibliothèques, médias), en secondes.
+sync_interval = 3600
+
+[UI]
+# Autoriser les utilisateurs non-admin à consulter les pages Bibliothèques.
+allow_user_library_pages = true
+
+[Database]
+# Chemin du fichier SQLite (relatif au dossier du config.ini si non absolu).
+path = data/jellyfin_stats.db

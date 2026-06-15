@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}Import — Tautufin{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Import depuis Playback Reporting</h1>
+  <p class="muted">Migre l'historique du plugin Jellyfin
+    <a href="https://github.com/jellyfin/jellyfin-plugin-playbackreporting"
+       target="_blank" rel="noopener">Playback Reporting</a> vers la base interne.
+    Deux formats acceptés (détection automatique) : la base
+    <code>playback_reporting.db</code> ou un fichier de backup du plugin
+    (<code>PlaybackReportingBackup-AAAAMMJJ-HHMMSS.tsv</code>).
+    L'import est idempotent : relancer ne crée pas de doublons
+    (clé de déduplication : date + utilisateur + média), y compris entre les
+    deux formats.</p>
+</div>
+
+<div class="card">
+  <h2>1. Choisir la source</h2>
+  <div class="form-grid">
+    <div>
+      <label>Uploader le fichier depuis ce poste
+        <input type="file" id="import-file" accept=".tsv,.db">
+      </label>
+      <div class="actions">
+        <button class="btn" id="btn-upload" disabled>📤 Envoyer le fichier</button>
+        <span id="upload-result"></span>
+      </div>
+    </div>
+    <div>
+      <label>… ou chemin d'un fichier déjà présent sur le serveur
+        <input type="text" id="import-path" placeholder="/var/lib/jellyfin/data/playback_reporting.db"
+               value="">
+      </label>
+      <p class="muted">Base <code>playback_reporting.db</code> ou backup
+        <code>PlaybackReportingBackup-*.tsv</code> (détection automatique).</p>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>2. Analyser puis importer</h2>
+  <p class="muted">Les filtres de durée minimale actuels s'appliqueront :
+    minimum_duration = <b>{{ minimum_duration }}s</b>,
+    minimum_percent = <b>{{ minimum_percent }}%</b>.</p>
+  <div class="actions">
+    <button class="btn" id="btn-analyze">Analyser</button>
+    <button class="btn btn-primary" id="btn-import" disabled>Importer</button>
+  </div>
+</div>
+
+<div class="card hidden" id="analyze-result">
+  <h2>Analyse</h2>
+  <ul class="kv">
+    <li><span>Format détecté</span><b id="an-format"></b></li>
+    <li><span>Entrées détectées</span><b id="an-entries"></b></li>
+    <li><span>Plage de dates</span><b id="an-dates"></b></li>
+    <li id="an-malformed-row" class="hidden">
+      <span>Lignes mal formées ignorées</span><b id="an-malformed"></b></li>
+  </ul>
+  <h3>Utilisateurs présents</h3>
+  <table class="table">
+    <thead><tr><th>Utilisateur</th><th>UserId</th><th>Entrées</th></tr></thead>
+    <tbody id="an-users"></tbody>
+  </table>
+</div>
+
+<div class="card hidden" id="import-result">
+  <h2>Rapport d'import</h2>
+  <ul class="kv">
+    <li><span>✅ Entrées importées</span><b id="imp-imported"></b></li>
+    <li><span>↩️ Doublons ignorés</span><b id="imp-duplicates"></b></li>
+    <li><span>⏱️ Filtrées par durée minimum</span><b id="imp-filtered"></b></li>
+    <li><span>⚠️ Erreurs</span><b id="imp-errors"></b></li>
+  </ul>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/app.js"></script>
+<script>
+const pathInput = document.getElementById('import-path');
+const btnAnalyze = document.getElementById('btn-analyze');
+const btnImport = document.getElementById('btn-import');
+const fileInput = document.getElementById('import-file');
+const btnUpload = document.getElementById('btn-upload');
+const uploadResult = document.getElementById('upload-result');
+
+fileInput.addEventListener('change', () => {
+  btnUpload.disabled = !fileInput.files.length;
+  uploadResult.textContent = '';
+});
+
+btnUpload.addEventListener('click', async () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+  btnUpload.disabled = true;
+  btnUpload.textContent = 'Envoi en cours…';
+  uploadResult.textContent = '';
+  try {
+    const form = new FormData();
+    form.append('file', file);
+    const r = await fetch('/api/import/upload', {
+      method: 'POST', credentials: 'same-origin', body: form,
+    });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.detail || `HTTP ${r.status}`);
+    uploadResult.textContent =
+      `✓ ${body.filename} (${(body.size / 1048576).toFixed(1)} Mo)`;
+    uploadResult.className = 'ok';
+    pathInput.value = body.path;
+    btnAnalyze.click();   // enchaîne directement sur l'analyse
+  } catch (e) {
+    uploadResult.textContent = '✗ ' + e.message;
+    uploadResult.className = 'err';
+  } finally {
+    btnUpload.disabled = false;
+    btnUpload.textContent = '📤 Envoyer le fichier';
+  }
+});
+
+btnAnalyze.addEventListener('click', async () => {
+  btnAnalyze.disabled = true; btnAnalyze.textContent = 'Analyse…';
+  try {
+    const r = await postJSON('/api/import/analyze', {path: pathInput.value});
+    document.getElementById('an-format').textContent =
+      r.format === 'tsv' ? 'Backup .tsv du plugin' : 'Base SQLite du plugin';
+    document.getElementById('an-malformed-row').classList.toggle('hidden', !r.malformed);
+    document.getElementById('an-malformed').textContent = r.malformed;
+    document.getElementById('an-entries').textContent = r.entries;
+    document.getElementById('an-dates').textContent =
+      r.date_min ? `${r.date_min} → ${r.date_max}` : '—';
+    document.getElementById('an-users').innerHTML = r.users.map(u =>
+      `<tr><td>${esc(u.username || '(inconnu)')}</td>` +
+      `<td><code>${esc(u.user_id)}</code></td><td>${u.entries}</td></tr>`).join('');
+    document.getElementById('analyze-result').classList.remove('hidden');
+    btnImport.disabled = r.entries === 0;
+  } catch (e) { alert('Analyse impossible : ' + e.message); }
+  finally { btnAnalyze.disabled = false; btnAnalyze.textContent = 'Analyser'; }
+});
+
+btnImport.addEventListener('click', async () => {
+  btnImport.disabled = true; btnImport.textContent = 'Import en cours…';
+  try {
+    const r = await postJSON('/api/import/run', {path: pathInput.value});
+    for (const k of ['imported', 'duplicates', 'filtered', 'errors'])
+      document.getElementById('imp-' + k).textContent = r[k];
+    document.getElementById('import-result').classList.remove('hidden');
+  } catch (e) { alert('Import impossible : ' + e.message); }
+  finally { btnImport.disabled = false; btnImport.textContent = 'Importer'; }
+});
+</script>
+{% endblock %}

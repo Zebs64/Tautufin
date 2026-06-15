@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Profil — Tautufin{% endblock %}
+{% block content %}
+{% if profile is none %}
+<div class="card">
+  <h1>👤 {{ user.username }}</h1>
+  <p class="muted">Ce compte local n'est lié à aucun utilisateur Jellyfin :
+    aucune statistique de lecture n'est associée. Un admin peut lier ce compte
+    dans Settings.</p>
+</div>
+{% else %}
+<div class="page-head profile-head">
+  <img class="avatar avatar-lg" src="/image/user/{{ profile.jellyfin_user_id }}" alt="">
+  <h1>{{ profile.username or profile.jellyfin_user_id }}</h1>
+</div>
+
+<div class="stats-grid">
+  <div class="card stat-card">
+    <h3>Totaux</h3>
+    <ul class="kv">
+      <li><span>Lectures</span><b>{{ profile.totals.total_plays }}</b></li>
+      <li><span>Temps de visionnage</span><b>{{ profile.totals.total_duration | duration_hm }}</b></li>
+      <li><span>Première lecture</span><b>{{ profile.totals.first_played | dt }}</b></li>
+      <li><span>Dernière lecture</span><b>{{ profile.totals.last_played | dt }}</b></li>
+    </ul>
+  </div>
+  <div class="card stat-card">
+    <h3>Par type de média</h3>
+    <ul class="kv">
+      {% for t in profile.by_type %}
+      <li><span>{{ t.item_type | media_icon }} {{ t.item_type }}</span>
+          <b>{{ t.plays }} ({{ t.duration | duration_hm }})</b></li>
+      {% else %}<li class="muted">Aucune donnée</li>{% endfor %}
+    </ul>
+  </div>
+  <div class="card stat-card">
+    <h3>Clients préférés</h3>
+    <ul class="kv">
+      {% for c in profile.top_clients %}
+      <li><span><img class="client-logo" src="{{ c.client | client_logo }}" alt=""> {{ c.client }}</span><b>{{ c.plays }}</b></li>
+      {% else %}<li class="muted">Aucune donnée</li>{% endfor %}
+    </ul>
+  </div>
+</div>
+
+<h2>Habitudes de visionnage <span class="muted">(tout l'historique)</span></h2>
+<div class="charts-grid">
+  <div class="card chart-card"><h3>Activité par jour de la semaine</h3><canvas id="chart-user-dow"></canvas></div>
+  <div class="card chart-card"><h3>Activité par heure de la journée</h3><canvas id="chart-user-hour"></canvas></div>
+</div>
+
+<h2>Lectures récentes</h2>
+<div class="card">
+  <table class="table">
+    <thead><tr><th>Date</th><th>Média</th><th>Durée vue</th><th>% vu</th><th>Client</th></tr></thead>
+    <tbody>
+      {% for h in profile.recent %}
+      <tr>
+        <td>{{ h.started_at | dt }}</td>
+        <td>{% if h.series_name %}{{ h.series_name }} —
+            S{{ h.season_number or 0 }}E{{ h.episode_number or 0 }} {% endif %}{{ h.item_name }}</td>
+        <td>{{ h.play_duration | duration_hm }}</td>
+        <td>{{ h.percent_complete and (h.percent_complete | round | int ~ '%') or '—' }}</td>
+        <td>{{ h.client_name or '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="muted">Aucune lecture enregistrée.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if profile %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="/static/js/app.js"></script>
+<script>
+const USER_ID = {{ profile.jellyfin_user_id | tojson }};
+function userBar(canvasId, data, color) {
+  new Chart(document.getElementById(canvasId), {
+    type: 'bar',
+    data: {
+      labels: data.categories,
+      datasets: [{label: data.series[0].name, data: data.series[0].data,
+                  backgroundColor: color}],
+    },
+    options: {responsive: true, maintainAspectRatio: false,
+              plugins: {legend: {display: false}},
+              scales: {y: {beginAtZero: true}}},
+  });
+}
+fetchJSON(`/api/graphs/by_day_of_week?days=0&user_id=${encodeURIComponent(USER_ID)}`)
+  .then(d => userBar('chart-user-dow', d, CHART_COLORS[0])).catch(() => {});
+fetchJSON(`/api/graphs/by_hour_of_day?days=0&user_id=${encodeURIComponent(USER_ID)}`)
+  .then(d => userBar('chart-user-hour', d, CHART_COLORS[1])).catch(() => {});
+</script>
+{% endif %}
+{% endblock %}

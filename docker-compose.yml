@@ -1,0 +1,13 @@
+services:
+  jellyfin-stats:
+    build: .
+    container_name: jellyfin-stats
+    restart: unless-stopped
+    ports:
+      - "8181:8181"
+    volumes:
+      # Configuration + base SQLite persistées ici.
+      - ./config:/config
+      # Optionnel : monter le dossier data de Jellyfin en lecture seule pour
+      # importer playback_reporting.db depuis la page Import.
+      # - /var/lib/jellyfin/data:/jellyfin-data:ro

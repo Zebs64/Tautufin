@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Settings — Tautufin{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Settings</h1></div>
+
+{% if saved %}<div class="alert alert-ok">Configuration enregistrée.</div>{% endif %}
+
+<form method="post" action="/settings">
+  <div class="card">
+    <h2>Serveur Jellyfin</h2>
+    <div class="form-grid">
+      <label>URL du serveur
+        <input type="url" name="jellyfin_url" id="jf-url" value="{{ config.jellyfin_url }}"
+               placeholder="http://192.168.1.10:8096">
+      </label>
+      <label>Clé API <span class="muted">(laisser vide pour conserver l'actuelle)</span>
+        <input type="password" name="api_key" id="jf-key" autocomplete="off"
+               placeholder="{{ '••••••••' if config.jellyfin_api_key else 'Clé API admin' }}">
+      </label>
+    </div>
+    <button type="button" class="btn" id="test-jellyfin">Tester la connexion</button>
+    <span id="test-result"></span>
+  </div>
+
+  <div class="card">
+    <h2>Authentification</h2>
+    <div class="form-grid">
+      <label class="check"><input type="checkbox" name="jellyfin_auth_enabled"
+        {{ 'checked' if config.jellyfin_auth_enabled }}> Autoriser la connexion avec un compte Jellyfin</label>
+      <label class="check"><input type="checkbox" name="local_auth_enabled"
+        {{ 'checked' if config.local_auth_enabled }}> Autoriser les comptes locaux</label>
+      <label>Durée de vie des sessions (secondes)
+        <input type="number" name="session_lifetime" min="300"
+               value="{{ config.session_lifetime }}">
+        <span class="muted">604800 = 7 jours</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Monitoring</h2>
+    <div class="form-grid">
+      <label>Durée minimale de lecture (secondes)
+        <input type="number" name="minimum_duration" min="0"
+               value="{{ config.minimum_duration }}">
+        <span class="muted">Une session plus courte n'est pas enregistrée dans
+          l'historique. 0 = tout enregistrer. Recommandé : 300 (5 min).</span>
+      </label>
+      <label>Pourcentage minimal vu (%)
+        <input type="number" name="minimum_percent" min="0" max="100"
+               value="{{ config.minimum_percent }}">
+        <span class="muted">Condition OR avec la durée minimale (comme Tautulli) :
+          la session est gardée si l'un OU l'autre seuil est atteint. 0 = désactivé.</span>
+      </label>
+      <label>Intervalle de polling /Sessions (secondes)
+        <input type="number" name="poll_interval" min="5" value="{{ config.poll_interval }}">
+      </label>
+      <label>Intervalle de synchronisation (secondes)
+        <input type="number" name="sync_interval" min="60" value="{{ config.sync_interval }}">
+      </label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Interface</h2>
+    <label class="check"><input type="checkbox" name="allow_user_library_pages"
+      {{ 'checked' if config.allow_user_library_pages }}>
+      Autoriser les non-admins à consulter les pages Bibliothèques</label>
+  </div>
+
+  <div class="actions">
+    <button type="submit" class="btn btn-primary">Enregistrer</button>
+    <button type="button" class="btn" id="sync-now">Synchroniser Jellyfin maintenant</button>
+    <span id="sync-result"></span>
+  </div>
+</form>
+
+<div class="card">
+  <h2>Apparence — logo &amp; favicon</h2>
+  {% if branding_error %}<div class="alert alert-error">{{ branding_error }}</div>{% endif %}
+  <div class="form-grid">
+    <div>
+      <div class="branding-preview">
+        {% if has_logo %}
+        <img src="/branding/logo?v={{ logo_ver }}" alt="logo">
+        <form method="post" action="/settings/branding/delete" class="inline">
+          <input type="hidden" name="which" value="logo">
+          <button class="btn btn-sm btn-danger">Retirer</button>
+        </form>
+        {% else %}<span class="muted">Logo par défaut (texte)</span>{% endif %}
+      </div>
+    </div>
+    <div>
+      <div class="branding-preview">
+        <img src="/branding/favicon" alt="favicon" style="max-height: 24px">
+        <span class="muted">Favicon actuel</span>
+        <form method="post" action="/settings/branding/delete" class="inline">
+          <input type="hidden" name="which" value="favicon">
+          <button class="btn btn-sm btn-danger">Réinitialiser</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <form method="post" action="/settings/branding" enctype="multipart/form-data" class="form-grid">
+    <label>Nouveau logo <span class="muted">(png, svg, webp… — max 2 Mo, affiché dans la navbar et sur la page de login)</span>
+      <input type="file" name="logo" accept=".png,.jpg,.jpeg,.svg,.webp,.gif">
+    </label>
+    <label>Nouveau favicon <span class="muted">(ico, png, svg — max 2 Mo)</span>
+      <input type="file" name="favicon" accept=".ico,.png,.svg,.jpg,.webp,.gif">
+    </label>
+    <div><button type="submit" class="btn btn-primary">Mettre à jour l'apparence</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Comptes locaux</h2>
+  {% if user_error %}<div class="alert alert-error">{{ user_error }}</div>{% endif %}
+  <table class="table">
+    <thead><tr><th>Nom</th><th>Rôle</th><th>Lié à (Jellyfin)</th>
+               <th>Dernier login</th><th></th></tr></thead>
+    <tbody>
+      {% for lu in local_users %}
+      <tr>
+        <td>{{ lu.username }}</td>
+        <td><span class="badge {{ 'badge-admin' if lu.role == 'admin' else 'badge-ok' }}">{{ lu.role }}</span></td>
+        <td>
+          {% set linked = (jf_users | selectattr('jellyfin_user_id', 'equalto', lu.jellyfin_user_id) | list | first) %}
+          {{ linked.username if linked else (lu.jellyfin_user_id or '— non lié —') }}
+        </td>
+        <td>{{ lu.last_login | dt or '—' }}</td>
+        <td class="row-actions">
+          <form method="post" action="/settings/local-users/{{ lu.id }}/password" class="inline">
+            <input type="password" name="new_password" placeholder="Nouveau mot de passe" required>
+            <button class="btn btn-sm">Reset</button>
+          </form>
+          <form method="post" action="/settings/local-users/{{ lu.id }}/delete" class="inline"
+                onsubmit="return confirm('Supprimer le compte {{ lu.username }} ?')">
+            <button class="btn btn-sm btn-danger">Supprimer</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="muted">Aucun compte local.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h3>Créer un compte local</h3>
+  <form method="post" action="/settings/local-users" class="form-grid">
+    <label>Nom d'utilisateur <input type="text" name="username" required></label>
+    <label>Mot de passe <input type="password" name="password" required autocomplete="new-password"></label>
+    <label>Rôle
+      <select name="role"><option value="user">user</option><option value="admin">admin</option></select>
+    </label>
+    <label>Lier à un utilisateur Jellyfin <span class="muted">(optionnel — donne accès à ses stats)</span>
+      <select name="jellyfin_user_id">
+        <option value="">— aucun —</option>
+        {% for ju in jf_users %}
+        <option value="{{ ju.jellyfin_user_id }}">{{ ju.username }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div><button type="submit" class="btn btn-primary">Créer</button></div>
+  </form>
+  <p class="muted">Reset de mot de passe en CLI :
+    <code>python main.py --reset-password &lt;username&gt;</code></p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/app.js"></script>
+<script>
+document.getElementById('test-jellyfin').addEventListener('click', async () => {
+  const out = document.getElementById('test-result');
+  out.textContent = '…';
+  try {
+    const r = await postJSON('/api/settings/test-jellyfin', {
+      url: document.getElementById('jf-url').value,
+      api_key: document.getElementById('jf-key').value,
+    });
+    out.textContent = r.ok ? `✓ ${r.server} (v${r.version})` : `✗ ${r.error}`;
+    out.className = r.ok ? 'ok' : 'err';
+  } catch (e) { out.textContent = '✗ ' + e.message; out.className = 'err'; }
+});
+document.getElementById('sync-now').addEventListener('click', async () => {
+  const out = document.getElementById('sync-result');
+  out.textContent = 'Synchronisation…';
+  try {
+    const r = await postJSON('/api/sync', {});
+    out.textContent = `✓ ${r.users} utilisateurs, ${r.items} médias`;
+    out.className = 'ok';
+  } catch (e) { out.textContent = '✗ ' + e.message; out.className = 'err'; }
+});
+</script>
+{% endblock %}

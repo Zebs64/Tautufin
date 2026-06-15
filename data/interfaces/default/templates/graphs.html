@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Graphiques — Tautufin{% endblock %}
+{% block content %}
+<div class="page-head row">
+  <h1>Graphiques</h1>
+  <div class="filters-inline" id="graph-filters">
+    {% if user.is_admin %}
+    <label>Utilisateur
+      <select id="graph-user">
+        <option value="">Tous</option>
+        {% for u in jf_users %}
+        <option value="{{ u.jellyfin_user_id }}">{{ u.username }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    {% endif %}
+    <label>Période
+      <select id="graph-days">
+        <option value="7">7 derniers jours</option>
+        <option value="30" selected>30 derniers jours</option>
+        <option value="90">90 derniers jours</option>
+        <option value="365">12 derniers mois</option>
+        {% if years %}
+        <optgroup label="Année civile">
+          {% for y in years %}<option value="year:{{ y }}">Année {{ y }}</option>{% endfor %}
+        </optgroup>
+        {% endif %}
+      </select>
+    </label>
+    <label>Groupé par
+      <select id="graph-group">
+        <option value="day" selected>Jour</option>
+        <option value="week">Semaine</option>
+        <option value="month">Mois</option>
+      </select>
+    </label>
+    <label>Mesure
+      <select id="graph-metric">
+        <option value="plays" selected>Lectures</option>
+        <option value="duration">Durée</option>
+      </select>
+    </label>
+  </div>
+</div>
+
+<div class="charts-grid" data-is-admin="{{ 1 if user.is_admin else 0 }}">
+  <div class="card chart-card chart-wide">
+    <h3>Lectures dans le temps (films / séries / musique)</h3>
+    <canvas id="chart-over-time"></canvas>
+  </div>
+  {% if user.is_admin %}
+  <div class="card chart-card"><h3>Répartition par utilisateur</h3><canvas id="chart-by-user"></canvas></div>
+  {% endif %}
+  <div class="card chart-card"><h3>Top 10 films</h3><canvas id="chart-top-movies"></canvas></div>
+  <div class="card chart-card"><h3>Top 10 séries</h3><canvas id="chart-top-series"></canvas></div>
+  <div class="card chart-card"><h3>Activité par jour de la semaine</h3><canvas id="chart-by-dow"></canvas></div>
+  <div class="card chart-card"><h3>Activité par heure de la journée</h3><canvas id="chart-by-hour"></canvas></div>
+  <div class="card chart-card"><h3>Bibliothèques les plus consultées</h3><canvas id="chart-by-library"></canvas></div>
+  <div class="card chart-card"><h3>Genres les plus regardés</h3><canvas id="chart-by-genre"></canvas></div>
+  <div class="card chart-card"><h3>Résolutions</h3><canvas id="chart-by-resolution"></canvas></div>
+  <div class="card chart-card"><h3>Clients</h3><canvas id="chart-by-client"></canvas></div>
+  <div class="card chart-card"><h3>Direct Play vs Transcodage</h3><canvas id="chart-by-method"></canvas></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="/static/js/app.js"></script>
+<script src="/static/js/graphs.js"></script>
+{% endblock %}

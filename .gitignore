@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Local/runtime configuration and generated data
+config.ini
+config/
+data/jellyfin_stats.db*
+*.db
+*.sqlite
+*.sqlite3
+
+# Local agent/editor state
+.claude/
+.vscode/
+.idea/
+
+# Reference clone kept locally only
+tautulli_ref/

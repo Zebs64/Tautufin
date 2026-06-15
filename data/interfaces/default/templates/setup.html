@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Premier lancement — Tautufin{% endblock %}
+{% block content %}
+<div class="auth-box wide">
+  <h1>📊 Tautufin — Premier lancement</h1>
+  <p class="muted">Configurez la connexion à votre serveur Jellyfin et créez un
+    compte admin local de secours (utilisable même si Jellyfin est injoignable).</p>
+
+  {% for e in errors or [] %}<div class="alert alert-error">{{ e }}</div>{% endfor %}
+
+  <form method="post" action="/setup">
+    <fieldset>
+      <legend>Serveur Jellyfin (optionnel, configurable plus tard dans Settings)</legend>
+      <label>URL du serveur
+        <input type="url" name="jellyfin_url" placeholder="http://192.168.1.10:8096"
+               value="{{ (form or {}).get('jellyfin_url', '') }}">
+      </label>
+      <label>Clé API <span class="muted">(Jellyfin → Tableau de bord → Clés API)</span>
+        <input type="password" name="api_key" autocomplete="off">
+      </label>
+    </fieldset>
+    <fieldset>
+      <legend>Compte admin local de secours (obligatoire)</legend>
+      <label>Nom d'utilisateur
+        <input type="text" name="admin_username" required
+               value="{{ (form or {}).get('admin_username', '') }}">
+      </label>
+      <label>Mot de passe
+        <input type="password" name="admin_password" required autocomplete="new-password">
+      </label>
+    </fieldset>
+    <button type="submit" class="btn btn-primary">Terminer le setup</button>
+  </form>
+</div>
+{% endblock %}

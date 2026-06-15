@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Historique — Tautufin{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Historique de lecture</h1>
+</div>
+
+<div class="card filters" id="history-filters" data-is-admin="{{ 1 if user.is_admin else 0 }}">
+  {% if user.is_admin %}
+  <label>Utilisateur
+    <select name="user_id">
+      <option value="">Tous</option>
+      {% for u in jf_users %}
+      <option value="{{ u.jellyfin_user_id }}">{{ u.username }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  {% endif %}
+  <label>Type
+    <select name="media_type">
+      <option value="">Tous</option>
+      {% for t in media_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Bibliothèque
+    <select name="library_id">
+      <option value="">Toutes</option>
+      {% for l in libs %}<option value="{{ l.library_id }}">{{ l.name }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Du <input type="date" name="date_from"></label>
+  <label>Au <input type="date" name="date_to"></label>
+  <label>Recherche <input type="search" name="search" placeholder="Titre…"></label>
+</div>
+
+<div class="card">
+  <table class="table" id="history-table">
+    <thead>
+      <tr>
+        <th data-sort="date" class="sortable sorted-desc">Date</th>
+        {% if user.is_admin %}<th data-sort="user" class="sortable">Utilisateur</th>{% endif %}
+        <th data-sort="media" class="sortable">Média</th>
+        <th data-sort="type" class="sortable">Type</th>
+        <th data-sort="duration" class="sortable">Durée vue</th>
+        <th data-sort="percent" class="sortable">% vu</th>
+        <th data-sort="client" class="sortable">Client</th>
+        {% if user.is_admin %}<th data-sort="ip" class="sortable">IP</th>{% endif %}
+      </tr>
+    </thead>
+    <tbody><tr><td colspan="8" class="muted">Chargement…</td></tr></tbody>
+  </table>
+  <div class="pagination">
+    <button class="btn btn-sm" id="prev-page">←</button>
+    <span id="page-info"></span>
+    <button class="btn btn-sm" id="next-page">→</button>
+    <select id="page-size">
+      <option>25</option><option>50</option><option>100</option>
+    </select>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/app.js"></script>
+<script src="/static/js/history.js"></script>
+{% endblock %}

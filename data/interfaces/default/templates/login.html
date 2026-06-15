@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Connexion — Tautufin{% endblock %}
+{% block content %}
+<div class="auth-box">
+  {% if has_logo %}
+  <img class="auth-logo" src="/branding/logo?v={{ logo_ver }}" alt="Tautufin">
+  {% else %}
+  <h1>📊 Tautufin</h1>
+  {% endif %}
+
+  {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+  {% set tab = active_tab or ('jellyfin' if jellyfin_enabled else 'local') %}
+  {% if jellyfin_enabled and local_enabled %}
+  <div class="tabs">
+    <button type="button" class="tab {{ 'active' if tab == 'jellyfin' }}"
+            data-tab="jellyfin">Compte Jellyfin</button>
+    <button type="button" class="tab {{ 'active' if tab == 'local' }}"
+            data-tab="local">Compte local</button>
+  </div>
+  {% endif %}
+
+  <form method="post" action="/login">
+    <input type="hidden" name="mode" id="login-mode" value="{{ tab }}">
+    <label>Nom d'utilisateur
+      <input type="text" name="username" required autofocus autocomplete="username">
+    </label>
+    <label>Mot de passe
+      <input type="password" name="password" required autocomplete="current-password">
+    </label>
+    <button type="submit" class="btn btn-primary">Se connecter</button>
+    <p class="muted" id="login-hint">
+      {% if tab == 'jellyfin' %}Utilisez vos identifiants Jellyfin habituels.{% endif %}
+    </p>
+  </form>
+  {% if not jellyfin_enabled and not local_enabled %}
+  <div class="alert alert-error">Aucun mode d'authentification activé — vérifiez config.ini.</div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('login-mode').value = btn.dataset.tab;
+  document.getElementById('login-hint').textContent =
+    btn.dataset.tab === 'jellyfin' ? 'Utilisez vos identifiants Jellyfin habituels.' : '';
+}));
+</script>
+{% endblock %}
