@@ -143,6 +143,14 @@ MIGRATIONS: list[tuple[int, list[str]]] = [
             "CREATE INDEX idx_sessions_expires ON http_sessions(expires_at)",
         ],
     ),
+    (
+        3,
+        [
+            # Distribution / équipe d'un média (JSON: [{"Name":..,"Type":..}, ...]),
+            # renseignée à la synchro pour les tops acteurs / réalisateurs.
+            "ALTER TABLE items ADD COLUMN people TEXT",
+        ],
+    ),
 ]
 
 

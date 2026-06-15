@@ -22,6 +22,7 @@ DEFAULTS = {
         "minimum_percent": "0",
         "poll_interval": "15",
         "sync_interval": "3600",
+        "session_grace": "90",
     },
     "UI": {"allow_user_library_pages": "true"},
     "Database": {"path": "data/jellyfin_stats.db"},
@@ -120,6 +121,12 @@ class Config:
     @property
     def sync_interval(self) -> int:
         return max(60, self.get_int("Monitoring", "sync_interval"))
+
+    @property
+    def session_grace(self) -> int:
+        """Délai (s) d'absence du polling avant de finaliser une session, pour
+        ne pas fragmenter une lecture continue sur un trou transitoire."""
+        return max(0, self.get_int("Monitoring", "session_grace"))
 
     @property
     def allow_user_library_pages(self) -> bool:

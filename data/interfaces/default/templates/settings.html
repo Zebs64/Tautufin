@@ -58,6 +58,12 @@
       <label>Intervalle de synchronisation (secondes)
         <input type="number" name="sync_interval" min="60" value="{{ config.sync_interval }}">
       </label>
+      <label>Délai de grâce des sessions (secondes)
+        <input type="number" name="session_grace" min="0" value="{{ config.session_grace }}">
+        <span class="muted">Tolérance avant de finaliser une lecture qui disparaît
+          brièvement du polling (évite de fragmenter une lecture continue en
+          plusieurs entrées). 0 = finalisation immédiate.</span>
+      </label>
     </div>
   </div>
 

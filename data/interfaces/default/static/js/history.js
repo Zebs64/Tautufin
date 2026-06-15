@@ -13,7 +13,13 @@ function mediaCell(r) {
   const thumb = r.item_id
     ? `<img class="thumb" loading="lazy" alt="" src="/image/item/${encodeURIComponent(r.item_id)}?w=120">`
     : '';
-  return `<span class="cell-media">${thumb}<span>${title}</span></span>`;
+  const badge = r.source === 'infer'
+    ? ' <span class="badge badge-off" title="Session reconstituée depuis le statut « Lu » de Jellyfin">inféré</span>'
+    : '';
+  const inner = r.item_id
+    ? `<a href="/media/${encodeURIComponent(r.item_id)}">${title}</a>${badge}`
+    : `${title}${badge}`;
+  return `<span class="cell-media">${thumb}<span>${inner}</span></span>`;
 }
 
 async function load() {
@@ -31,7 +37,8 @@ async function load() {
       <tr>
         <td>${esc((r.started_at || '').slice(0, 16))}</td>
         ${isAdmin ? `<td><span class="cell-user"><img class="avatar" loading="lazy" alt=""
-            src="/image/user/${encodeURIComponent(r.jellyfin_user_id)}">${esc(r.user_name)}</span></td>` : ''}
+            src="/image/user/${encodeURIComponent(r.jellyfin_user_id)}"><a
+            href="/users/${encodeURIComponent(r.jellyfin_user_id)}">${esc(r.user_name)}</a></span></td>` : ''}
         <td>${mediaCell(r)}</td>
         <td>${esc(r.item_type || '—')}</td>
         <td>${fmtDuration(r.play_duration)}</td>

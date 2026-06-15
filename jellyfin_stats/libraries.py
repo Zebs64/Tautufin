@@ -25,6 +25,15 @@ def get_library(library_id: str) -> dict | None:
 
 def library_detail(library_id: str) -> dict:
     """Répartitions par genre / année / codecs + médias les plus et moins vus."""
+    totals = database.query_one(
+        """
+        SELECT COUNT(h.id) AS total_plays,
+               COALESCE(SUM(h.play_duration), 0) AS total_duration,
+               COUNT(DISTINCT h.jellyfin_user_id) AS viewers
+        FROM session_history h WHERE h.library_id = ?
+        """,
+        (library_id,),
+    )
     by_genre = database.query(
         """
         SELECT je.value AS label, COUNT(*) AS count
@@ -79,6 +88,7 @@ def library_detail(library_id: str) -> dict:
         (library_id,),
     )
     return {
+        "totals": totals,
         "by_genre": by_genre,
         "by_year": by_year,
         "by_video_codec": by_video_codec,

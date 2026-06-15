@@ -18,6 +18,22 @@ from .jellyfin_api import JellyfinError
 logger = logging.getLogger(__name__)
 
 
+# Rôles conservés pour les tops (acteurs / réalisateurs / scénaristes), avec un
+# plafond par média pour ne pas gonfler la base avec la figuration.
+_PEOPLE_TYPES = {"Actor", "Director", "Writer", "GuestStar"}
+_PEOPLE_MAX = 25
+
+
+def _people_json(people) -> str | None:
+    """Sérialise la distribution/équipe utile d'un média (Name + Type)."""
+    if not people:
+        return None
+    kept = [{"Name": p["Name"], "Type": p.get("Type")}
+            for p in people
+            if p.get("Name") and p.get("Type") in _PEOPLE_TYPES]
+    return json.dumps(kept[:_PEOPLE_MAX], ensure_ascii=False) if kept else None
+
+
 def sync_users(api) -> int:
     users = api.get_users()
     with database.db() as conn:
@@ -54,10 +70,14 @@ def sync_libraries_and_items(api) -> int:
         library_id = folder.get("ItemId")
         if not library_id:
             continue
-        count = 0
+        # Phase réseau HORS transaction : récupérer les médias sans tenir le
+        # verrou d'écriture SQLite pendant les appels HTTP (sinon le poller et
+        # les sessions HTTP se prennent un « database is locked »).
+        items = list(api.iter_items(library_id))
+        count = len(items)
+        # Phase écriture : transaction courte.
         with database.db() as conn:
-            for item in api.iter_items(library_id):
-                count += 1
+            for item in items:
                 runtime_ticks = item.get("RunTimeTicks")
                 video = next((s for s in item.get("MediaStreams", [])
                               if s.get("Type") == "Video"), {})
@@ -69,8 +89,8 @@ def sync_libraries_and_items(api) -> int:
                         (item_id, library_id, name, type, series_name,
                          season_number, episode_number, year, genres,
                          runtime_seconds, video_resolution, video_codec,
-                         audio_codec, added_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         audio_codec, people, added_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(item_id) DO UPDATE SET
                         library_id = excluded.library_id,
                         name = excluded.name,
@@ -84,6 +104,7 @@ def sync_libraries_and_items(api) -> int:
                         video_resolution = excluded.video_resolution,
                         video_codec = excluded.video_codec,
                         audio_codec = excluded.audio_codec,
+                        people = excluded.people,
                         updated_at = excluded.updated_at
                     """,
                     (
@@ -94,6 +115,7 @@ def sync_libraries_and_items(api) -> int:
                         runtime_ticks // TICKS_PER_SECOND if runtime_ticks else None,
                         resolution_label(video.get("Width"), video.get("Height")),
                         video.get("Codec"), audio.get("Codec"),
+                        _people_json(item.get("People")),
                         (item.get("DateCreated") or "").replace("T", " ")[:19] or None,
                         now_iso(),
                     ),

@@ -166,6 +166,9 @@ class TrackedSession:
     position_ticks: int = 0
     paused: bool = False
     last_seen: float = 0.0
+    # Instant (monotonic) où la session a disparu du polling ; 0 = présente.
+    # Sert au délai de grâce avant finalisation (cf. poll).
+    missing_since: float = 0.0
     info: dict = field(default_factory=dict)  # détails « now playing » (transcodage…)
 
     def percent_complete(self) -> float | None:
@@ -214,9 +217,20 @@ class ActivityMonitor:
                 tracked.play_method = play_state.get("PlayMethod") or tracked.play_method
                 tracked.info = _stream_details(session, item)
                 tracked.last_seen = now
+                tracked.missing_since = 0.0  # de retour : annule un éventuel délai
 
+            # Délai de grâce : une session Jellyfin disparaît parfois du polling
+            # un cycle ou deux (client Android, NowPlayingItem null transitoire,
+            # blip réseau) alors que la lecture continue. La finaliser aussitôt
+            # fragmenterait une lecture continue en multiples entrées. On attend
+            # donc qu'elle soit absente depuis ``session_grace`` secondes.
+            grace = self.config.session_grace
             for key in [k for k in self._sessions if k not in current]:
-                self._finalize(self._sessions.pop(key))
+                tracked = self._sessions[key]
+                if not tracked.missing_since:
+                    tracked.missing_since = now
+                if now - tracked.missing_since >= grace:
+                    self._finalize(self._sessions.pop(key))
 
     def _new_tracked(self, key, session, item, now) -> TrackedSession:
         play_state = session.get("PlayState", {})

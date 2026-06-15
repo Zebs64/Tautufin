@@ -9,22 +9,32 @@
     dans Settings.</p>
 </div>
 {% else %}
-<div class="page-head profile-head">
-  <img class="avatar avatar-lg" src="/image/user/{{ profile.jellyfin_user_id }}" alt="">
-  <h1>{{ profile.username or profile.jellyfin_user_id }}</h1>
+<div class="detail-hero no-hero">
+  <div class="detail-hero-veil"></div>
+  <div class="detail-hero-inner">
+    <img class="detail-avatar" src="/image/user/{{ profile.jellyfin_user_id }}" alt="">
+    <div class="detail-hero-body">
+      <h1>{{ profile.username or profile.jellyfin_user_id }}</h1>
+      <p class="detail-meta">
+        {% if profile.totals.last_played %}Dernière lecture {{ profile.totals.last_played | dt }}
+        {% else %}Aucune lecture enregistrée{% endif %}
+      </p>
+      <div class="kpi-row">
+        <div class="kpi"><span class="kpi-val">{{ profile.totals.total_plays }}</span>
+          <span class="kpi-lab">Lectures</span></div>
+        <div class="kpi"><span class="kpi-val">{{ profile.totals.total_duration | duration_hm }}</span>
+          <span class="kpi-lab">Temps de visionnage</span></div>
+        <div class="kpi"><span class="kpi-val">{{ profile.totals.first_played | dt or '—' }}</span>
+          <span class="kpi-lab">Première lecture</span></div>
+        <div class="kpi"><span class="kpi-val">{{ profile.totals.last_played | dt or '—' }}</span>
+          <span class="kpi-lab">Dernière lecture</span></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="stats-grid">
-  <div class="card stat-card">
-    <h3>Totaux</h3>
-    <ul class="kv">
-      <li><span>Lectures</span><b>{{ profile.totals.total_plays }}</b></li>
-      <li><span>Temps de visionnage</span><b>{{ profile.totals.total_duration | duration_hm }}</b></li>
-      <li><span>Première lecture</span><b>{{ profile.totals.first_played | dt }}</b></li>
-      <li><span>Dernière lecture</span><b>{{ profile.totals.last_played | dt }}</b></li>
-    </ul>
-  </div>
-  <div class="card stat-card">
+  <div class="card">
     <h3>Par type de média</h3>
     <ul class="kv">
       {% for t in profile.by_type %}
@@ -33,7 +43,7 @@
       {% else %}<li class="muted">Aucune donnée</li>{% endfor %}
     </ul>
   </div>
-  <div class="card stat-card">
+  <div class="card">
     <h3>Clients préférés</h3>
     <ul class="kv">
       {% for c in profile.top_clients %}
@@ -45,6 +55,7 @@
 
 <h2>Habitudes de visionnage <span class="muted">(tout l'historique)</span></h2>
 <div class="charts-grid">
+  <div class="card chart-card"><h3>🎭 Genres préférés</h3><canvas id="chart-user-genres"></canvas></div>
   <div class="card chart-card"><h3>Activité par jour de la semaine</h3><canvas id="chart-user-dow"></canvas></div>
   <div class="card chart-card"><h3>Activité par heure de la journée</h3><canvas id="chart-user-hour"></canvas></div>
 </div>
@@ -90,6 +101,9 @@ function userBar(canvasId, data, color) {
               scales: {y: {beginAtZero: true}}},
   });
 }
+fetchJSON(`/api/graphs/by_genre?days=0&user_id=${encodeURIComponent(USER_ID)}`)
+  .then(d => radarChart('chart-user-genres', d.categories, d.series[0] ? d.series[0].data : []))
+  .catch(() => {});
 fetchJSON(`/api/graphs/by_day_of_week?days=0&user_id=${encodeURIComponent(USER_ID)}`)
   .then(d => userBar('chart-user-dow', d, CHART_COLORS[0])).catch(() => {});
 fetchJSON(`/api/graphs/by_hour_of_day?days=0&user_id=${encodeURIComponent(USER_ID)}`)

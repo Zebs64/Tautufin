@@ -1,35 +1,52 @@
 {% extends "base.html" %}
 {% block title %}{{ library.name }} — Tautufin{% endblock %}
 {% block content %}
-<div class="page-head">
-  <h1>📚 {{ library.name }}</h1>
-  <p class="muted">{{ library.item_count }} éléments — type :
-    {{ library.collection_type or 'inconnu' }}</p>
+<div class="detail-hero no-hero">
+  <div class="detail-hero-veil"></div>
+  <div class="detail-hero-inner">
+    <div class="detail-icon">{{ library.collection_type | library_icon }}</div>
+    <div class="detail-hero-body">
+      <h1>{{ library.name }}</h1>
+      <p class="detail-meta">{{ library.collection_type or 'bibliothèque' }}</p>
+      <div class="kpi-row">
+        <div class="kpi"><span class="kpi-val">{{ library.item_count }}</span>
+          <span class="kpi-lab">Éléments</span></div>
+        <div class="kpi"><span class="kpi-val">{{ detail.totals.total_plays }}</span>
+          <span class="kpi-lab">Lectures</span></div>
+        <div class="kpi"><span class="kpi-val">{{ detail.totals.total_duration | duration_hm }}</span>
+          <span class="kpi-lab">Temps vu</span></div>
+        {% if detail.totals.viewers %}
+        <div class="kpi"><span class="kpi-val">{{ detail.totals.viewers }}</span>
+          <span class="kpi-lab">Spectateurs</span></div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="stats-grid">
-  <div class="card stat-card">
+  <div class="card">
     <h3>Genres</h3>
-    <ul class="kv">
+    <ul class="kv scroll">
       {% for g in detail.by_genre %}<li><span>{{ g.label }}</span><b>{{ g.count }}</b></li>
       {% else %}<li class="muted">Aucune donnée</li>{% endfor %}
     </ul>
   </div>
-  <div class="card stat-card">
+  <div class="card">
     <h3>Codecs vidéo</h3>
     <ul class="kv">
       {% for c in detail.by_video_codec %}<li><span>{{ c.label }}</span><b>{{ c.count }}</b></li>
       {% else %}<li class="muted">Aucune donnée</li>{% endfor %}
     </ul>
   </div>
-  <div class="card stat-card">
+  <div class="card">
     <h3>Codecs audio</h3>
     <ul class="kv">
       {% for c in detail.by_audio_codec %}<li><span>{{ c.label }}</span><b>{{ c.count }}</b></li>
       {% else %}<li class="muted">Aucune donnée</li>{% endfor %}
     </ul>
   </div>
-  <div class="card stat-card">
+  <div class="card">
     <h3>Par année</h3>
     <ul class="kv scroll">
       {% for y in detail.by_year %}<li><span>{{ y.label }}</span><b>{{ y.count }}</b></li>
@@ -39,7 +56,7 @@
 </div>
 
 <div class="stats-grid">
-  <div class="card stat-card">
+  <div class="card">
     <h3>🔥 Les plus regardés</h3>
     <ol>
       {% for m in detail.most_watched %}
@@ -48,7 +65,7 @@
       {% else %}<li class="muted">Aucune lecture enregistrée</li>{% endfor %}
     </ol>
   </div>
-  <div class="card stat-card">
+  <div class="card">
     <h3>🧊 Jamais regardés (ajouts récents)</h3>
     <ol>
       {% for m in detail.never_watched %}
