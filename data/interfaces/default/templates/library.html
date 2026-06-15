@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}{{ library.name }} — Tautufin{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>📚 {{ library.name }}</h1>
+  <p class="muted">{{ library.item_count }} éléments — type :
+    {{ library.collection_type or 'inconnu' }}</p>
+</div>
+
+<div class="stats-grid">
+  <div class="card stat-card">
+    <h3>Genres</h3>
+    <ul class="kv">
+      {% for g in detail.by_genre %}<li><span>{{ g.label }}</span><b>{{ g.count }}</b></li>
+      {% else %}<li class="muted">Aucune donnée</li>{% endfor %}
+    </ul>
+  </div>
+  <div class="card stat-card">
+    <h3>Codecs vidéo</h3>
+    <ul class="kv">
+      {% for c in detail.by_video_codec %}<li><span>{{ c.label }}</span><b>{{ c.count }}</b></li>
+      {% else %}<li class="muted">Aucune donnée</li>{% endfor %}
+    </ul>
+  </div>
+  <div class="card stat-card">
+    <h3>Codecs audio</h3>
+    <ul class="kv">
+      {% for c in detail.by_audio_codec %}<li><span>{{ c.label }}</span><b>{{ c.count }}</b></li>
+      {% else %}<li class="muted">Aucune donnée</li>{% endfor %}
+    </ul>
+  </div>
+  <div class="card stat-card">
+    <h3>Par année</h3>
+    <ul class="kv scroll">
+      {% for y in detail.by_year %}<li><span>{{ y.label }}</span><b>{{ y.count }}</b></li>
+      {% else %}<li class="muted">Aucune donnée</li>{% endfor %}
+    </ul>
+  </div>
+</div>
+
+<div class="stats-grid">
+  <div class="card stat-card">
+    <h3>🔥 Les plus regardés</h3>
+    <ol>
+      {% for m in detail.most_watched %}
+      <li>{{ m.series_name or m.name }} <span class="muted">— {{ m.plays }} lectures,
+        {{ m.duration | duration_hm }}</span></li>
+      {% else %}<li class="muted">Aucune lecture enregistrée</li>{% endfor %}
+    </ol>
+  </div>
+  <div class="card stat-card">
+    <h3>🧊 Jamais regardés (ajouts récents)</h3>
+    <ol>
+      {% for m in detail.never_watched %}
+      <li>{{ m.name }} <span class="muted">{{ m.year and '(' ~ m.year ~ ')' or '' }}</span></li>
+      {% else %}<li class="muted">Tout a été regardé 🎉</li>{% endfor %}
+    </ol>
+  </div>
+</div>
+{% endblock %}

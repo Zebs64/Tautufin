@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Accueil — Tautufin{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{% if user.is_admin %}Activité en cours{% else %}Mon activité{% endif %}</h1>
+  {% if not jellyfin_configured and user.is_admin %}
+  <div class="alert alert-warn">Jellyfin n'est pas configuré —
+    <a href="/settings">renseignez l'URL et la clé API dans Settings</a>.</div>
+  {% endif %}
+</div>
+
+<div id="activity" class="activity-grid">
+  <p class="muted">Chargement…</p>
+</div>
+
+<div class="page-head row">
+  <div class="stats-title">
+    <h2>Top stats</h2>
+    <div class="btn-group" id="metric-select">
+      <button class="btn btn-sm" data-metric="plays">Lectures</button>
+      <button class="btn btn-sm active" data-metric="duration">Durée</button>
+    </div>
+  </div>
+  <div class="btn-group" id="period-select">
+    <button class="btn btn-sm" data-period="24h">24h</button>
+    <button class="btn btn-sm active" data-period="7d">7 jours</button>
+    <button class="btn btn-sm" data-period="30d">30 jours</button>
+    <button class="btn btn-sm" data-period="12m">12 mois</button>
+    <button class="btn btn-sm" data-period="all">Depuis toujours</button>
+  </div>
+</div>
+
+<div class="stats-grid" id="home-stats">
+  <p class="muted">Chargement…</p>
+</div>
+
+<div id="podium" class="podium-wrap"></div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/app.js"></script>
+<script src="/static/js/home.js"></script>
+{% endblock %}

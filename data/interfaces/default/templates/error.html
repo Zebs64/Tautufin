@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Erreur {{ status_code }} — Tautufin{% endblock %}
+{% block content %}
+<div class="card error-card">
+  <h1>{{ status_code }}</h1>
+  <p>{{ detail or "Accès refusé." }}</p>
+  <a class="btn" href="/">← Retour à l'accueil</a>
+</div>
+{% endblock %}

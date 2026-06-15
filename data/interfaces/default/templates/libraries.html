@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Bibliothèques — Tautufin{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Bibliothèques</h1></div>
+<div class="card">
+  <table class="table">
+    <thead>
+      <tr><th>Bibliothèque</th><th>Type</th><th>Éléments</th>
+          <th>Lectures</th><th>Temps vu</th></tr>
+    </thead>
+    <tbody>
+      {% for l in libraries %}
+      <tr>
+        <td><a href="/libraries/{{ l.library_id }}">{{ l.name }}</a></td>
+        <td>{{ l.collection_type or '—' }}</td>
+        <td>{{ l.item_count }}</td>
+        <td>{{ l.total_plays }}</td>
+        <td>{{ l.total_duration | duration_hm }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="muted">Aucune bibliothèque synchronisée.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

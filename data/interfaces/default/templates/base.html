@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Tautufin{% endblock %}</title>
+  <link rel="icon" href="/branding/favicon">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+{% if user %}
+<nav class="navbar">
+  <a class="brand" href="/">
+    {% if has_logo %}<img src="/branding/logo?v={{ logo_ver }}" alt="Tautufin">
+    {% else %}📊 Jellyfin&nbsp;Stats{% endif %}
+  </a>
+  <input type="checkbox" id="nav-toggle" class="nav-toggle">
+  <label for="nav-toggle" class="nav-toggle-label">☰</label>
+  <div class="nav-links">
+    <a href="/" class="{{ 'active' if page == 'home' }}">Accueil</a>
+    <a href="/history" class="{{ 'active' if page == 'history' }}">Historique</a>
+    <a href="/graphs" class="{{ 'active' if page == 'graphs' }}">Graphiques</a>
+    {% if allow_library %}
+    <a href="/libraries" class="{{ 'active' if page == 'libraries' }}">Bibliothèques</a>
+    {% endif %}
+    {% if user.is_admin %}
+    <a href="/users" class="{{ 'active' if page == 'users' }}">Utilisateurs</a>
+    <a href="/import" class="{{ 'active' if page == 'import' }}">Import</a>
+    <a href="/settings" class="{{ 'active' if page == 'settings' }}">Settings</a>
+    {% endif %}
+    <span class="nav-spacer"></span>
+    <a href="/profile" class="nav-user {{ 'active' if page == 'profile' }}">
+      {% if user.jellyfin_user_id %}
+      <img class="avatar" src="/image/user/{{ user.jellyfin_user_id }}" alt="">
+      {% else %}👤{% endif %}
+      {{ user.username }}{% if user.is_admin %} <span class="badge badge-admin">admin</span>{% endif %}
+    </a>
+    <a href="/logout">Déconnexion</a>
+  </div>
+</nav>
+{% endif %}
+<main class="container">
+{% block content %}{% endblock %}
+</main>
+<footer class="footer">Tautufin v{{ version }}</footer>
+{% block scripts %}{% endblock %}
+</body>
+</html>
