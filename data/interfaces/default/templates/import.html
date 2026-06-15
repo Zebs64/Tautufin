@@ -2,16 +2,23 @@
 {% block title %}Import — Tautufin{% endblock %}
 {% block content %}
 <div class="page-head">
-  <h1>Import depuis Playback Reporting</h1>
-  <p class="muted">Migre l'historique du plugin Jellyfin
-    <a href="https://github.com/jellyfin/jellyfin-plugin-playbackreporting"
-       target="_blank" rel="noopener">Playback Reporting</a> vers la base interne.
-    Deux formats acceptés (détection automatique) : la base
-    <code>playback_reporting.db</code> ou un fichier de backup du plugin
-    (<code>PlaybackReportingBackup-AAAAMMJJ-HHMMSS.tsv</code>).
-    L'import est idempotent : relancer ne crée pas de doublons
+  <h1>Import d'historique</h1>
+  <p class="muted">Migre un historique de lecture existant vers la base interne.
+    Trois formats acceptés (<b>détection automatique</b>) :</p>
+  <ul class="muted">
+    <li>la base du plugin Jellyfin
+      <a href="https://github.com/jellyfin/jellyfin-plugin-playbackreporting"
+         target="_blank" rel="noopener">Playback Reporting</a>
+      (<code>playback_reporting.db</code>) ;</li>
+    <li>un backup de ce plugin
+      (<code>PlaybackReportingBackup-AAAAMMJJ-HHMMSS.tsv</code>) ;</li>
+    <li>un backup <a href="https://github.com/fredrikburmester/streamystats"
+         target="_blank" rel="noopener">Streamystats</a> (fichier
+      <code>.json</code> « Backup »).</li>
+  </ul>
+  <p class="muted">L'import est idempotent : relancer ne crée pas de doublons
     (clé de déduplication : date + utilisateur + média), y compris entre les
-    deux formats.</p>
+    différents formats.</p>
 </div>
 
 <div class="card">
@@ -19,7 +26,7 @@
   <div class="form-grid">
     <div>
       <label>Uploader le fichier depuis ce poste
-        <input type="file" id="import-file" accept=".tsv,.db">
+        <input type="file" id="import-file" accept=".tsv,.db,.json">
       </label>
       <div class="actions">
         <button class="btn" id="btn-upload" disabled>📤 Envoyer le fichier</button>
@@ -31,8 +38,9 @@
         <input type="text" id="import-path" placeholder="/var/lib/jellyfin/data/playback_reporting.db"
                value="">
       </label>
-      <p class="muted">Base <code>playback_reporting.db</code> ou backup
-        <code>PlaybackReportingBackup-*.tsv</code> (détection automatique).</p>
+      <p class="muted">Base <code>playback_reporting.db</code>, backup
+        <code>PlaybackReportingBackup-*.tsv</code> ou backup Streamystats
+        <code>*.json</code> (détection automatique).</p>
     </div>
   </div>
 </div>
@@ -71,6 +79,57 @@
     <li><span>↩️ Doublons ignorés</span><b id="imp-duplicates"></b></li>
     <li><span>⏱️ Filtrées par durée minimum</span><b id="imp-filtered"></b></li>
     <li><span>⚠️ Erreurs</span><b id="imp-errors"></b></li>
+  </ul>
+</div>
+
+<div class="page-head" style="margin-top:2rem">
+  <h1>Inférer l'historique depuis Jellyfin</h1>
+  <p class="muted">Pour les visionnages jamais capturés en direct (avant la mise
+    en service de Tautufin, ou pendant un arrêt), Jellyfin sait quels médias
+    chaque utilisateur a <b>marqués comme lus</b>. On reconstitue une session
+    « inférée » par média lu : date = dernière lecture connue, durée = durée
+    totale du média (hypothèse 100 % vu). Le client, le transcodage et les
+    visionnages multiples ne sont pas récupérables.</p>
+  <p class="muted">Sans danger : ces sessions sont marquées <b>inférées</b> et
+    supprimables d'un clic. Relancer ne crée pas de doublon (les inférées du
+    périmètre sont régénérées) et n'écrase jamais une lecture réelle déjà
+    enregistrée à la même date.</p>
+</div>
+
+<div class="card">
+  <h2>Inférence</h2>
+  <p class="muted">Sessions inférées actuellement en base :
+    <b id="inf-count">{{ inferred_count }}</b>.
+    Filtres de durée minimale appliqués comme pour l'import.</p>
+  <div class="form-grid">
+    <div>
+      <label>Périmètre
+        <select id="infer-user">
+          <option value="">Tous les utilisateurs</option>
+          {% for u in jf_users %}
+          <option value="{{ u.jellyfin_user_id }}">{{ u.username }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+  </div>
+  <div class="actions">
+    <button class="btn btn-primary" id="btn-infer">Inférer l'historique</button>
+    <button class="btn" id="btn-infer-clean">🗑️ Supprimer les sessions inférées</button>
+    <span id="infer-clean-result"></span>
+  </div>
+</div>
+
+<div class="card hidden" id="infer-result">
+  <h2>Rapport d'inférence</h2>
+  <ul class="kv">
+    <li><span>👤 Utilisateurs traités</span><b id="inf-users"></b></li>
+    <li><span>✅ Sessions créées</span><b id="inf-created"></b></li>
+    <li><span>↩️ Doublons ignorés (lecture déjà connue)</span><b id="inf-duplicates"></b></li>
+    <li><span>⏱️ Filtrées par durée minimum</span><b id="inf-filtered"></b></li>
+    <li><span>🗓️ Sans date de lecture</span><b id="inf-no_date"></b></li>
+    <li><span>♻️ Inférées régénérées</span><b id="inf-deleted"></b></li>
+    <li><span>⚠️ Erreurs</span><b id="inf-errors"></b></li>
   </ul>
 </div>
 {% endblock %}
@@ -121,8 +180,14 @@ btnAnalyze.addEventListener('click', async () => {
   btnAnalyze.disabled = true; btnAnalyze.textContent = 'Analyse…';
   try {
     const r = await postJSON('/api/import/analyze', {path: pathInput.value});
+    const FORMATS = {
+      tsv: 'Backup .tsv Playback Reporting',
+      sqlite: 'Base SQLite Playback Reporting',
+      streamystats: 'Backup Streamystats (.json)',
+    };
     document.getElementById('an-format').textContent =
-      r.format === 'tsv' ? 'Backup .tsv du plugin' : 'Base SQLite du plugin';
+      (FORMATS[r.format] || r.format)
+      + (r.server_name ? ` — serveur « ${r.server_name} »` : '');
     document.getElementById('an-malformed-row').classList.toggle('hidden', !r.malformed);
     document.getElementById('an-malformed').textContent = r.malformed;
     document.getElementById('an-entries').textContent = r.entries;
@@ -146,6 +211,52 @@ btnImport.addEventListener('click', async () => {
     document.getElementById('import-result').classList.remove('hidden');
   } catch (e) { alert('Import impossible : ' + e.message); }
   finally { btnImport.disabled = false; btnImport.textContent = 'Importer'; }
+});
+
+// --- Inférence depuis le statut « Lu » de Jellyfin ---
+const inferUser = document.getElementById('infer-user');
+const btnInfer = document.getElementById('btn-infer');
+const btnInferClean = document.getElementById('btn-infer-clean');
+const inferCount = document.getElementById('inf-count');
+const cleanResult = document.getElementById('infer-clean-result');
+
+btnInfer.addEventListener('click', async () => {
+  btnInfer.disabled = true; btnInferClean.disabled = true;
+  btnInfer.textContent = 'Inférence en cours…';
+  cleanResult.textContent = '';
+  try {
+    const r = await postJSON('/api/infer/run', {user_id: inferUser.value});
+    for (const k of ['users', 'created', 'duplicates', 'filtered',
+                     'no_date', 'deleted', 'errors'])
+      document.getElementById('inf-' + k).textContent = r[k];
+    document.getElementById('infer-result').classList.remove('hidden');
+    inferCount.textContent = r.inferred_count;
+  } catch (e) { alert('Inférence impossible : ' + e.message); }
+  finally {
+    btnInfer.disabled = false; btnInferClean.disabled = false;
+    btnInfer.textContent = "Inférer l'historique";
+  }
+});
+
+btnInferClean.addEventListener('click', async () => {
+  const scope = inferUser.value
+    ? "de cet utilisateur" : "de TOUS les utilisateurs";
+  if (!confirm(`Supprimer les sessions inférées ${scope} ? `
+    + "Les lectures réelles (live/import) ne sont pas touchées.")) return;
+  btnInfer.disabled = true; btnInferClean.disabled = true;
+  btnInferClean.textContent = 'Suppression…';
+  try {
+    const r = await postJSON('/api/infer/cleanup', {user_id: inferUser.value});
+    inferCount.textContent = r.inferred_count;
+    cleanResult.textContent = `✓ ${r.deleted} session(s) inférée(s) supprimée(s)`;
+    cleanResult.className = 'ok';
+    document.getElementById('infer-result').classList.add('hidden');
+  } catch (e) {
+    cleanResult.textContent = '✗ ' + e.message; cleanResult.className = 'err';
+  } finally {
+    btnInfer.disabled = false; btnInferClean.disabled = false;
+    btnInferClean.textContent = '🗑️ Supprimer les sessions inférées';
+  }
 });
 </script>
 {% endblock %}

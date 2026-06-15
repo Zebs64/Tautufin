@@ -17,7 +17,8 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import __version__, auth, database, graphs, history, import_playback
+from . import (__version__, auth, database, graphs, history, import_playback,
+               import_streamystats, infer_history, media)
 from . import libraries as libraries_mod
 from . import users as users_mod
 from .activity import ActivityMonitor
@@ -51,8 +52,18 @@ CLIENT_ICONS = [  # mapping par sous-chaîne, premier qui matche
 ]
 
 
+LIBRARY_ICONS = {"movies": "🎬", "tvshows": "📺", "music": "🎵",
+                 "musicvideos": "🎤", "books": "📚", "homevideos": "🎥",
+                 "photos": "🖼️", "boxsets": "🎞️", "livetv": "📡",
+                 "playlists": "🎼"}
+
+
 def media_icon(media_type: str) -> str:
     return MEDIA_ICONS.get(media_type or "", "🎞️")
+
+
+def library_icon(collection_type: str) -> str:
+    return LIBRARY_ICONS.get((collection_type or "").lower(), "🗂️")
 
 
 def client_icon(client_name: str) -> str:
@@ -153,6 +164,7 @@ def make_templates() -> Jinja2Templates:
     templates.env.filters["duration_hm"] = _duration_hm
     templates.env.filters["dt"] = lambda v: (v or "")[:16]
     templates.env.filters["media_icon"] = media_icon
+    templates.env.filters["library_icon"] = library_icon
     templates.env.filters["client_icon"] = client_icon
     templates.env.filters["client_logo"] = client_logo
     return templates
@@ -372,6 +384,18 @@ def create_app(config: Config) -> FastAPI:
         return render(request, "history.html", user=user, page="history",
                       jf_users=jf_users, libs=libs, media_types=MEDIA_TYPES)
 
+    @app.get("/media/{item_id}")
+    def media_detail_page(request: Request, item_id: str,
+                          user: CurrentUser = Depends(require_user)):
+        if not JELLYFIN_ID_RE.match(item_id):
+            raise HTTPException(status_code=404, detail="Média inconnu")
+        # Isolation : un non-admin ne voit que ses propres visionnages.
+        detail = media.media_overview(item_id, user_id=scoped_user_id(user, None))
+        if not detail:
+            raise HTTPException(status_code=404, detail="Média inconnu")
+        return render(request, "media.html", user=user, page="history",
+                      media=detail)
+
     @app.get("/graphs")
     def graphs_page(request: Request, user: CurrentUser = Depends(require_user)):
         jf_users = users_mod.list_users_with_stats() if user.is_admin else []
@@ -419,7 +443,11 @@ def create_app(config: Config) -> FastAPI:
     def import_page(request: Request, user: CurrentUser = Depends(require_admin)):
         return render(request, "import.html", user=user, page="import",
                       minimum_duration=config.minimum_duration,
-                      minimum_percent=config.minimum_percent)
+                      minimum_percent=config.minimum_percent,
+                      jf_users=database.query(
+                          "SELECT jellyfin_user_id, username FROM users"
+                          " ORDER BY username"),
+                      inferred_count=infer_history.count_inferred())
 
     # ------------------------------------------------------------------
     # Settings (admin)
@@ -450,6 +478,7 @@ def create_app(config: Config) -> FastAPI:
         minimum_percent: int = Form(0),
         poll_interval: int = Form(15),
         sync_interval: int = Form(3600),
+        session_grace: int = Form(90),
         allow_user_library_pages: str = Form(None),
     ):
         config.set("Jellyfin", "url", jellyfin_url.strip().rstrip("/"))
@@ -462,6 +491,7 @@ def create_app(config: Config) -> FastAPI:
         config.set("Monitoring", "minimum_percent", min(100, max(0, minimum_percent)))
         config.set("Monitoring", "poll_interval", max(5, poll_interval))
         config.set("Monitoring", "sync_interval", max(60, sync_interval))
+        config.set("Monitoring", "session_grace", max(0, session_grace))
         config.set("UI", "allow_user_library_pages", bool(allow_user_library_pages))
         config.save()
         auth.init(config.secret_key, config.session_lifetime)
@@ -747,6 +777,16 @@ def create_app(config: Config) -> FastAPI:
         return graphs.top_items(days or None, kind, metric,
                                 scoped_user_id(user, user_id), year=year)
 
+    @app.get("/api/graphs/top_people")
+    def api_graph_top_people(user: CurrentUser = Depends(require_user),
+                             days: int = DaysParam,
+                             kind: str = Query("actor"),
+                             metric: str = Query("plays"),
+                             user_id: str | None = Query(None),
+                             year: int | None = YearParam):
+        return graphs.top_people(days or None, kind, metric,
+                                 scoped_user_id(user, user_id), year=year)
+
     @app.get("/api/graphs/{graph_name}")
     def api_graph(graph_name: str,
                   user: CurrentUser = Depends(require_user),
@@ -824,20 +864,51 @@ def create_app(config: Config) -> FastAPI:
     @app.post("/api/import/analyze")
     def api_import_analyze(payload: dict,
                            user: CurrentUser = Depends(require_admin)):
+        # Détection automatique : backup JSON Streamystats vs base/backup
+        # Playback Reporting (.db/.tsv).
+        path = (payload.get("path") or "").strip()
         try:
-            return import_playback.analyze((payload.get("path") or "").strip())
+            if import_streamystats.looks_like_streamystats(path):
+                return import_streamystats.analyze(path)
+            return import_playback.analyze(path)
         except import_playback.ImportError_ as exc:
             raise HTTPException(status_code=400, detail=str(exc))
 
     @app.post("/api/import/run")
     def api_import_run(payload: dict,
                        user: CurrentUser = Depends(require_admin)):
+        path = (payload.get("path") or "").strip()
+        module = (import_streamystats
+                  if import_streamystats.looks_like_streamystats(path)
+                  else import_playback)
         try:
-            return import_playback.run_import(
-                (payload.get("path") or "").strip(), api,
-                config.minimum_duration, config.minimum_percent)
+            return module.run_import(
+                path, api, config.minimum_duration, config.minimum_percent)
         except import_playback.ImportError_ as exc:
             raise HTTPException(status_code=400, detail=str(exc))
+
+    # ------------------------------------------------------------------
+    # Inférence d'historique depuis le statut « Lu » de Jellyfin (admin)
+    # ------------------------------------------------------------------
+
+    @app.post("/api/infer/run")
+    def api_infer_run(payload: dict,
+                      user: CurrentUser = Depends(require_admin)):
+        if not config.jellyfin_configured:
+            raise HTTPException(status_code=400, detail="Jellyfin non configuré")
+        target = (payload.get("user_id") or "").strip() or None
+        report = infer_history.infer_history(
+            api, config.minimum_duration, config.minimum_percent, user_id=target)
+        report["inferred_count"] = infer_history.count_inferred()
+        return report
+
+    @app.post("/api/infer/cleanup")
+    def api_infer_cleanup(payload: dict,
+                          user: CurrentUser = Depends(require_admin)):
+        target = (payload.get("user_id") or "").strip() or None
+        deleted = infer_history.delete_inferred(user_id=target)
+        return {"deleted": deleted,
+                "inferred_count": infer_history.count_inferred()}
 
     # ------------------------------------------------------------------
     # Webhook Jellyfin (plugin Webhook, événements temps réel)

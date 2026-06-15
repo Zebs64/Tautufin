@@ -141,8 +141,13 @@ def by_resolution(days=30, metric: str = "plays", user_id=None, year=None) -> di
 
 
 def by_client(days=30, metric: str = "plays", user_id=None, year=None) -> dict:
-    return _grouped(days, metric, user_id,
-                    "COALESCE(client_name, 'Inconnu')", "Par client", year=year)
+    # Beaucoup de lectures importées (ou inférées en amont par Jellyfin /
+    # Streamystats) n'ont pas de client connu. Plutôt que d'afficher un
+    # « Inconnu » majoritaire qui écrase les vrais clients, on les exclut de ce
+    # graphe — ces lectures restent comptées dans toutes les autres stats.
+    return _grouped(days, metric, user_id, "client_name", "Par client",
+                    extra_where="AND client_name IS NOT NULL AND client_name != ''",
+                    year=year)
 
 
 def by_play_method(days=30, metric: str = "plays", user_id=None, year=None) -> dict:
@@ -206,6 +211,33 @@ def by_genre(days=30, metric: str = "plays", user_id=None, year=None) -> dict:
     return {
         "categories": [r["label"] for r in rows],
         "series": [{"name": "Par genre", "data": [r["value"] or 0 for r in rows]}],
+    }
+
+
+def top_people(days=30, kind: str = "actor", metric: str = "plays",
+               user_id=None, year=None, limit: int = 10) -> dict:
+    """Top acteurs / réalisateurs / scénaristes selon les lectures (jointure
+    historique × distribution stockée dans items.people)."""
+    person_type = {"actor": "Actor", "director": "Director",
+                   "writer": "Writer"}.get(kind, "Actor")
+    label = {"actor": "Acteurs", "director": "Réalisateurs",
+             "writer": "Scénaristes"}.get(kind, "Personnes")
+    where, params = _base_where(days, user_id, year)
+    rows = database.query(
+        f"""
+        SELECT json_extract(p.value, '$.Name') AS label, {_metric_sql(metric)} AS value
+        FROM session_history h
+        JOIN items i ON i.item_id = h.item_id
+        JOIN json_each(i.people) AS p
+        WHERE {where} AND i.people IS NOT NULL
+          AND json_extract(p.value, '$.Type') = ?
+        GROUP BY label ORDER BY value DESC LIMIT {int(limit)}
+        """,
+        params + [person_type],
+    )
+    return {
+        "categories": [r["label"] for r in rows],
+        "series": [{"name": label, "data": [r["value"] or 0 for r in rows]}],
     }
 
 

@@ -164,7 +164,40 @@ class JellyfinAPI:
                     "Recursive": "true",
                     "IncludeItemTypes": "Movie,Series,Episode,Audio,MusicAlbum",
                     "Fields": "Genres,RunTimeTicks,ProductionYear,MediaStreams,"
-                              "SeriesName,ParentIndexNumber,IndexNumber,DateCreated",
+                              "SeriesName,ParentIndexNumber,IndexNumber,DateCreated,"
+                              "People",
+                    "StartIndex": start,
+                    "Limit": page_size,
+                },
+            ) or {}
+            items = data.get("Items", [])
+            yield from items
+            start += len(items)
+            if not items or start >= data.get("TotalRecordCount", 0):
+                return
+
+    def iter_played_items(self, user_id: str,
+                          item_types: str = "Movie,Episode,Audio,AudioBook,MusicVideo",
+                          page_size: int = 500):
+        """Itère sur les médias marqués « Lu » par un utilisateur.
+
+        Filtre ``IsPlayed=true`` côté Jellyfin ; chaque item porte un champ
+        ``UserData`` (``Played``, ``LastPlayedDate``, ``PlayCount``) qui permet
+        d'inférer une session de lecture pour les visionnages jamais capturés
+        en direct (cf. infer_history)."""
+        start = 0
+        while True:
+            data = self._get(
+                "/Items",
+                params={
+                    "UserId": user_id,
+                    "Recursive": "true",
+                    "IsPlayed": "true",
+                    "IsFolder": "false",
+                    "IncludeItemTypes": item_types,
+                    "Fields": "UserData,Genres,RunTimeTicks,ProductionYear,"
+                              "MediaStreams,SeriesName,SeriesId,"
+                              "ParentIndexNumber,IndexNumber",
                     "StartIndex": start,
                     "Limit": page_size,
                 },

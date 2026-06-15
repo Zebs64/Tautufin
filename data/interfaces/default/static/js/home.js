@@ -244,6 +244,7 @@ function statCard(def, rows, fmt, metric) {
     ? rows.map((r, i) => `
         <li${i === 0 ? ' class="selected"' : ''} data-idx="${i}"
             data-image="${esc(r.image_id || '')}" data-user="${esc(r.user_id || '')}"
+            data-username="${esc(r.user_name || '')}"
             data-type="${esc(r.collection_type || '')}" data-label="${esc(r.label)}">
           <span class="stat-rank">${i + 1}</span>
           <span class="stat-label" title="${esc(r.label)}">${esc(r.label)}</span>
@@ -281,6 +282,13 @@ function selectStatRow(li) {
   if (hero) { card.classList.add('has-hero'); card.style.backgroundImage = `url('${hero}')`; }
   const wrap = card.querySelector('.stat-feature-wrap');
   if (wrap) wrap.innerHTML = statFeature(kind, row);
+  // « Vu récemment » : l'en-tête affiche le spectateur du média sélectionné,
+  // pas seulement celui de la lecture la plus récente.
+  const def = STAT_DEFS.find(d => d.kind === kind);
+  if (def && def.mode === 'recent') {
+    const units = card.querySelector('.stat-units');
+    if (units) units.textContent = li.dataset.username || '';
+  }
 }
 
 // Préférences d'affichage persistées entre les sessions (métrique + période).

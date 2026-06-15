@@ -111,6 +111,11 @@ h3 { font-size: .98em; margin: .2em 0 .7em; color: var(--text-muted); font-weigh
 .stats-grid { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
 .activity-grid { grid-template-columns: repeat(auto-fill, minmax(460px, 1fr)); }
 .charts-grid { grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); }
+/* Grille forcée à 3 colonnes (page graphs) — plus lisible que l'auto-fill qui
+   passe à 4 sur grand écran. minmax(0,1fr) évite les débordements de canvas. */
+.charts-3col { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .charts-3col { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 720px)  { .charts-3col { grid-template-columns: 1fr; } }
 .chart-wide { grid-column: 1 / -1; }
 .chart-card canvas { max-height: 320px; }
 
@@ -529,3 +534,100 @@ form.inline input { width: 170px; margin: 0; display: inline-block; padding: 6px
 
 /* --- Profil -------------------------------------------------------------------------- */
 .profile-head { display: flex; align-items: center; gap: 16px; }
+
+/* --- Liste classée (tops acteurs / réalisateurs, façon « populaires ») -------------- */
+.rank-list { list-style: none; margin: 0; padding: 0; }
+.rank-list li {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 6px; border-bottom: 1px solid var(--border); font-size: .95em;
+}
+.rank-list li:last-child { border-bottom: none; }
+.rank-list li.muted { justify-content: center; color: var(--text-muted); }
+.rank-list .rank {
+  width: 1.7em; flex: none; text-align: right;
+  font-weight: 800; font-size: .9em; color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.rank-list li:nth-child(1) .rank { color: #ffd34d; }
+.rank-list li:nth-child(2) .rank { color: #cdd3dd; }
+.rank-list li:nth-child(3) .rank { color: #e0a06a; }
+.rank-list .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank-list .val {
+  flex: none; font-weight: 700; color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- En-tête « hero » de détail (média / profil) ------------------------------------ */
+.detail-hero {
+  position: relative; overflow: hidden; border-radius: var(--radius-xl);
+  background-size: cover; background-position: center 22%;
+  background-clip: padding-box; border: 1px solid var(--border);
+  box-shadow: var(--shadow); margin-bottom: 22px; min-height: 220px;
+}
+.detail-hero-veil {
+  position: absolute; inset: 0; z-index: 0;
+  background:
+    linear-gradient(180deg, rgba(17, 24, 39, 0.55) 0%, rgba(17, 24, 39, 0.94) 82%),
+    linear-gradient(90deg, rgba(17, 24, 39, 0.94) 18%, rgba(17, 24, 39, 0.40) 100%);
+}
+/* Profil (sans backdrop) : halo accent, même atmosphère que les cartes top. */
+.detail-hero.no-hero .detail-hero-veil {
+  background:
+    radial-gradient(130% 120% at 0% 0%, rgba(119, 91, 244, 0.22) 0%, transparent 55%),
+    linear-gradient(180deg, var(--lighter) 0%, var(--darker) 100%);
+}
+.detail-hero-inner {
+  position: relative; z-index: 1; display: flex; gap: 24px;
+  padding: 26px 28px; align-items: flex-end; flex-wrap: wrap;
+}
+.detail-poster {
+  width: 132px; aspect-ratio: 2 / 3; object-fit: cover; flex: none;
+  border-radius: var(--radius-sm); border: 1px solid var(--border-light);
+  background: var(--darker); box-shadow: 0.2em 0.4em 1.1em hsla(0, 0%, 0%, 0.6);
+}
+.detail-avatar {
+  width: 112px; height: 112px; border-radius: 50%; object-fit: cover; flex: none;
+  border: 3px solid var(--border-light); background: var(--darker);
+  box-shadow: 0.2em 0.4em 1.1em hsla(0, 0%, 0%, 0.55);
+}
+.detail-icon {
+  width: 112px; height: 112px; flex: none; display: flex;
+  align-items: center; justify-content: center; font-size: 3.4em;
+  border-radius: var(--radius-lg); background: var(--bg-input-alpha);
+  border: 1px solid var(--border-light); box-shadow: var(--shadow);
+}
+.detail-hero-body { flex: 1; min-width: 240px; }
+.detail-hero-body h1 {
+  margin: 0 0 .25em; line-height: 1.15;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.55);
+}
+.detail-hero-body h1 .pre {
+  display: block; font-size: .5em; font-weight: 600; letter-spacing: .02em;
+  color: var(--text-muted); text-transform: uppercase; margin-bottom: .3em;
+}
+.detail-meta {
+  margin: 0; color: var(--text); opacity: .92; font-size: .92em;
+}
+.detail-meta a { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
+.media-genres { display: flex; flex-wrap: wrap; gap: 6px; margin: .8em 0 0; }
+
+/* Tuiles KPI : grands chiffres glassy, dans le hero ou sous l'en-tête. */
+.kpi-row {
+  display: grid; gap: 12px; margin-top: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+.kpi {
+  background: rgba(17, 24, 39, 0.45); border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg); padding: 12px 14px;
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.kpi-val {
+  font-size: 1.6em; font-weight: 800; line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  background: linear-gradient(90deg, #fff, #c9c2ff);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.kpi-lab {
+  display: block; margin-top: 3px; font-size: .68em; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .06em;
+}

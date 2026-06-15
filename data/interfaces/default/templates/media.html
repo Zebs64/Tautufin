@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% set m = media.meta %}
+{% block title %}{{ m.name }} — Tautufin{% endblock %}
+{% block content %}
+<div class="detail-hero"
+     style="background-image:url('/image/item/{{ m.item_id }}?type=Backdrop&w=960')">
+  <div class="detail-hero-veil"></div>
+  <div class="detail-hero-inner">
+    <img class="detail-poster" loading="lazy" alt=""
+         src="/image/item/{{ m.item_id }}?w=264">
+    <div class="detail-hero-body">
+      <h1>
+        {% if m.series_name %}<span class="pre">{{ m.series_name }} ·
+          S{{ m.season_number or 0 }}E{{ m.episode_number or 0 }}</span>{% endif %}
+        {{ m.name }}
+      </h1>
+      <p class="detail-meta">
+        {{ m.type | media_icon }} {{ m.type }}{% if m.year %} · {{ m.year }}{% endif %}
+        {% if m.library_name %} · <a href="/libraries/{{ m.library_id }}">{{ m.library_name }}</a>{% endif %}
+        {% if m.runtime_seconds %} · {{ m.runtime_seconds | duration_hm }}{% endif %}
+        {% if m.video_resolution %} · {{ m.video_resolution }}{% endif %}
+      </p>
+      {% if media.genres %}
+      <p class="media-genres">
+        {% for g in media.genres %}<span class="badge badge-off">{{ g }}</span>{% endfor %}
+      </p>
+      {% endif %}
+      <div class="kpi-row">
+        <div class="kpi"><span class="kpi-val">{{ media.totals.total_plays }}</span>
+          <span class="kpi-lab">Lectures</span></div>
+        {% if user.is_admin %}
+        <div class="kpi"><span class="kpi-val">{{ media.totals.viewers }}</span>
+          <span class="kpi-lab">Spectateurs</span></div>
+        {% endif %}
+        <div class="kpi"><span class="kpi-val">{{ media.totals.total_duration | duration_hm }}</span>
+          <span class="kpi-lab">Temps vu</span></div>
+        <div class="kpi"><span class="kpi-val">{{ media.totals.last_played | dt or '—' }}</span>
+          <span class="kpi-lab">Dernière fois</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card chart-card">
+  <h3>🕑 Timeline des lectures</h3>
+  <canvas id="chart-timeline"></canvas>
+</div>
+
+{% if user.is_admin %}
+<h2>Par spectateur</h2>
+<div class="card">
+  <table class="table">
+    <thead><tr><th>Utilisateur</th><th>Lectures</th><th>Temps vu</th><th>Dernière fois</th></tr></thead>
+    <tbody>
+      {% for u in media.by_user %}
+      <tr>
+        <td><span class="cell-user">
+          <img class="avatar" loading="lazy" alt="" src="/image/user/{{ u.jellyfin_user_id }}">
+          <a href="/users/{{ u.jellyfin_user_id }}">{{ u.user_name }}</a>
+        </span></td>
+        <td>{{ u.plays }}</td>
+        <td>{{ u.duration | duration_hm }}</td>
+        <td>{{ u.last_played | dt }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="muted">Aucune lecture enregistrée.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<h2>Lectures {% if not user.is_admin %}(les vôtres) {% endif %}récentes</h2>
+<div class="card">
+  <table class="table">
+    <thead><tr><th>Date</th>{% if user.is_admin %}<th>Utilisateur</th>{% endif %}
+      <th>Durée vue</th><th>% vu</th><th>Client</th></tr></thead>
+    <tbody>
+      {% for h in media.recent %}
+      <tr>
+        <td>{{ h.started_at | dt }}</td>
+        {% if user.is_admin %}
+        <td><span class="cell-user">
+          <img class="avatar" loading="lazy" alt="" src="/image/user/{{ h.jellyfin_user_id }}">
+          <a href="/users/{{ h.jellyfin_user_id }}">{{ h.user_name }}</a>
+        </span></td>
+        {% endif %}
+        <td>{{ h.play_duration | duration_hm }}</td>
+        <td>{{ h.percent_complete and (h.percent_complete | round | int ~ '%') or '—' }}</td>
+        <td>{{ h.client_name or '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="{{ 5 if user.is_admin else 4 }}" class="muted">Aucune lecture enregistrée.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="/static/js/app.js"></script>
+<script>
+const TIMELINE = {{ media.timeline | tojson }};
+areaTimeline('chart-timeline', TIMELINE.labels, TIMELINE.data);
+</script>
+{% endblock %}
