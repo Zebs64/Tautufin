@@ -3,11 +3,25 @@ services:
     build: .
     container_name: jellyfin-stats
     restart: unless-stopped
+    environment:
+      # Fuseau de référence : aligne le monitoring live, les requêtes
+      # « localtime » et la conversion des imports horodatés en UTC.
+      - TZ=Europe/Paris
     ports:
       - "8181:8181"
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tautufin.rule=Host(`tautufin.matrix.moopi.ovh`)"
+      - "traefik.http.services.tautufin.loadbalancer.server.port=8181"
     volumes:
       # Configuration + base SQLite persistées ici.
       - ./config:/config
       # Optionnel : monter le dossier data de Jellyfin en lecture seule pour
       # importer playback_reporting.db depuis la page Import.
       # - /var/lib/jellyfin/data:/jellyfin-data:ro
+
+networks:
+  proxy:
+    external: true

@@ -2,17 +2,27 @@
 {% block title %}Utilisateurs — Tautufin{% endblock %}
 {% block content %}
 <div class="page-head"><h1>Utilisateurs</h1></div>
+
+<div class="card filters" id="users-filters">
+  <label>Recherche <input type="search" id="users-search" placeholder="Nom d'utilisateur…"></label>
+</div>
+
 <div class="card">
-  <table class="table">
+  <table class="table" id="users-table">
     <thead>
       <tr>
-        <th>Utilisateur</th><th>Statut</th><th>Lectures</th>
-        <th>Temps total</th><th>Dernière activité</th>
+        <th class="sortable" data-sort="name">Utilisateur</th>
+        <th>Statut</th>
+        <th class="sortable sorted-desc" data-sort="plays">Lectures</th>
+        <th class="sortable" data-sort="duration">Temps total</th>
+        <th class="sortable" data-sort="last">Dernière activité</th>
       </tr>
     </thead>
     <tbody>
       {% for u in users %}
-      <tr>
+      <tr data-name="{{ u.username | lower }}" data-plays="{{ u.total_plays }}"
+          data-duration="{{ u.total_duration }}"
+          data-last="{{ (u.last_played or u.last_activity) or '' }}">
         <td><span class="cell-user">
           <img class="avatar" src="/image/user/{{ u.jellyfin_user_id }}" alt="" loading="lazy">
           <a href="/users/{{ u.jellyfin_user_id }}">{{ u.username }}</a>
@@ -24,11 +34,16 @@
         <td>{{ u.total_duration | duration_hm }}</td>
         <td>{{ (u.last_played or u.last_activity) | dt }}</td>
       </tr>
-      {% else %}
-      <tr><td colspan="5" class="muted">Aucun utilisateur synchronisé — vérifiez la
-        connexion Jellyfin dans Settings.</td></tr>
       {% endfor %}
     </tbody>
   </table>
+  <p class="muted" id="users-empty" hidden>Aucun utilisateur ne correspond.</p>
+  {% if not users %}
+  <p class="muted">Aucun utilisateur synchronisé — vérifiez la connexion Jellyfin dans Settings.</p>
+  {% endif %}
 </div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/app.js"></script>
+<script src="/static/js/users.js"></script>
 {% endblock %}

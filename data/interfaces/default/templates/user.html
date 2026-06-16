@@ -51,13 +51,28 @@
       {% else %}<li class="muted">Aucune donnée</li>{% endfor %}
     </ul>
   </div>
+  <div class="card">
+    <h3>Tops</h3>
+    <ul class="kv">
+      {% for t in profile.top_per_kind %}
+      <li><span class="kv-key">{{ t.icon }} {{ t.kind }}</span>
+        {% if t.label %}<b class="kv-title">{% if t.item_id %}<a href="/media/{{ t.item_id }}">{{ t.label }}</a>{% else %}{{ t.label }}{% endif %}</b>
+        {% else %}<b class="muted">—</b>{% endif %}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  <a class="card card-cta" href="/users/{{ profile.jellyfin_user_id }}/wrapped">
+    <h3>✨ Wrapped</h3>
+    <p class="muted">La rétrospective de {{ profile.username or 'l’utilisateur' }}, année par année.</p>
+    <span class="card-cta-go">Voir le Wrapped →</span>
+  </a>
 </div>
 
 <h2>Habitudes de visionnage <span class="muted">(tout l'historique)</span></h2>
-<div class="charts-grid">
+<div class="charts-grid charts-2col">
   <div class="card chart-card"><h3>🎭 Genres préférés</h3><canvas id="chart-user-genres"></canvas></div>
-  <div class="card chart-card"><h3>Activité par jour de la semaine</h3><canvas id="chart-user-dow"></canvas></div>
-  <div class="card chart-card"><h3>Activité par heure de la journée</h3><canvas id="chart-user-hour"></canvas></div>
+  <div class="card chart-card"><h3>📅 Activité par jour de la semaine</h3><canvas id="chart-user-dow"></canvas></div>
+  <div class="card chart-card chart-wide"><h3>🕑 Activité par heure de la journée</h3><canvas id="chart-user-hour"></canvas></div>
 </div>
 
 <h2>Lectures récentes</h2>
@@ -66,13 +81,20 @@
     <thead><tr><th>Date</th><th>Média</th><th>Durée vue</th><th>% vu</th><th>Client</th></tr></thead>
     <tbody>
       {% for h in profile.recent %}
+      {% set title %}{% if h.series_name %}{{ h.series_name }} — S{{ h.season_number or 0 }}E{{ h.episode_number or 0 }} {{ h.item_name }}{% else %}{{ h.item_name }}{% endif %}{% endset %}
       <tr>
         <td>{{ h.started_at | dt }}</td>
-        <td>{% if h.series_name %}{{ h.series_name }} —
-            S{{ h.season_number or 0 }}E{{ h.episode_number or 0 }} {% endif %}{{ h.item_name }}</td>
+        <td>
+          <span class="cell-media">
+            {% if h.image_id or h.item_id %}<img class="thumb" loading="lazy" alt=""
+                 src="/image/item/{{ h.image_id or h.item_id }}?w=120">{% endif %}
+            <span>{% if h.item_id %}<a href="/media/{{ h.item_id }}">{{ title }}</a>{% else %}{{ title }}{% endif %}</span>
+          </span>
+        </td>
         <td>{{ h.play_duration | duration_hm }}</td>
         <td>{{ h.percent_complete and (h.percent_complete | round | int ~ '%') or '—' }}</td>
-        <td>{{ h.client_name or '—' }}</td>
+        <td>{% if h.client_name %}<span class="cell-client"><img class="client-logo"
+            src="{{ h.client_name | client_logo }}" alt=""> {{ h.client_name }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
       </tr>
       {% else %}
       <tr><td colspan="5" class="muted">Aucune lecture enregistrée.</td></tr>
@@ -88,26 +110,30 @@
 <script src="/static/js/app.js"></script>
 <script>
 const USER_ID = {{ profile.jellyfin_user_id | tojson }};
-function userBar(canvasId, data, color) {
+// Barres exprimées en temps de visionnage : les données arrivent en secondes,
+// l'axe et l'infobulle affichent des heures.
+function userHoursBar(canvasId, data, color) {
+  const secs = data.series[0] ? data.series[0].data : [];
   new Chart(document.getElementById(canvasId), {
     type: 'bar',
     data: {
       labels: data.categories,
-      datasets: [{label: data.series[0].name, data: data.series[0].data,
-                  backgroundColor: color}],
+      datasets: [{data: secs.map(s => s / 3600), backgroundColor: color}],
     },
     options: {responsive: true, maintainAspectRatio: false,
-              plugins: {legend: {display: false}},
-              scales: {y: {beginAtZero: true}}},
+              plugins: {legend: {display: false},
+                        tooltip: {callbacks: {label: c => fmtDuration(secs[c.dataIndex])}}},
+              scales: {y: {beginAtZero: true,
+                           ticks: {callback: v => v + ' h'}}}},
   });
 }
 fetchJSON(`/api/graphs/by_genre?days=0&user_id=${encodeURIComponent(USER_ID)}`)
   .then(d => radarChart('chart-user-genres', d.categories, d.series[0] ? d.series[0].data : []))
   .catch(() => {});
-fetchJSON(`/api/graphs/by_day_of_week?days=0&user_id=${encodeURIComponent(USER_ID)}`)
-  .then(d => userBar('chart-user-dow', d, CHART_COLORS[0])).catch(() => {});
-fetchJSON(`/api/graphs/by_hour_of_day?days=0&user_id=${encodeURIComponent(USER_ID)}`)
-  .then(d => userBar('chart-user-hour', d, CHART_COLORS[1])).catch(() => {});
+fetchJSON(`/api/graphs/by_day_of_week?days=0&metric=duration&user_id=${encodeURIComponent(USER_ID)}`)
+  .then(d => userHoursBar('chart-user-dow', d, CHART_COLORS[0])).catch(() => {});
+fetchJSON(`/api/graphs/by_hour_of_day?days=0&metric=duration&user_id=${encodeURIComponent(USER_ID)}`)
+  .then(d => userHoursBar('chart-user-hour', d, CHART_COLORS[1])).catch(() => {});
 </script>
 {% endif %}
 {% endblock %}

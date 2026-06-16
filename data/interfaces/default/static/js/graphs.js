@@ -179,6 +179,23 @@ async function loadAll() {
     .then(d => barFrom(d, 'chart-by-client', {color: 4})).catch(() => {});
   fetchJSON('/api/graphs/by_play_method?' + params())
     .then(d => pieFrom(d, 'chart-by-method')).catch(() => {});
+  fetchJSON('/api/graphs/transcode_cost?' + params())
+    .then(showTranscodeCost).catch(() => {});
+}
+
+// Estimation conso/coût du transcodage, sous le camembert des méthodes.
+function showTranscodeCost(d) {
+  const el = document.getElementById('transcode-cost');
+  if (!el) return;
+  if (!d.seconds) {
+    el.textContent = '⚡ Aucun transcodage vidéo sur la période — rien de gaspillé 🎉';
+    return;
+  }
+  el.innerHTML =
+    `⚡ ~${fmtDuration(d.seconds)} de transcodage vidéo` +
+    `<br>Électricité consommée : <strong>${d.kwh} kWh</strong>` +
+    ` · Coût estimé : <strong>${d.cost.toFixed(2)} €</strong>` +
+    `<br><span class="micro">base : +${d.watts} W, ${d.eur_per_kwh} €/kWh</span>`;
 }
 
 // Persistance des filtres (mesure / période / groupement / utilisateur),

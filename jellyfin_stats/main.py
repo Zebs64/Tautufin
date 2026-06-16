@@ -21,6 +21,7 @@ from . import (__version__, auth, database, graphs, history, import_playback,
                import_streamystats, infer_history, media)
 from . import libraries as libraries_mod
 from . import users as users_mod
+from . import wrapped as wrapped_mod
 from .activity import ActivityMonitor
 from .auth import CurrentUser, RateLimiter
 from .config import Config
@@ -176,7 +177,32 @@ def create_app(config: Config) -> FastAPI:
     scheduler = Scheduler(config, api, monitor)
     rate_limiter = RateLimiter()
     templates = make_templates()
+    # Libellé d'un client dans les tableaux server-rendered : « Plex » pour les
+    # lectures sans client (selon la config), sinon tiret.
+    templates.env.filters["client_label"] = \
+        lambda name: name or ("Plex" if config.unknown_as_plex else "—")
     auth.init(config.secret_key, config.session_lifetime)
+
+    def _user_profile(jellyfin_user_id: str) -> dict:
+        """Profil utilisateur, avec relabel des clients inconnus en « Plex »
+        si l'option est activée (la page utilisateur les conserve toujours)."""
+        profile = users_mod.user_overview(jellyfin_user_id)
+        if config.unknown_as_plex:
+            for row in profile.get("top_clients", []):
+                if row["client"] == "Inconnu":
+                    row["client"] = "Plex"
+            for row in profile.get("recent", []):
+                if not row.get("client_name"):
+                    row["client_name"] = "Plex"
+        return profile
+
+    def _client_breakdown(days, metric, user_id, year=None) -> dict:
+        """Graphe clients (accueil + graphs) avec masquage / relabel selon la
+        config des clients inconnus."""
+        return graphs.by_client(
+            days, metric, user_id, year,
+            hide_unknown=config.hide_unknown_clients,
+            unknown_label="Plex" if config.unknown_as_plex else "Inconnu")
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -206,6 +232,14 @@ def create_app(config: Config) -> FastAPI:
     def require_admin(user: CurrentUser = Depends(require_user)) -> CurrentUser:
         if not user.is_admin:
             raise HTTPException(status_code=403, detail="Réservé aux administrateurs")
+        return user
+
+    def require_global_view(user: CurrentUser = Depends(require_user)) -> CurrentUser:
+        """Admin ou droit « vision » : consultation des stats de tous les
+        utilisateurs (mais pas la configuration)."""
+        if not user.can_view_everyone:
+            raise HTTPException(status_code=403,
+                                detail="Réservé aux administrateurs et au droit « vision »")
         return user
 
     def require_library_access(user: CurrentUser = Depends(require_user)) -> CurrentUser:
@@ -258,7 +292,7 @@ def create_app(config: Config) -> FastAPI:
     def scoped_user_id(user: CurrentUser, requested: str | None) -> str | None:
         """Isolation des données : un non-admin ne voit que son UserId,
         imposé depuis la session serveur (jamais depuis le client)."""
-        if user.is_admin:
+        if user.can_view_everyone:
             return requested or None
         return user.jellyfin_user_id or "__none__"
 
@@ -341,10 +375,18 @@ def create_app(config: Config) -> FastAPI:
             raise HTTPException(status_code=429,
                                 detail="Trop de tentatives, réessayez dans une minute.")
         user = None
-        if mode == "jellyfin" and config.jellyfin_auth_enabled and config.jellyfin_configured:
-            user = auth.login_jellyfin(api, username.strip(), password)
-        elif mode == "local" and config.local_auth_enabled:
-            user = auth.login_local(username.strip(), password)
+        try:
+            if mode == "jellyfin" and config.jellyfin_auth_enabled and config.jellyfin_configured:
+                user = auth.login_jellyfin(api, username.strip(), password)
+            elif mode == "local" and config.local_auth_enabled:
+                user = auth.login_local(username.strip(), password)
+        except auth.AccessBlocked:
+            logger.warning("Login refusé (accès bloqué) : %s", username.strip())
+            return render(request, "login.html",
+                          error="Votre accès à Tautufin a été désactivé.",
+                          active_tab=mode,
+                          jellyfin_enabled=config.jellyfin_auth_enabled and config.jellyfin_configured,
+                          local_enabled=config.local_auth_enabled)
         if user is None:
             return render(request, "login.html",
                           error="Identifiants invalides.", active_tab=mode,
@@ -379,7 +421,7 @@ def create_app(config: Config) -> FastAPI:
 
     @app.get("/history")
     def history_page(request: Request, user: CurrentUser = Depends(require_user)):
-        jf_users = users_mod.list_users_with_stats() if user.is_admin else []
+        jf_users = users_mod.list_users_with_stats() if user.can_view_everyone else []
         libs = database.query("SELECT library_id, name FROM libraries ORDER BY name")
         return render(request, "history.html", user=user, page="history",
                       jf_users=jf_users, libs=libs, media_types=MEDIA_TYPES)
@@ -393,28 +435,50 @@ def create_app(config: Config) -> FastAPI:
         detail = media.media_overview(item_id, user_id=scoped_user_id(user, None))
         if not detail:
             raise HTTPException(status_code=404, detail="Média inconnu")
+        if config.unknown_as_plex:
+            for row in detail.get("recent", []):
+                if not row.get("client_name"):
+                    row["client_name"] = "Plex"
         return render(request, "media.html", user=user, page="history",
                       media=detail)
 
     @app.get("/graphs")
     def graphs_page(request: Request, user: CurrentUser = Depends(require_user)):
-        jf_users = users_mod.list_users_with_stats() if user.is_admin else []
+        jf_users = users_mod.list_users_with_stats() if user.can_view_everyone else []
         return render(request, "graphs.html", user=user, page="graphs",
                       jf_users=jf_users, years=graphs.available_years())
 
     @app.get("/users")
-    def users_page(request: Request, user: CurrentUser = Depends(require_admin)):
+    def users_page(request: Request, user: CurrentUser = Depends(require_global_view)):
         return render(request, "users.html", user=user, page="users",
                       users=users_mod.list_users_with_stats())
 
     @app.get("/users/{jellyfin_user_id}")
     def user_detail_page(request: Request, jellyfin_user_id: str,
                          user: CurrentUser = Depends(require_user)):
-        if not user.is_admin and jellyfin_user_id != user.jellyfin_user_id:
+        if not user.can_view_everyone and jellyfin_user_id != user.jellyfin_user_id:
             raise HTTPException(status_code=403,
                                 detail="Vous ne pouvez consulter que votre propre profil.")
         return render(request, "user.html", user=user, page="users",
-                      profile=users_mod.user_overview(jellyfin_user_id))
+                      profile=_user_profile(jellyfin_user_id))
+
+    @app.get("/users/{jellyfin_user_id}/wrapped")
+    def user_wrapped_page(request: Request, jellyfin_user_id: str,
+                          year: int | None = Query(None),
+                          user: CurrentUser = Depends(require_user)):
+        if not user.can_view_everyone and jellyfin_user_id != user.jellyfin_user_id:
+            raise HTTPException(status_code=403,
+                                detail="Vous ne pouvez consulter que votre propre profil.")
+        years = wrapped_mod.user_years(jellyfin_user_id)
+        selected = year if year in years else (years[0] if years else None)
+        data = wrapped_mod.build(jellyfin_user_id, selected) if selected else None
+        if data and config.unknown_as_plex and data.get("top_client") \
+                and not data["top_client"]["label"]:
+            data["top_client"]["label"] = "Plex"
+        return render(request, "wrapped.html", user=user, page="users",
+                      jellyfin_user_id=jellyfin_user_id,
+                      username=users_mod.get_username(jellyfin_user_id),
+                      years=years, selected_year=selected, data=data)
 
     @app.get("/profile")
     def profile_page(request: Request, user: CurrentUser = Depends(require_user)):
@@ -422,7 +486,7 @@ def create_app(config: Config) -> FastAPI:
             return render(request, "user.html", user=user, page="profile",
                           profile=None)
         return render(request, "user.html", user=user, page="profile",
-                      profile=users_mod.user_overview(user.jellyfin_user_id))
+                      profile=_user_profile(user.jellyfin_user_id))
 
     @app.get("/libraries")
     def libraries_page(request: Request,
@@ -458,43 +522,87 @@ def create_app(config: Config) -> FastAPI:
                       config=config, local_users=auth.list_local_users(),
                       jf_users=database.query(
                           "SELECT jellyfin_user_id, username FROM users ORDER BY username"),
+                      jf_users_admin=users_mod.list_users_for_admin(),
                       **ctx)
 
     @app.get("/settings")
-    def settings_page(request: Request, saved: int = 0,
+    def settings_page(request: Request, saved: int = 0, reset: int = 0,
                       user: CurrentUser = Depends(require_admin)):
-        return _render_settings(request, user, saved=bool(saved))
+        return _render_settings(request, user, saved=bool(saved),
+                                reset=bool(reset))
 
-    @app.post("/settings")
-    def settings_submit(
+    @app.post("/settings/connection")
+    def settings_connection_submit(
         request: Request,
         user: CurrentUser = Depends(require_admin),
         jellyfin_url: str = Form(""),
         api_key: str = Form(""),
-        session_lifetime: int = Form(604800),
-        jellyfin_auth_enabled: str = Form(None),
-        local_auth_enabled: str = Form(None),
         minimum_duration: int = Form(300),
         minimum_percent: int = Form(0),
         poll_interval: int = Form(15),
         sync_interval: int = Form(3600),
         session_grace: int = Form(90),
-        allow_user_library_pages: str = Form(None),
+        unknown_as_plex: str = Form(None),
+        hide_unknown_clients: str = Form(None),
+        transcode_watts: int = Form(50),
+        electricity_price: float = Form(0.27),
     ):
+        """Bloc « Connexion Jellyfin » : serveur, capture/polling, clients."""
         config.set("Jellyfin", "url", jellyfin_url.strip().rstrip("/"))
         if api_key.strip():  # champ vide = clé inchangée
             config.set("Jellyfin", "api_key", api_key.strip())
-        config.set("Auth", "session_lifetime", max(300, session_lifetime))
-        config.set("Auth", "jellyfin_auth_enabled", bool(jellyfin_auth_enabled))
-        config.set("Auth", "local_auth_enabled", bool(local_auth_enabled))
         config.set("Monitoring", "minimum_duration", max(0, minimum_duration))
         config.set("Monitoring", "minimum_percent", min(100, max(0, minimum_percent)))
         config.set("Monitoring", "poll_interval", max(5, poll_interval))
         config.set("Monitoring", "sync_interval", max(60, sync_interval))
         config.set("Monitoring", "session_grace", max(0, session_grace))
+        config.set("Clients", "unknown_as_plex", bool(unknown_as_plex))
+        config.set("Clients", "hide_unknown_clients", bool(hide_unknown_clients))
+        config.set("Energy", "transcode_watts", max(0, transcode_watts))
+        config.set("Energy", "electricity_price", max(0.0, electricity_price))
+        config.save()
+        return RedirectResponse("/settings?saved=1", status_code=303)
+
+    @app.post("/settings/access")
+    def settings_access_submit(
+        request: Request,
+        user: CurrentUser = Depends(require_admin),
+        session_lifetime: int = Form(604800),
+        jellyfin_auth_enabled: str = Form(None),
+        local_auth_enabled: str = Form(None),
+        allow_user_library_pages: str = Form(None),
+    ):
+        """Bloc « Accès » : authentification, sessions, droits d'interface."""
+        config.set("Auth", "session_lifetime", max(300, session_lifetime))
+        config.set("Auth", "jellyfin_auth_enabled", bool(jellyfin_auth_enabled))
+        config.set("Auth", "local_auth_enabled", bool(local_auth_enabled))
         config.set("UI", "allow_user_library_pages", bool(allow_user_library_pages))
         config.save()
         auth.init(config.secret_key, config.session_lifetime)
+        return RedirectResponse("/settings?saved=1", status_code=303)
+
+    @app.post("/settings/jellyfin-users")
+    async def jellyfin_users_submit(request: Request,
+                                    user: CurrentUser = Depends(require_admin)):
+        """Met à jour les droits par utilisateur Jellyfin (masquage, blocage,
+        vision). Le formulaire envoie, par utilisateur coché, les champs
+        ``hidden_<id>`` / ``blocked_<id>`` / ``view_<id>``."""
+        form = await request.form()
+        for u in users_mod.list_users_for_admin():
+            uid = u["jellyfin_user_id"]
+            # Garde-fou : on ne peut pas se bloquer soi-même (anti-lockout).
+            blocked = (f"blocked_{uid}" in form) and uid != user.jellyfin_user_id
+            users_mod.set_user_flags(
+                uid,
+                hidden=f"hidden_{uid}" in form,
+                access_blocked=blocked,
+                can_view_all=f"view_{uid}" in form,
+            )
+            if blocked:
+                # Coupe immédiatement les sessions Jellyfin actives du bloqué.
+                database.execute(
+                    "DELETE FROM http_sessions WHERE jellyfin_user_id = ?"
+                    " AND auth_mode = 'jellyfin'", (uid,))
         return RedirectResponse("/settings?saved=1", status_code=303)
 
     @app.post("/settings/local-users")
@@ -535,6 +643,28 @@ def create_app(config: Config) -> FastAPI:
         if row and new_password:
             auth.set_local_password(row["username"], new_password)
         return RedirectResponse("/settings", status_code=303)
+
+    # --- Maintenance ---------------------------------------------------
+
+    @app.get("/settings/maintenance/backup")
+    def maintenance_backup(user: CurrentUser = Depends(require_admin)):
+        """Télécharge un snapshot cohérent de la base Tautufin."""
+        stamp = database.now_iso()[:16].replace(" ", "_").replace(":", "")
+        data = database.backup_bytes()
+        return Response(
+            content=data,
+            media_type="application/x-sqlite3",
+            headers={"Content-Disposition":
+                     f'attachment; filename="tautufin-backup-{stamp}.db"'})
+
+    @app.post("/api/settings/verify-db")
+    def maintenance_verify(user: CurrentUser = Depends(require_admin)):
+        return database.integrity_check()
+
+    @app.post("/settings/maintenance/reset")
+    def maintenance_reset(user: CurrentUser = Depends(require_admin)):
+        database.reset_data()
+        return RedirectResponse("/settings?reset=1", status_code=303)
 
     # ------------------------------------------------------------------
     # Proxy d'images Jellyfin (posters, avatars) avec cache disque
@@ -674,11 +804,12 @@ def create_app(config: Config) -> FastAPI:
     @app.get("/api/activity")
     def api_activity(user: CurrentUser = Depends(require_user)):
         sessions = monitor.snapshot(scoped_user_id(user, None))
-        if not user.is_admin:
-            for s in sessions:  # un non-admin ne voit pas les détails réseau
-                s.pop("jellyfin_user_id", None)
+        for s in sessions:
+            if not user.is_admin:        # détails réseau réservés à l'admin
                 s.pop("ip_address", None)
                 s.pop("is_lan", None)
+            if not user.can_view_everyone:  # identité réservée admin/vision
+                s.pop("jellyfin_user_id", None)
         return {"sessions": sessions}
 
     @app.get("/api/history")
@@ -700,6 +831,10 @@ def create_app(config: Config) -> FastAPI:
             media_type=media_type, library_id=library_id,
             date_from=date_from, date_to=date_to, search=search,
             sort=sort, order=order, page=page, page_size=page_size)
+        if config.unknown_as_plex:
+            for row in result["rows"]:
+                if not row.get("client_name"):
+                    row["client_name"] = "Plex"
         if not user.is_admin:
             for row in result["rows"]:
                 row.pop("ip_address", None)
@@ -724,11 +859,11 @@ def create_app(config: Config) -> FastAPI:
             "top_series": graphs.top_media(days, "series", metric, uid, limit=10),
             "recently_watched": graphs.recently_watched(days, uid, limit=10),
             "top_libraries": graphs.top_libraries(days, metric, uid, limit=10),
-            "top_clients": flat(graphs.by_client(days, metric, uid)),
+            "top_clients": flat(_client_breakdown(days, metric, uid)),
         }
         # « Populaires » = nb d'utilisateurs distincts : pertinent uniquement en
         # vue globale (un non-admin n'a que ses propres données → toujours 1).
-        if user.is_admin:
+        if user.can_view_everyone:
             stats["popular_movies"] = graphs.popular_media(days, "movie", uid, limit=10)
             stats["popular_series"] = graphs.popular_media(days, "series", uid, limit=10)
             stats["top_users"] = graphs.top_users(days, metric, limit=10)
@@ -754,14 +889,13 @@ def create_app(config: Config) -> FastAPI:
         "by_library": graphs.by_library,
         "by_genre": graphs.by_genre,
         "by_resolution": graphs.by_resolution,
-        "by_client": graphs.by_client,
         "by_play_method": graphs.by_play_method,
         "by_day_of_week": graphs.by_day_of_week,
         "by_hour_of_day": graphs.by_hour_of_day,
     }
 
     @app.get("/api/graphs/by_user")
-    def api_graph_by_user(user: CurrentUser = Depends(require_admin),
+    def api_graph_by_user(user: CurrentUser = Depends(require_global_view),
                           days: int = DaysParam,
                           metric: str = Query("plays"),
                           year: int | None = YearParam):
@@ -787,6 +921,38 @@ def create_app(config: Config) -> FastAPI:
         return graphs.top_people(days or None, kind, metric,
                                  scoped_user_id(user, user_id), year=year)
 
+    @app.get("/api/graphs/by_client")
+    def api_graph_by_client(user: CurrentUser = Depends(require_user),
+                            days: int = DaysParam,
+                            metric: str = Query("plays"),
+                            user_id: str | None = Query(None),
+                            year: int | None = YearParam):
+        return _client_breakdown(days or None, metric,
+                                 scoped_user_id(user, user_id), year)
+
+    @app.get("/api/graphs/transcode_cost")
+    def api_transcode_cost(user: CurrentUser = Depends(require_user),
+                           days: int = DaysParam,
+                           user_id: str | None = Query(None),
+                           year: int | None = YearParam):
+        """Estimation de la conso électrique imputable au transcodage vidéo sur
+        la période/le filtre courant (hypothèses : surconsommation fixe et prix
+        du kWh, cf. constantes ci-dessous — volontairement approximatif)."""
+        seconds = graphs.transcode_seconds(days or None,
+                                           scoped_user_id(user, user_id), year)
+        hours = seconds / 3600
+        watts = config.transcode_watts
+        price = config.electricity_price
+        kwh = watts / 1000 * hours
+        return {
+            "seconds": seconds,
+            "hours": round(hours, 1),
+            "kwh": round(kwh, 2),
+            "cost": round(kwh * price, 2),
+            "watts": watts,
+            "eur_per_kwh": price,
+        }
+
     @app.get("/api/graphs/{graph_name}")
     def api_graph(graph_name: str,
                   user: CurrentUser = Depends(require_user),
@@ -800,7 +966,7 @@ def create_app(config: Config) -> FastAPI:
         return func(days or None, metric, scoped_user_id(user, user_id), year)
 
     @app.get("/api/users")
-    def api_users(user: CurrentUser = Depends(require_admin)):
+    def api_users(user: CurrentUser = Depends(require_global_view)):
         return {"users": users_mod.list_users_with_stats()}
 
     @app.post("/api/settings/test-jellyfin")

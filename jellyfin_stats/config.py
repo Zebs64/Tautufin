@@ -24,7 +24,19 @@ DEFAULTS = {
         "sync_interval": "3600",
         "session_grace": "90",
     },
+    "Clients": {
+        # Historique importé sans client (ex. backup Plex synchronisé) :
+        # le traiter comme « Plex » et/ou le masquer des stats clients.
+        "unknown_as_plex": "false",
+        "hide_unknown_clients": "true",
+    },
     "UI": {"allow_user_library_pages": "true"},
+    "Energy": {
+        # Base de l'estimation du coût électrique du transcodage (page graphs) :
+        # surconsommation supposée pendant un transcodage vidéo et prix du kWh.
+        "transcode_watts": "50",
+        "electricity_price": "0.27",
+    },
     "Database": {"path": "data/jellyfin_stats.db"},
 }
 
@@ -57,6 +69,12 @@ class Config:
             return int(self.get(section, key) or DEFAULTS[section][key])
         except ValueError:
             return int(DEFAULTS[section][key])
+
+    def get_float(self, section: str, key: str) -> float:
+        try:
+            return float(self.get(section, key) or DEFAULTS[section][key])
+        except ValueError:
+            return float(DEFAULTS[section][key])
 
     def get_bool(self, section: str, key: str) -> bool:
         return self.get(section, key).strip().lower() in ("1", "true", "yes", "on")
@@ -129,8 +147,27 @@ class Config:
         return max(0, self.get_int("Monitoring", "session_grace"))
 
     @property
+    def unknown_as_plex(self) -> bool:
+        """Afficher les lectures sans client connu comme provenant de « Plex »."""
+        return self.get_bool("Clients", "unknown_as_plex")
+
+    @property
+    def hide_unknown_clients(self) -> bool:
+        """Exclure les clients inconnus des graphes clients (accueil + graphs).
+        La page utilisateur les conserve toujours."""
+        return self.get_bool("Clients", "hide_unknown_clients")
+
+    @property
     def allow_user_library_pages(self) -> bool:
         return self.get_bool("UI", "allow_user_library_pages")
+
+    @property
+    def transcode_watts(self) -> int:
+        return max(0, self.get_int("Energy", "transcode_watts"))
+
+    @property
+    def electricity_price(self) -> float:
+        return max(0.0, self.get_float("Energy", "electricity_price"))
 
     @property
     def database_path(self) -> str:

@@ -29,6 +29,10 @@ LOGIN_MAX_ATTEMPTS = 5
 LOGIN_WINDOW_SECONDS = 60
 
 
+class AccessBlocked(Exception):
+    """L'utilisateur Jellyfin est explicitement bloqué dans Tautufin."""
+
+
 @dataclass
 class CurrentUser:
     token: str
@@ -36,10 +40,16 @@ class CurrentUser:
     username: str
     role: str                    # 'admin' | 'user'
     jellyfin_user_id: str | None # None pour un compte local non lié
+    can_view_all: bool = False   # droit « vision » (résolu en direct)
 
     @property
     def is_admin(self) -> bool:
         return self.role == "admin"
+
+    @property
+    def can_view_everyone(self) -> bool:
+        """Voit les stats de tout le monde : admin ou droit « vision »."""
+        return self.is_admin or self.can_view_all
 
 
 class RateLimiter:
@@ -134,6 +144,12 @@ def login_jellyfin(api, username: str, password: str) -> CurrentUser | None:
             """,
             (jf_user["Id"], jf_user.get("Name", username), int(is_admin), now_iso()),
         )
+    # Accès à Tautufin révoqué par un admin (indépendant du compte Jellyfin).
+    blocked = database.query_one(
+        "SELECT access_blocked FROM users WHERE jellyfin_user_id = ?", (jf_user["Id"],)
+    )
+    if blocked and blocked["access_blocked"]:
+        raise AccessBlocked()
     return _create_session(
         auth_mode="jellyfin",
         username=jf_user.get("Name", username),
@@ -202,6 +218,19 @@ def resolve_session(cookie: str | None) -> CurrentUser | None:
     if row["expires_at"] < now_iso():
         database.execute("DELETE FROM http_sessions WHERE token = ?", (token,))
         return None
+    # Droits gérés par Tautufin (blocage / vision) résolus en direct, pour que
+    # toute modification admin prenne effet immédiatement (sans re-login).
+    can_view_all = False
+    if row["jellyfin_user_id"]:
+        flags = database.query_one(
+            "SELECT access_blocked, can_view_all FROM users WHERE jellyfin_user_id = ?",
+            (row["jellyfin_user_id"],),
+        )
+        if flags:
+            if flags["access_blocked"] and row["auth_mode"] == "jellyfin":
+                database.execute("DELETE FROM http_sessions WHERE token = ?", (token,))
+                return None
+            can_view_all = bool(flags["can_view_all"])
     database.execute(
         "UPDATE http_sessions SET last_active = ? WHERE token = ?", (now_iso(), token)
     )
@@ -211,6 +240,7 @@ def resolve_session(cookie: str | None) -> CurrentUser | None:
         username=row["username"],
         role=row["role"],
         jellyfin_user_id=row["jellyfin_user_id"],
+        can_view_all=can_view_all,
     )
 
 

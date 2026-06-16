@@ -23,8 +23,10 @@
     {% if allow_library %}
     <a href="/libraries" class="{{ 'active' if page == 'libraries' }}">Bibliothèques</a>
     {% endif %}
-    {% if user.is_admin %}
+    {% if user.can_view_everyone %}
     <a href="/users" class="{{ 'active' if page == 'users' }}">Utilisateurs</a>
+    {% endif %}
+    {% if user.is_admin %}
     <a href="/import" class="{{ 'active' if page == 'import' }}">Import</a>
     <a href="/settings" class="{{ 'active' if page == 'settings' }}">Settings</a>
     {% endif %}

@@ -11,6 +11,7 @@ def list_libraries_with_stats() -> list[dict]:
                COALESCE(SUM(h.play_duration), 0) AS total_duration
         FROM libraries l
         LEFT JOIN session_history h ON h.library_id = l.library_id
+        WHERE COALESCE(l.collection_type, '') != 'boxsets'
         GROUP BY l.library_id
         ORDER BY l.name
         """
@@ -51,19 +52,11 @@ def library_detail(library_id: str) -> dict:
         """,
         (library_id,),
     )
-    by_video_codec = database.query(
+    catalog = database.query(
         """
-        SELECT COALESCE(video_codec, 'inconnu') AS label, COUNT(*) AS count
-        FROM items WHERE library_id = ? AND type IN ('Movie', 'Episode')
-        GROUP BY label ORDER BY count DESC
-        """,
-        (library_id,),
-    )
-    by_audio_codec = database.query(
-        """
-        SELECT COALESCE(audio_codec, 'inconnu') AS label, COUNT(*) AS count
-        FROM items WHERE library_id = ?
-        GROUP BY label ORDER BY count DESC LIMIT 10
+        SELECT item_id, name, type, year FROM items
+        WHERE library_id = ? AND type IN ('Movie', 'Series')
+        ORDER BY name COLLATE NOCASE
         """,
         (library_id,),
     )
@@ -91,8 +84,7 @@ def library_detail(library_id: str) -> dict:
         "totals": totals,
         "by_genre": by_genre,
         "by_year": by_year,
-        "by_video_codec": by_video_codec,
-        "by_audio_codec": by_audio_codec,
+        "catalog": catalog,
         "most_watched": most_watched,
         "never_watched": never_watched,
     }
