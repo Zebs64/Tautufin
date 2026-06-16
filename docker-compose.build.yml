@@ -1,6 +1,7 @@
 services:
   tautufin:
-    image: ghcr.io/zebs64/tautufin:latest
+    build: .
+    image: tautufin:local
     container_name: tautufin
     restart: unless-stopped
     environment:
