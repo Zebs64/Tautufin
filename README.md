@@ -60,10 +60,14 @@ utilisateurs, auto-hébergé.
 
 ## Installation
 
-### Docker (recommandé)
+### Docker avec l'image GitHub Container Registry (recommandé)
+
+Le fichier `docker-compose.yml` utilise l'image publiée sur GitHub Container
+Registry : `ghcr.io/zebs64/tautufin:latest`.
 
 ```bash
 mkdir -p config          # important : sinon Docker crée le dossier en root
+docker compose pull
 docker compose up -d
 ```
 
@@ -75,13 +79,13 @@ Le `docker-compose.yml` fixe le fuseau horaire via `TZ=Europe/Paris` — **adapt
 conversion des imports (voir [Import](#import-dun-historique-existant)).
 
 <details>
-<summary>Exemple <code>docker-compose.yml</code></summary>
+<summary>Exemple <code>docker-compose.yml</code> avec image publiée</summary>
 
 ```yaml
 services:
-  jellyfin-stats:
-    build: .
-    container_name: jellyfin-stats
+  tautufin:
+    image: ghcr.io/zebs64/tautufin:latest
+    container_name: tautufin
     restart: unless-stopped
     environment:
       - TZ=Europe/Paris
@@ -94,6 +98,19 @@ services:
       # - /var/lib/jellyfin/data:/jellyfin-data:ro
 ```
 </details>
+
+### Docker avec build local
+
+Pour construire l'image depuis les sources au lieu d'utiliser GHCR :
+
+```bash
+mkdir -p config
+docker compose -f docker-compose.build.yml build
+docker compose -f docker-compose.build.yml up -d
+```
+
+Le fichier `docker-compose.build.yml` est identique au compose standard, mais
+remplace l'image publiée par `build: .`.
 
 ### Manuelle
 

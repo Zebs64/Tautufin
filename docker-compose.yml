@@ -1,7 +1,7 @@
 services:
-  jellyfin-stats:
-    build: .
-    container_name: jellyfin-stats
+  tautufin:
+    image: ghcr.io/zebs64/tautufin:latest
+    container_name: tautufin
     restart: unless-stopped
     environment:
       # Fuseau de référence : aligne le monitoring live, les requêtes
@@ -9,19 +9,9 @@ services:
       - TZ=Europe/Paris
     ports:
       - "8181:8181"
-    networks:
-      - proxy
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.tautufin.rule=Host(`tautufin.example.com`)"
-      - "traefik.http.services.tautufin.loadbalancer.server.port=8181"
     volumes:
       # Configuration + base SQLite persistées ici.
       - ./config:/config
       # Optionnel : monter le dossier data de Jellyfin en lecture seule pour
       # importer playback_reporting.db depuis la page Import.
       # - /var/lib/jellyfin/data:/jellyfin-data:ro
-
-networks:
-  proxy:
-    external: true
