@@ -9,6 +9,7 @@
 import asyncio
 import json
 import logging
+import threading
 
 from . import auth, database
 from .activity import TICKS_PER_SECOND, resolution_label
@@ -64,12 +65,14 @@ def sync_users(api) -> int:
     return len(users)
 
 
-def sync_libraries_and_items(api) -> int:
+def sync_libraries_and_items(api, report=None) -> int:
     total_items = 0
-    for folder in api.get_libraries():
-        library_id = folder.get("ItemId")
-        if not library_id:
-            continue
+    folders = [f for f in api.get_libraries() if f.get("ItemId")]
+    for idx, folder in enumerate(folders):
+        if report:
+            report(phase="libraries", current=idx, total=len(folders),
+                   label=folder.get("Name", "?"))
+        library_id = folder["ItemId"]
         # Phase réseau HORS transaction : récupérer les médias sans tenir le
         # verrou d'écriture SQLite pendant les appels HTTP (sinon le poller et
         # les sessions HTTP se prennent un « database is locked »).
@@ -134,14 +137,69 @@ def sync_libraries_and_items(api) -> int:
                  folder.get("CollectionType"), count, now_iso()),
             )
         total_items += count
+        if report:
+            report(items=total_items)
+    if report:
+        report(current=len(folders), label="")
     return total_items
 
 
-def sync_all(api) -> dict:
+def sync_all(api, report=None) -> dict:
+    if report:
+        report(phase="users", label="Utilisateurs")
     users = sync_users(api)
-    items = sync_libraries_and_items(api)
+    if report:
+        report(users=users)
+    items = sync_libraries_and_items(api, report=report)
     logger.info("Synchronisation Jellyfin : %d utilisateurs, %d médias", users, items)
     return {"users": users, "items": items}
+
+
+# --- Suivi de progression d'une synchro en arrière-plan --------------------
+# État partagé (manuel + périodique) lu par l'API pour la barre de progression.
+# La synchro tourne dans un thread daemon : elle survit à la navigation côté
+# client (la requête HTTP qui la déclenche ne fait que la lancer).
+_sync_lock = threading.Lock()
+_sync_state = {
+    "running": False, "phase": "idle", "label": "",
+    "current": 0, "total": 0, "users": 0, "items": 0,
+    "error": None, "finished_at": None,
+}
+
+
+def get_sync_state() -> dict:
+    with _sync_lock:
+        return dict(_sync_state)
+
+
+def _sync_set(**kw) -> None:
+    with _sync_lock:
+        _sync_state.update(kw)
+
+
+def start_sync(api) -> bool:
+    """Lance une synchro en arrière-plan si aucune n'est déjà en cours.
+    Retourne True si elle a été démarrée, False si une synchro tournait déjà."""
+    with _sync_lock:
+        if _sync_state["running"]:
+            return False
+        _sync_state.update(running=True, phase="users", label="Utilisateurs",
+                           current=0, total=0, users=0, items=0,
+                           error=None, finished_at=None)
+
+    def _run():
+        try:
+            result = sync_all(api, report=_sync_set)
+            _sync_set(phase="done", label="", users=result["users"],
+                      items=result["items"])
+        except Exception as exc:  # noqa: BLE001 — on remonte l'erreur à l'UI
+            logger.exception("Synchronisation en arrière-plan échouée")
+            _sync_set(phase="error", error=str(exc))
+        finally:
+            _sync_set(running=False, finished_at=now_iso())
+
+    threading.Thread(target=_run, name="sync", daemon=True).start()
+    return True
 
 
 class Scheduler:
@@ -184,12 +242,10 @@ class Scheduler:
     async def _sync_loop(self) -> None:
         while True:
             if self.config.jellyfin_configured:
-                try:
-                    await asyncio.to_thread(sync_all, self.api)
-                except JellyfinError as exc:
-                    logger.warning("Synchronisation impossible : %s", exc)
-                except Exception:
-                    logger.exception("Erreur inattendue de la synchronisation")
+                # Synchro périodique via le même chemin que la synchro manuelle
+                # (thread daemon + état de progression partagé) ; ignorée si une
+                # synchro tourne déjà.
+                start_sync(self.api)
             await asyncio.sleep(self.config.sync_interval)
 
     async def _cleanup_loop(self) -> None:
