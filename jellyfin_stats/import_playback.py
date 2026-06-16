@@ -22,6 +22,8 @@ import logging
 import os
 import sqlite3
 from collections import Counter
+from datetime import datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from . import database
 from .activity import should_record
@@ -35,14 +37,50 @@ TSV_COLUMNS = ["DateCreated", "UserId", "ItemId", "ItemType", "ItemName",
                "PlaybackMethod", "ClientName", "DeviceName", "PlayDuration"]
 
 
+def _resolve_display_tz() -> ZoneInfo | None:
+    """Fuseau de référence des horodatages stockés. On suit la variable TZ si
+    elle est posée, sinon Europe/Paris (fuseau du serveur source). Sert à
+    recaler les timestamps horodatés en UTC (backup Streamystats) sur le même
+    fuseau que l'heure locale écrite par Playback Reporting et le monitoring."""
+    for name in (os.environ.get("TZ"), "Europe/Paris"):
+        if not name:
+            continue
+        try:
+            return ZoneInfo(name)
+        except (ZoneInfoNotFoundError, ValueError):
+            continue
+    return None
+
+
+_DISPLAY_TZ = _resolve_display_tz()
+
+
 class ImportError_(Exception):
     pass
 
 
 def _normalize_date(value: str) -> str:
-    """DateCreated → 'YYYY-MM-DD HH:MM:SS' (tronque les fractions de seconde)."""
-    value = (value or "").replace("T", " ").strip()
-    return value.split(".")[0][:19]
+    """Horodatage → 'YYYY-MM-DD HH:MM:SS' (naïf, heure locale).
+
+    Un timestamp portant un fuseau (ex. Streamystats en UTC : « …T…Z » ou
+    « +00:00 ») est *converti* vers le fuseau d'affichage avant d'être rendu
+    naïf — sans ça, le décalage UTC↔local créait des doublons (mêmes lectures
+    déjà importées en heure locale par Playback Reporting, à 1–2 h d'écart).
+    Un timestamp déjà naïf (Playback Reporting) est laissé tel quel."""
+    raw = (value or "").strip()
+    if not raw:
+        return ""
+    iso = raw[:-1] + "+00:00" if raw.endswith("Z") else raw
+    try:
+        dt = datetime.fromisoformat(iso)
+    except ValueError:
+        dt = None
+    if dt is not None and dt.tzinfo is not None:
+        if _DISPLAY_TZ is not None:
+            dt = dt.astimezone(_DISPLAY_TZ)
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
+    # Déjà naïf (ou format inattendu) : ancien comportement de troncature.
+    return raw.replace("T", " ").split(".")[0][:19]
 
 
 # --- Chargement des sources ---------------------------------------------------

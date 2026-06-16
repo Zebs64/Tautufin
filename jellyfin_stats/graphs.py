@@ -44,6 +44,11 @@ def _base_where(days, user_id: str | None, year: int | None = None) -> tuple[str
     if user_id:
         where.append("jellyfin_user_id = ?")
         params.append(user_id)
+    else:
+        # Vue globale : les utilisateurs « masqués » sont totalement exclus
+        # (totaux compris). Leur propre profil reste visible (user_id imposé).
+        where.append("jellyfin_user_id NOT IN "
+                     "(SELECT jellyfin_user_id FROM users WHERE hidden = 1)")
     return " AND ".join(where), params
 
 
@@ -140,20 +145,44 @@ def by_resolution(days=30, metric: str = "plays", user_id=None, year=None) -> di
                     year=year)
 
 
-def by_client(days=30, metric: str = "plays", user_id=None, year=None) -> dict:
+def by_client(days=30, metric: str = "plays", user_id=None, year=None,
+              hide_unknown: bool = True, unknown_label: str = "Inconnu") -> dict:
     # Beaucoup de lectures importées (ou inférées en amont par Jellyfin /
-    # Streamystats) n'ont pas de client connu. Plutôt que d'afficher un
-    # « Inconnu » majoritaire qui écrase les vrais clients, on les exclut de ce
-    # graphe — ces lectures restent comptées dans toutes les autres stats.
-    return _grouped(days, metric, user_id, "client_name", "Par client",
-                    extra_where="AND client_name IS NOT NULL AND client_name != ''",
-                    year=year)
+    # Streamystats) n'ont pas de client connu — souvent un historique Plex
+    # synchronisé. Selon la config on les masque de ce graphe (ils restent
+    # comptés ailleurs) ou on les affiche sous un libellé dédié (« Plex »…).
+    extra = "AND client_name IS NOT NULL AND client_name != ''" if hide_unknown else ""
+    data = _grouped(days, metric, user_id, "client_name", "Par client",
+                    extra_where=extra, year=year)
+    if not hide_unknown:
+        # _grouped mappe les clients vides/NULL sur « Inconnu » : on les
+        # renomme selon la préférence (« Plex » le cas échéant).
+        data["categories"] = [unknown_label if c == "Inconnu" else c
+                              for c in data["categories"]]
+    return data
 
 
 def by_play_method(days=30, metric: str = "plays", user_id=None, year=None) -> dict:
     return _grouped(days, metric, user_id,
                     "COALESCE(play_method, 'Inconnu')", "Par méthode de lecture",
                     year=year)
+
+
+def transcode_seconds(days=30, user_id=None, year=None) -> int:
+    """Secondes de lecture avec transcodage *vidéo* sur la période. On exclut
+    les méthodes « v:direct » (vidéo en direct, seul l'audio est transcodé) qui
+    ne coûtent quasiment rien en CPU/énergie. Sert à l'estimation de conso."""
+    where, params = _base_where(days, user_id, year)
+    row = database.query_one(
+        f"""
+        SELECT COALESCE(SUM(play_duration), 0) AS seconds
+        FROM session_history
+        WHERE {where} AND play_method LIKE 'Transcode%'
+          AND play_method NOT LIKE '%v:direct%'
+        """,
+        params,
+    )
+    return row["seconds"] if row else 0
 
 
 def by_day_of_week(days=30, metric: str = "plays", user_id=None, year=None) -> dict:

@@ -5,8 +5,9 @@
   <h1>Historique de lecture</h1>
 </div>
 
-<div class="card filters" id="history-filters" data-is-admin="{{ 1 if user.is_admin else 0 }}">
-  {% if user.is_admin %}
+<div class="card filters" id="history-filters" data-is-admin="{{ 1 if user.is_admin else 0 }}"
+     data-can-view="{{ 1 if user.can_view_everyone else 0 }}">
+  {% if user.can_view_everyone %}
   <label>Utilisateur
     <select name="user_id">
       <option value="">Tous</option>
@@ -38,7 +39,7 @@
     <thead>
       <tr>
         <th data-sort="date" class="sortable sorted-desc">Date</th>
-        {% if user.is_admin %}<th data-sort="user" class="sortable">Utilisateur</th>{% endif %}
+        {% if user.can_view_everyone %}<th data-sort="user" class="sortable">Utilisateur</th>{% endif %}
         <th data-sort="media" class="sortable">Média</th>
         <th data-sort="type" class="sortable">Type</th>
         <th data-sort="duration" class="sortable">Durée vue</th>

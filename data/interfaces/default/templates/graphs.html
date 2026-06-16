@@ -4,7 +4,7 @@
 <div class="page-head row">
   <h1>Graphiques</h1>
   <div class="filters-inline" id="graph-filters">
-    {% if user.is_admin %}
+    {% if user.can_view_everyone %}
     <label>Utilisateur
       <select id="graph-user">
         <option value="">Tous</option>
@@ -43,7 +43,7 @@
   </div>
 </div>
 
-<div class="charts-grid charts-3col" data-is-admin="{{ 1 if user.is_admin else 0 }}">
+<div class="charts-grid charts-3col" data-is-admin="{{ 1 if user.can_view_everyone else 0 }}">
   <!-- 1. Activité dans le temps -->
   <div class="card chart-card chart-wide">
     <h3>📈 Lectures dans le temps <span class="muted">(films / séries / musique)</span></h3>
@@ -61,14 +61,15 @@
   <div class="card chart-card"><h3>🗂️ Bibliothèques les plus consultées</h3><canvas id="chart-by-library"></canvas></div>
 
   <!-- 3. Qui -->
-  {% if user.is_admin %}
+  {% if user.can_view_everyone %}
   <div class="card chart-card"><h3>👥 Répartition par utilisateur</h3><canvas id="chart-by-user"></canvas></div>
   {% endif %}
 
   <!-- 4. Technique -->
   <div class="card chart-card"><h3>🖥️ Résolutions</h3><canvas id="chart-by-resolution"></canvas></div>
   <div class="card chart-card"><h3>📱 Clients</h3><canvas id="chart-by-client"></canvas></div>
-  <div class="card chart-card"><h3>⚙️ Direct Play vs Transcodage</h3><canvas id="chart-by-method"></canvas></div>
+  <div class="card chart-card"><h3>⚙️ Direct Play vs Transcodage</h3><canvas id="chart-by-method"></canvas>
+    <p class="transcode-cost muted" id="transcode-cost"></p></div>
 </div>
 {% endblock %}
 {% block scripts %}

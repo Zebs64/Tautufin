@@ -2,25 +2,25 @@
 {% block title %}Bibliothèques — Tautufin{% endblock %}
 {% block content %}
 <div class="page-head"><h1>Bibliothèques</h1></div>
-<div class="card">
-  <table class="table">
-    <thead>
-      <tr><th>Bibliothèque</th><th>Type</th><th>Éléments</th>
-          <th>Lectures</th><th>Temps vu</th></tr>
-    </thead>
-    <tbody>
-      {% for l in libraries %}
-      <tr>
-        <td><a href="/libraries/{{ l.library_id }}">{{ l.name }}</a></td>
-        <td>{{ l.collection_type or '—' }}</td>
-        <td>{{ l.item_count }}</td>
-        <td>{{ l.total_plays }}</td>
-        <td>{{ l.total_duration | duration_hm }}</td>
-      </tr>
-      {% else %}
-      <tr><td colspan="5" class="muted">Aucune bibliothèque synchronisée.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+
+<div class="lib-grid">
+  {% for l in libraries %}
+  <a class="lib-card" href="/libraries/{{ l.library_id }}">
+    <div class="lib-card-img">
+      <img loading="lazy" alt="" src="/image/item/{{ l.library_id }}?w=480">
+      <span class="lib-card-icon">{{ l.collection_type | library_icon }}</span>
+    </div>
+    <div class="lib-card-body">
+      <h3>{{ l.name }}</h3>
+      <p class="muted">{{ l.collection_type or 'bibliothèque' }} · {{ l.item_count }} éléments</p>
+      <div class="lib-card-stats">
+        <span>📺 {{ l.total_plays }} lectures</span>
+        <span>⏱️ {{ l.total_duration | duration_hm }}</span>
+      </div>
+    </div>
+  </a>
+  {% else %}
+  <p class="muted">Aucune bibliothèque synchronisée.</p>
+  {% endfor %}
 </div>
 {% endblock %}

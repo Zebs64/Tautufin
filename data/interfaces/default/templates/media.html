@@ -87,7 +87,8 @@
         {% endif %}
         <td>{{ h.play_duration | duration_hm }}</td>
         <td>{{ h.percent_complete and (h.percent_complete | round | int ~ '%') or '—' }}</td>
-        <td>{{ h.client_name or '—' }}</td>
+        <td>{% if h.client_name %}<span class="cell-client"><img class="client-logo"
+            src="{{ h.client_name | client_logo }}" alt=""> {{ h.client_name }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
       </tr>
       {% else %}
       <tr><td colspan="{{ 5 if user.is_admin else 4 }}" class="muted">Aucune lecture enregistrée.</td></tr>

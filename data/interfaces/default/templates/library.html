@@ -24,25 +24,11 @@
   </div>
 </div>
 
-<div class="stats-grid">
+<div class="stats-grid stats-4col">
   <div class="card">
     <h3>Genres</h3>
     <ul class="kv scroll">
       {% for g in detail.by_genre %}<li><span>{{ g.label }}</span><b>{{ g.count }}</b></li>
-      {% else %}<li class="muted">Aucune donnée</li>{% endfor %}
-    </ul>
-  </div>
-  <div class="card">
-    <h3>Codecs vidéo</h3>
-    <ul class="kv">
-      {% for c in detail.by_video_codec %}<li><span>{{ c.label }}</span><b>{{ c.count }}</b></li>
-      {% else %}<li class="muted">Aucune donnée</li>{% endfor %}
-    </ul>
-  </div>
-  <div class="card">
-    <h3>Codecs audio</h3>
-    <ul class="kv">
-      {% for c in detail.by_audio_codec %}<li><span>{{ c.label }}</span><b>{{ c.count }}</b></li>
       {% else %}<li class="muted">Aucune donnée</li>{% endfor %}
     </ul>
   </div>
@@ -53,9 +39,6 @@
       {% else %}<li class="muted">Aucune donnée</li>{% endfor %}
     </ul>
   </div>
-</div>
-
-<div class="stats-grid">
   <div class="card">
     <h3>🔥 Les plus regardés</h3>
     <ol>
@@ -74,4 +57,45 @@
     </ol>
   </div>
 </div>
+
+<div class="page-head row">
+  <h2>Catalogue</h2>
+  <div class="filters-inline">
+    <label>Recherche <input type="search" id="catalog-search" placeholder="Titre…"></label>
+    <span class="muted" id="catalog-count"></span>
+  </div>
+</div>
+<div class="poster-grid" id="catalog">
+  {% for m in detail.catalog %}
+  <a class="poster-card" href="/media/{{ m.item_id }}" data-name="{{ m.name | lower }}">
+    <img class="poster" loading="lazy" alt="" src="/image/item/{{ m.item_id }}?w=200">
+    <span class="poster-title">{{ m.name }}</span>
+    {% if m.year %}<span class="poster-year muted">{{ m.year }}</span>{% endif %}
+  </a>
+  {% else %}
+  <p class="muted">Aucun film ni série dans cette bibliothèque.</p>
+  {% endfor %}
+</div>
+<p class="muted" id="catalog-empty" hidden>Aucun titre ne correspond.</p>
+{% endblock %}
+{% block scripts %}
+<script>
+const catalogSearch = document.getElementById('catalog-search');
+const catalogCards = Array.from(document.querySelectorAll('#catalog .poster-card'));
+const catalogCount = document.getElementById('catalog-count');
+const catalogEmpty = document.getElementById('catalog-empty');
+function applyCatalog() {
+  const q = catalogSearch.value.trim().toLowerCase();
+  let n = 0;
+  catalogCards.forEach(c => {
+    const show = !q || c.dataset.name.includes(q);
+    c.hidden = !show;
+    if (show) n++;
+  });
+  catalogCount.textContent = `${n} titre${n > 1 ? 's' : ''}`;
+  catalogEmpty.hidden = n > 0 || !catalogCards.length;
+}
+catalogSearch.addEventListener('input', applyCatalog);
+applyCatalog();
+</script>
 {% endblock %}

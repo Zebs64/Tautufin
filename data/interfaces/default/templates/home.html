@@ -2,7 +2,7 @@
 {% block title %}Accueil — Tautufin{% endblock %}
 {% block content %}
 <div class="page-head">
-  <h1>{% if user.is_admin %}Activité en cours{% else %}Mon activité{% endif %}</h1>
+  <h1>{% if user.can_view_everyone %}Activité en cours{% else %}Mon activité{% endif %}</h1>
   {% if not jellyfin_configured and user.is_admin %}
   <div class="alert alert-warn">Jellyfin n'est pas configuré —
     <a href="/settings">renseignez l'URL et la clé API dans Settings</a>.</div>

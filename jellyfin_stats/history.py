@@ -65,14 +65,21 @@ def get_history(
     )["n"]
     rows = database.query(
         f"""
-        SELECT id, started_at, stopped_at, jellyfin_user_id, user_name, item_id,
-               item_type, item_name, series_name, season_number, episode_number,
-               library_name, play_duration, runtime_seconds, percent_complete,
-               client_name, device_name, ip_address, play_method,
-               video_resolution, source
-        FROM session_history
+        SELECT sh.id, sh.started_at, sh.stopped_at, sh.jellyfin_user_id,
+               sh.user_name, sh.item_id, sh.item_type, sh.item_name,
+               sh.series_name, sh.season_number, sh.episode_number,
+               sh.library_name, sh.play_duration, sh.runtime_seconds,
+               sh.percent_complete, sh.client_name, sh.device_name,
+               sh.ip_address, sh.play_method, sh.video_resolution, sh.source,
+               -- Vignette : pour un épisode, le poster de la série plutôt que
+               -- l'image de l'épisode ; repli sur le média lui-même.
+               COALESCE(
+                   (SELECT i.item_id FROM items i
+                    WHERE i.type = 'Series' AND i.name = sh.series_name LIMIT 1),
+                   sh.item_id) AS image_id
+        FROM session_history sh
         WHERE {where_sql}
-        ORDER BY {sort_col} {direction}, id {direction}
+        ORDER BY {sort_col} {direction}, sh.id {direction}
         LIMIT ? OFFSET ?
         """,
         params + [page_size, (page - 1) * page_size],

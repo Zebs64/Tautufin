@@ -151,6 +151,19 @@ MIGRATIONS: list[tuple[int, list[str]]] = [
             "ALTER TABLE items ADD COLUMN people TEXT",
         ],
     ),
+    (
+        4,
+        [
+            # Gestion fine des utilisateurs Jellyfin :
+            #  - hidden         : exclu de toutes les stats globales
+            #  - access_blocked : connexion à Tautufin refusée
+            #  - can_view_all   : droit « vision » (voit les stats de tous,
+            #                     sans accès à la configuration)
+            "ALTER TABLE users ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE users ADD COLUMN access_blocked INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE users ADD COLUMN can_view_all INTEGER NOT NULL DEFAULT 0",
+        ],
+    ),
 ]
 
 
@@ -213,3 +226,73 @@ def execute(sql: str, params=()) -> int:
     """Exécute une écriture, retourne le nombre de lignes affectées."""
     with db() as conn:
         return conn.execute(sql, params).rowcount
+
+
+# --- Maintenance -----------------------------------------------------------
+
+# Tables de données (caches + historique) ; vidées par un reset. Les tables
+# d'authentification (local_users, http_sessions) et schema_version sont
+# préservées pour ne pas verrouiller l'admin hors de l'application.
+_DATA_TABLES = ("session_history", "items", "libraries", "users")
+
+
+def backup_bytes() -> bytes:
+    """Snapshot cohérent de la base (API backup SQLite, prend en compte le WAL)
+    renvoyé en mémoire pour téléchargement."""
+    import tempfile
+
+    if _db_path is None:
+        raise RuntimeError("database.init() n'a pas été appelé")
+    fd, tmp = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    try:
+        src = sqlite3.connect(_db_path, timeout=30)
+        try:
+            dest = sqlite3.connect(tmp)
+            try:
+                src.backup(dest)
+            finally:
+                dest.close()
+        finally:
+            src.close()
+        with open(tmp, "rb") as f:
+            return f.read()
+    finally:
+        os.remove(tmp)
+
+
+def integrity_check() -> dict:
+    """Vérifie l'intégrité de la base (PRAGMA integrity_check + clés
+    étrangères) et renvoie quelques compteurs utiles."""
+    with db() as conn:
+        integrity = [r[0] for r in conn.execute("PRAGMA integrity_check").fetchall()]
+        fk_violations = len(conn.execute("PRAGMA foreign_key_check").fetchall())
+        counts = {
+            t: conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
+            for t in _DATA_TABLES + ("local_users",)
+        }
+    size = os.path.getsize(_db_path) if _db_path and os.path.exists(_db_path) else 0
+    return {
+        "ok": integrity == ["ok"] and fk_violations == 0,
+        "integrity": integrity,
+        "foreign_key_violations": fk_violations,
+        "counts": counts,
+        "size_bytes": size,
+    }
+
+
+def reset_data() -> dict:
+    """Vide les tables de données (historique + caches). Préserve les comptes
+    locaux et les sessions HTTP. Renvoie le nombre de lignes supprimées."""
+    deleted = {}
+    with db() as conn:
+        for table in _DATA_TABLES:
+            deleted[table] = conn.execute(f"DELETE FROM {table}").rowcount
+    # VACUUM doit s'exécuter hors transaction.
+    conn = sqlite3.connect(_db_path, timeout=30)
+    conn.isolation_level = None
+    try:
+        conn.execute("VACUUM")
+    finally:
+        conn.close()
+    return deleted
