@@ -141,6 +141,20 @@ h3 { font-size: .98em; margin: .2em 0 .7em; color: var(--text-muted); font-weigh
 .maint-result { margin-top: 10px; font-size: .88em; line-height: 1.5; }
 .maint-result.ok { color: var(--ok, #4caf50); }
 .maint-result.err { color: var(--err, #f44336); }
+
+/* Barre de progression de la synchro Jellyfin. */
+.sync-progress { flex-basis: 100%; margin-top: 8px; }
+.sync-progress-label { font-size: .85em; color: var(--text-muted); margin-bottom: 6px; }
+.sync-bar { height: 8px; border-radius: 6px; background: rgba(255,255,255,.08);
+  overflow: hidden; }
+.sync-bar span { display: block; height: 100%; border-radius: 6px;
+  background: linear-gradient(90deg, var(--accent-deep), var(--accent));
+  width: 0; transition: width .4s ease; }
+.sync-bar span.indeterminate { width: 40% !important; transition: none;
+  animation: sync-slide 1.1s ease-in-out infinite; }
+@keyframes sync-slide {
+  0% { margin-left: -40%; } 100% { margin-left: 100%; }
+}
 .chart-wide { grid-column: 1 / -1; }
 .chart-card canvas { max-height: 320px; }
 .transcode-cost { margin: 12px 0 0; font-size: .85em; line-height: 1.5; text-align: center;

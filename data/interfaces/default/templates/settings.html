@@ -97,6 +97,10 @@
       <button type="submit" class="btn btn-primary">Enregistrer la connexion</button>
       <button type="button" class="btn" id="sync-now">Synchroniser Jellyfin maintenant</button>
       <span id="sync-result"></span>
+      <div class="sync-progress" id="sync-progress" hidden>
+        <div class="sync-progress-label" id="sync-progress-label"></div>
+        <div class="sync-bar"><span id="sync-bar-fill"></span></div>
+      </div>
     </div>
   </form>
 </section>
@@ -318,15 +322,62 @@ document.getElementById('test-jellyfin').addEventListener('click', async () => {
     out.className = r.ok ? 'ok' : 'err';
   } catch (e) { out.textContent = '✗ ' + e.message; out.className = 'err'; }
 });
+// Synchro Jellyfin : lancée en arrière-plan côté serveur, suivie par polling.
+// Elle continue même si on quitte la page ; on la « reprend » à l'affichage.
+let syncTimer = null;
+
+function renderSync(s) {
+  const box = document.getElementById('sync-progress');
+  const label = document.getElementById('sync-progress-label');
+  const fill = document.getElementById('sync-bar-fill');
+  const out = document.getElementById('sync-result');
+  if (s.running) {
+    box.hidden = false;
+    out.textContent = ''; out.className = '';
+    const pct = s.total ? Math.round(s.current / s.total * 100) : null;
+    fill.classList.toggle('indeterminate', pct === null);
+    fill.style.width = pct === null ? '100%' : pct + '%';
+    let t = s.phase === 'users'
+      ? 'Synchronisation des utilisateurs…'
+      : `Bibliothèques ${s.current}/${s.total}` + (s.label ? ` — ${s.label}` : '');
+    if (s.items) t += ` · ${s.items} médias`;
+    label.textContent = t;
+  } else {
+    box.hidden = true;
+    if (s.phase === 'done') {
+      out.textContent = `✓ ${s.users} utilisateurs, ${s.items} médias`;
+      out.className = 'ok';
+    } else if (s.phase === 'error') {
+      out.textContent = '✗ ' + (s.error || 'erreur de synchronisation');
+      out.className = 'err';
+    }
+  }
+}
+
+async function pollSync() {
+  try {
+    const s = await fetchJSON('/api/sync/status');
+    renderSync(s);
+    if (!s.running) { clearInterval(syncTimer); syncTimer = null; }
+  } catch (e) { clearInterval(syncTimer); syncTimer = null; }
+}
+
+function watchSync() {
+  if (syncTimer) return;
+  syncTimer = setInterval(pollSync, 1000);
+  pollSync();
+}
+
 document.getElementById('sync-now').addEventListener('click', async () => {
   const out = document.getElementById('sync-result');
-  out.textContent = 'Synchronisation…';
-  try {
-    const r = await postJSON('/api/sync', {});
-    out.textContent = `✓ ${r.users} utilisateurs, ${r.items} médias`;
-    out.className = 'ok';
-  } catch (e) { out.textContent = '✗ ' + e.message; out.className = 'err'; }
+  out.textContent = ''; out.className = '';
+  try { await postJSON('/api/sync', {}); watchSync(); }
+  catch (e) { out.textContent = '✗ ' + e.message; out.className = 'err'; }
 });
+
+// Reprise : si une synchro tourne déjà (lancée avant, ou périodique), on
+// affiche sa progression dès l'ouverture des Réglages.
+fetchJSON('/api/sync/status').then(s => { if (s.running) watchSync(); }).catch(() => {});
 document.getElementById('verify-db').addEventListener('click', async () => {
   const out = document.getElementById('verify-result');
   out.textContent = 'Vérification…';
