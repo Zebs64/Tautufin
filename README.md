@@ -99,6 +99,45 @@ services:
 ```
 </details>
 
+<details>
+<summary>Exemple <code>docker-compose.yml</code> derrière Traefik</summary>
+
+```yaml
+services:
+  tautufin:
+    container_name: tautufin
+    image: ghcr.io/zebs64/tautufin:latest
+
+    environment:
+      - TZ=Europe/Paris
+
+    volumes:
+      - ./config:/config
+      # Optionnel : monter le dossier data de Jellyfin en lecture seule pour
+      # importer playback_reporting.db depuis la page Import.
+      # - /var/lib/jellyfin/data:/jellyfin-data:ro
+
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.tautufin.rule=Host(`tautufin.tondomain.com`)
+      - traefik.http.routers.tautufin.entrypoints=websecure
+      - traefik.http.services.tautufin.loadbalancer.server.port=8181
+
+    networks:
+      - proxy
+
+    restart: always
+
+networks:
+  proxy:
+   external: true
+```
+
+> Remplacez `tautufin.tondomain.com` par votre domaine réel et adaptez
+> l'entrypoint Traefik si votre configuration n'utilise pas `websecure`.
+
+</details>
+
 ### Docker avec build local
 
 Pour construire l'image depuis les sources au lieu d'utiliser GHCR :
