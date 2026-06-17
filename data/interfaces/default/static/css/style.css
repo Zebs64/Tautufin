@@ -89,7 +89,7 @@ h1 { font-size: 1.55em; margin: .2em 0; font-weight: 700; letter-spacing: .01em;
 h2 { font-size: 1.2em; margin: .9em 0 .5em; }
 h3 { font-size: .98em; margin: .2em 0 .7em; color: var(--text-muted); font-weight: 600; }
 .muted { color: var(--text-muted); }
-.hidden { display: none; }
+.hidden, [hidden] { display: none !important; }
 .ok { color: var(--ok); } .err { color: var(--err); }
 
 .card {
