@@ -96,6 +96,7 @@ function applyCatalog() {
   catalogEmpty.hidden = n > 0 || !catalogCards.length;
 }
 catalogSearch.addEventListener('input', applyCatalog);
+catalogSearch.addEventListener('search', applyCatalog);
 applyCatalog();
 </script>
 {% endblock %}
