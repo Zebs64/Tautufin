@@ -208,18 +208,36 @@ function statHero(kind, row0) {
 }
 
 // Élément #1 mis en avant : grand poster, avatar ou icône de client.
+function statFeatureTarget(kind, row0) {
+  if (!row0) return '';
+  if (MEDIA_KINDS.has(kind) && row0.target_id)
+    return `/media/${encodeURIComponent(row0.target_id)}`;
+  if (kind === 'top_users' && row0.user_id)
+    return `/users/${encodeURIComponent(row0.user_id)}`;
+  if (kind === 'top_libraries' && row0.library_id)
+    return `/libraries/${encodeURIComponent(row0.library_id)}`;
+  return '';
+}
+
+function linkedStatFeature(kind, row0, markup) {
+  const href = statFeatureTarget(kind, row0);
+  if (!href || !markup) return markup;
+  return `<a class="stat-feature-link" href="${href}"
+             aria-label="Ouvrir ${esc(row0.label || 'la page')}">${markup}</a>`;
+}
+
 function statFeature(kind, row0) {
   if (!row0) return '';
   if (MEDIA_KINDS.has(kind) && row0.image_id)
-    return `<img class="stat-feature poster" loading="lazy" alt=""
-                 src="/image/item/${encodeURIComponent(row0.image_id)}?w=240">`;
+    return linkedStatFeature(kind, row0, `<img class="stat-feature poster" loading="lazy" alt=""
+                 src="/image/item/${encodeURIComponent(row0.image_id)}?w=240">`);
   if (kind === 'top_users' && row0.user_id)
-    return `<img class="stat-feature avatar avatar-lg" loading="lazy" alt=""
-                 src="/image/user/${encodeURIComponent(row0.user_id)}">`;
+    return linkedStatFeature(kind, row0, `<img class="stat-feature avatar avatar-lg" loading="lazy" alt=""
+                 src="/image/user/${encodeURIComponent(row0.user_id)}">`);
   if (kind === 'top_clients')
     return `<span class="stat-feature stat-feature-icon">${clientLogo(row0.label, null)}</span>`;
   if (kind === 'top_libraries')
-    return `<span class="stat-feature stat-feature-icon">${libraryIcon(row0.collection_type)}</span>`;
+    return linkedStatFeature(kind, row0, `<span class="stat-feature stat-feature-icon">${libraryIcon(row0.collection_type)}</span>`);
   return '';
 }
 
@@ -245,7 +263,10 @@ function statCard(def, rows, fmt, metric) {
         <li${i === 0 ? ' class="selected"' : ''} data-idx="${i}"
             data-image="${esc(r.image_id || '')}" data-user="${esc(r.user_id || '')}"
             data-username="${esc(r.user_name || '')}"
-            data-type="${esc(r.collection_type || '')}" data-label="${esc(r.label)}">
+            data-type="${esc(r.collection_type || '')}"
+            data-library="${esc(r.library_id || '')}"
+            data-target="${esc(r.target_id || '')}"
+            data-label="${esc(r.label)}">
           <span class="stat-rank">${i + 1}</span>
           <span class="stat-label" title="${esc(r.label)}">${esc(r.label)}</span>
           <span class="stat-value">${statValue(def, r, fmt)}</span>
@@ -277,7 +298,8 @@ function selectStatRow(li) {
   li.classList.add('selected');
   const kind = card.dataset.kind;
   const row = {image_id: li.dataset.image, user_id: li.dataset.user,
-               label: li.dataset.label, collection_type: li.dataset.type};
+               label: li.dataset.label, collection_type: li.dataset.type,
+               library_id: li.dataset.library, target_id: li.dataset.target};
   const hero = statHero(kind, row);
   if (hero) { card.classList.add('has-hero'); card.style.backgroundImage = `url('${hero}')`; }
   const wrap = card.querySelector('.stat-feature-wrap');
