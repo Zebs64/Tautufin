@@ -1,4 +1,4 @@
-"""Statistiques par média (page détail d'un film / épisode).
+"""Statistiques par média (page détail d'un film / épisode / série).
 
 Combien de fois un média a été vu, par qui, quand — avec une timeline mensuelle.
 Scopable sur un utilisateur (un non-admin ne voit que ses propres visionnages,
@@ -117,7 +117,13 @@ def media_overview(item_id: str, user_id: str | None = None) -> dict | None:
     if not meta:
         return None
 
-    where, params = "item_id = ?", [item_id]
+    if meta["type"] == "Series":
+        # L'historique Jellyfin est stocké sur les épisodes. Une fiche /media
+        # ciblant l'item Series doit donc agréger les lectures des épisodes de
+        # cette série, sinon les tops d'accueil ouvrent une page vide.
+        where, params = "item_type = 'Episode' AND series_name = ?", [meta["name"]]
+    else:
+        where, params = "item_id = ?", [item_id]
     if user_id:
         where += " AND jellyfin_user_id = ?"
         params.append(user_id)

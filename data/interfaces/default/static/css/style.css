@@ -346,7 +346,10 @@ h3 { font-size: .98em; margin: .2em 0 .7em; color: var(--text-muted); font-weigh
 
 .stat-content { display: flex; gap: 16px; align-items: flex-start; flex: 1; min-height: 0; }
 .stat-feature-wrap { flex-shrink: 0; }
+.stat-feature-link { display: block; color: inherit; text-decoration: none; border-radius: var(--radius-lg); }
 .stat-feature { flex-shrink: 0; transition: opacity .2s; }
+.stat-feature-link:hover .stat-feature { opacity: .86; }
+.stat-feature-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .stat-feature.poster {
   width: 98px; box-shadow: 0.15em 0.3em 0.9em hsla(0, 0%, 0%, 0.55);
 }

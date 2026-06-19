@@ -272,9 +272,11 @@ def top_people(days=30, kind: str = "actor", metric: str = "plays",
 
 def top_media(days=30, kind: str = "movie", metric: str = "plays",
               user_id=None, limit: int = 10, year=None) -> list[dict]:
-    """Top films/séries avec identifiant d'image pour les vignettes du
-    dashboard. ``image_id`` pointe vers le média dont le poster est servi par
-    le proxy /image/item/ (la série elle-même pour un top séries)."""
+    """Top films/séries avec IDs séparés pour le dashboard.
+
+    ``image_id`` pointe vers le média dont le poster est servi par le proxy
+    /image/item/. ``target_id`` pointe vers la fiche /media pertinente.
+    """
     where, params = _base_where(days, user_id, year)
     if kind == "series":
         # NB : ``items`` a aussi une colonne ``series_name`` ; on qualifie donc
@@ -286,6 +288,9 @@ def top_media(days=30, kind: str = "movie", metric: str = "plays",
                    (SELECT i.item_id FROM items i
                     WHERE i.type = 'Series' AND i.name = sh.series_name LIMIT 1
                    ) AS image_id,
+                   (SELECT i.item_id FROM items i
+                    WHERE i.type = 'Series' AND i.name = sh.series_name LIMIT 1
+                   ) AS target_id,
                    MAX(sh.item_id) AS fallback_id
             FROM session_history sh
             WHERE {where} AND sh.item_type = 'Episode' AND sh.series_name IS NOT NULL
@@ -297,7 +302,8 @@ def top_media(days=30, kind: str = "movie", metric: str = "plays",
         rows = database.query(
             f"""
             SELECT item_name AS label, {_metric_sql(metric)} AS value,
-                   MAX(item_id) AS image_id, NULL AS fallback_id
+                   MAX(item_id) AS image_id, MAX(item_id) AS target_id,
+                   NULL AS fallback_id
             FROM session_history
             WHERE {where} AND item_type = 'Movie'
             GROUP BY item_name ORDER BY value DESC LIMIT {int(limit)}
@@ -306,6 +312,7 @@ def top_media(days=30, kind: str = "movie", metric: str = "plays",
         )
     for r in rows:
         r["image_id"] = r["image_id"] or r.pop("fallback_id", None)
+        r["target_id"] = r["target_id"] or r["image_id"]
         r.pop("fallback_id", None)
     return rows
 
@@ -323,6 +330,9 @@ def popular_media(days=30, kind: str = "movie", user_id=None,
                    (SELECT i.item_id FROM items i
                     WHERE i.type = 'Series' AND i.name = sh.series_name LIMIT 1
                    ) AS image_id,
+                   (SELECT i.item_id FROM items i
+                    WHERE i.type = 'Series' AND i.name = sh.series_name LIMIT 1
+                   ) AS target_id,
                    MAX(sh.item_id) AS fallback_id
             FROM session_history sh
             WHERE {where} AND sh.item_type = 'Episode' AND sh.series_name IS NOT NULL
@@ -335,7 +345,8 @@ def popular_media(days=30, kind: str = "movie", user_id=None,
             f"""
             SELECT item_name AS label,
                    COUNT(DISTINCT jellyfin_user_id) AS value,
-                   MAX(item_id) AS image_id, NULL AS fallback_id
+                   MAX(item_id) AS image_id, MAX(item_id) AS target_id,
+                   NULL AS fallback_id
             FROM session_history
             WHERE {where} AND item_type = 'Movie'
             GROUP BY item_name ORDER BY value DESC, label LIMIT {int(limit)}
@@ -344,6 +355,7 @@ def popular_media(days=30, kind: str = "movie", user_id=None,
         )
     for r in rows:
         r["image_id"] = r["image_id"] or r.pop("fallback_id", None)
+        r["target_id"] = r["target_id"] or r["image_id"]
         r.pop("fallback_id", None)
     return rows
 
@@ -352,7 +364,8 @@ def recently_watched(days=None, user_id=None, limit: int = 10) -> list[dict]:
     """Derniers médias regardés (films + épisodes), dédupliqués par média sur
     la dernière lecture. ``last_watch`` = horodatage, ``user_name`` = dernier
     spectateur. Pour un épisode, ``image_id`` pointe sur la *série* (même
-    logique que les films : poster + fanart de la série, pas de l'épisode)."""
+    logique que les films : poster + fanart de la série, pas de l'épisode) et
+    ``target_id`` conserve l'épisode réellement regardé pour la navigation."""
     where, params = _base_where(days, user_id)
     rows = database.query(
         f"""
@@ -378,6 +391,7 @@ def recently_watched(days=None, user_id=None, limit: int = 10) -> list[dict]:
         out.append({
             "label": label, "last_watch": r["last_watch"],
             "user_name": r["user_name"], "image_id": r["item_id"],
+            "target_id": r["item_id"],
             "_series": r["series_name"] if is_episode else None,
         })
         if len(out) >= limit:
@@ -406,6 +420,8 @@ def top_libraries(days=30, metric: str = "plays", user_id=None,
         f"""
         SELECT COALESCE(sh.library_name, 'Inconnue') AS label,
                {_metric_sql(metric)} AS value,
+               (SELECT l.library_id FROM libraries l
+                WHERE l.name = sh.library_name LIMIT 1) AS library_id,
                (SELECT l.collection_type FROM libraries l
                 WHERE l.name = sh.library_name LIMIT 1) AS collection_type
         FROM session_history sh
