@@ -1,14 +1,13 @@
 services:
   tautufin:
     image: ghcr.io/zebs64/tautufin:latest
-    container_name: tautufin
     restart: unless-stopped
     environment:
       # Fuseau de référence : aligne le monitoring live, les requêtes
       # « localtime » et la conversion des imports horodatés en UTC.
       - TZ=Europe/Paris
     ports:
-      - "8181:8181"
+      - "${DEVSANDBOX_PORT:-8181}:8181"
     volumes:
       # Configuration + base SQLite persistées ici.
       - ./config:/config
