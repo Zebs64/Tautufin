@@ -8,9 +8,10 @@ Endpoints utilisés (référence : https://api.jellyfin.org) :
 - GET  /Library/VirtualFolders    — bibliothèques
 - GET  /Items                     — médias (paginé)
 
-Authentification : header ``X-Emby-Authorization`` portant la clé API
-(``Token="..."``). Le token utilisateur obtenu au login n'est utilisé que
-le temps de la requête de login, jamais persisté.
+Authentification : header standard ``Authorization`` portant une valeur
+``MediaBrowser ...`` avec la clé API (``Token="..."``). Le token utilisateur
+obtenu au login n'est utilisé que le temps de la requête de login, jamais
+persisté.
 """
 
 import logging
@@ -44,6 +45,9 @@ class JellyfinAPI:
             parts += f', Token="{token}"'
         return parts
 
+    def _auth_headers(self, token: str | None = None) -> dict[str, str]:
+        return {"Authorization": self._auth_header(token)}
+
     def _request(
         self,
         method: str,
@@ -55,7 +59,7 @@ class JellyfinAPI:
         base = (base_url or self.config.jellyfin_url).rstrip("/")
         if not base:
             raise JellyfinError("Serveur Jellyfin non configuré")
-        headers = {"X-Emby-Authorization": self._auth_header(token)}
+        headers = self._auth_headers(token)
         try:
             resp = httpx.request(
                 method,
@@ -142,8 +146,7 @@ class JellyfinAPI:
             resp = httpx.get(
                 f"{base}{path}",
                 params=params,
-                headers={"X-Emby-Authorization":
-                         self._auth_header(self.config.jellyfin_api_key)},
+                headers=self._auth_headers(self.config.jellyfin_api_key),
                 verify=self.config.verify_ssl,
                 timeout=15,
             )
