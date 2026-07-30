@@ -10,6 +10,7 @@ import asyncio
 import json
 import logging
 import threading
+from datetime import datetime, timedelta, timezone
 
 from . import auth, database
 from .activity import TICKS_PER_SECOND, resolution_label
@@ -23,6 +24,30 @@ logger = logging.getLogger(__name__)
 # plafond par média pour ne pas gonfler la base avec la figuration.
 _PEOPLE_TYPES = {"Actor", "Director", "Writer", "GuestStar"}
 _PEOPLE_MAX = 25
+_SYNC_OVERLAP = timedelta(minutes=5)
+
+
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _format_utc(value: datetime) -> str:
+    return value.astimezone(timezone.utc).replace(microsecond=0) \
+        .isoformat().replace("+00:00", "Z")
+
+
+def _incremental_start(cursor: str | None) -> str | None:
+    if not cursor:
+        return None
+    try:
+        parsed = datetime.fromisoformat(cursor.replace("Z", "+00:00"))
+    except ValueError:
+        logger.warning("Curseur de synchronisation invalide, full sync requise")
+        return None
+    if parsed.tzinfo is None or parsed.utcoffset() != timedelta(0):
+        logger.warning("Curseur de synchronisation non UTC, full sync requise")
+        return None
+    return _format_utc(parsed - _SYNC_OVERLAP)
 
 
 def _people_json(people) -> str | None:
@@ -65,7 +90,8 @@ def sync_users(api) -> int:
     return len(users)
 
 
-def sync_libraries_and_items(api, report=None) -> int:
+def sync_libraries_and_items(api, report=None,
+                             min_date_last_saved: str | None = None) -> int:
     total_items = 0
     folders = [f for f in api.get_libraries() if f.get("ItemId")]
     for idx, folder in enumerate(folders):
@@ -76,7 +102,8 @@ def sync_libraries_and_items(api, report=None) -> int:
         # Phase réseau HORS transaction : récupérer les médias sans tenir le
         # verrou d'écriture SQLite pendant les appels HTTP (sinon le poller et
         # les sessions HTTP se prennent un « database is locked »).
-        items = list(api.iter_items(library_id))
+        items = list(api.iter_items(
+            library_id, min_date_last_saved=min_date_last_saved))
         count = len(items)
         # Phase écriture : transaction courte.
         with database.db() as conn:
@@ -108,7 +135,22 @@ def sync_libraries_and_items(api, report=None) -> int:
                         video_codec = excluded.video_codec,
                         audio_codec = excluded.audio_codec,
                         people = excluded.people,
+                        added_at = excluded.added_at,
                         updated_at = excluded.updated_at
+                    WHERE items.library_id IS NOT excluded.library_id
+                       OR items.name IS NOT excluded.name
+                       OR items.type IS NOT excluded.type
+                       OR items.series_name IS NOT excluded.series_name
+                       OR items.season_number IS NOT excluded.season_number
+                       OR items.episode_number IS NOT excluded.episode_number
+                       OR items.year IS NOT excluded.year
+                       OR items.genres IS NOT excluded.genres
+                       OR items.runtime_seconds IS NOT excluded.runtime_seconds
+                       OR items.video_resolution IS NOT excluded.video_resolution
+                       OR items.video_codec IS NOT excluded.video_codec
+                       OR items.audio_codec IS NOT excluded.audio_codec
+                       OR items.people IS NOT excluded.people
+                       OR items.added_at IS NOT excluded.added_at
                     """,
                     (
                         item["Id"], library_id, item.get("Name"), item.get("Type"),
@@ -123,14 +165,16 @@ def sync_libraries_and_items(api, report=None) -> int:
                         now_iso(),
                     ),
                 )
+            item_count_update = "" if min_date_last_saved else \
+                "item_count = excluded.item_count,"
             conn.execute(
-                """
+                f"""
                 INSERT INTO libraries (library_id, name, collection_type, item_count, updated_at)
                 VALUES (?, ?, ?, ?, ?)
                 ON CONFLICT(library_id) DO UPDATE SET
                     name = excluded.name,
                     collection_type = excluded.collection_type,
-                    item_count = excluded.item_count,
+                    {item_count_update}
                     updated_at = excluded.updated_at
                 """,
                 (library_id, folder.get("Name", "?"),
@@ -144,13 +188,18 @@ def sync_libraries_and_items(api, report=None) -> int:
     return total_items
 
 
-def sync_all(api, report=None) -> dict:
+def sync_all(api, report=None, force_full: bool = False) -> dict:
+    started_at = _utc_now()
+    incremental_start = None if force_full else \
+        _incremental_start(database.get_sync_cursor())
     if report:
         report(phase="users", label="Utilisateurs")
     users = sync_users(api)
     if report:
         report(users=users)
-    items = sync_libraries_and_items(api, report=report)
+    items = sync_libraries_and_items(
+        api, report=report, min_date_last_saved=incremental_start)
+    database.set_sync_cursor(_format_utc(started_at))
     logger.info("Synchronisation Jellyfin : %d utilisateurs, %d médias", users, items)
     return {"users": users, "items": items}
 
@@ -177,7 +226,7 @@ def _sync_set(**kw) -> None:
         _sync_state.update(kw)
 
 
-def start_sync(api) -> bool:
+def start_sync(api, force_full: bool = True) -> bool:
     """Lance une synchro en arrière-plan si aucune n'est déjà en cours.
     Retourne True si elle a été démarrée, False si une synchro tournait déjà."""
     with _sync_lock:
@@ -189,7 +238,7 @@ def start_sync(api) -> bool:
 
     def _run():
         try:
-            result = sync_all(api, report=_sync_set)
+            result = sync_all(api, report=_sync_set, force_full=force_full)
             _sync_set(phase="done", label="", users=result["users"],
                       items=result["items"])
         except Exception as exc:  # noqa: BLE001 — on remonte l'erreur à l'UI
@@ -245,7 +294,7 @@ class Scheduler:
                 # Synchro périodique via le même chemin que la synchro manuelle
                 # (thread daemon + état de progression partagé) ; ignorée si une
                 # synchro tourne déjà.
-                start_sync(self.api)
+                start_sync(self.api, force_full=False)
             await asyncio.sleep(self.config.sync_interval)
 
     async def _cleanup_loop(self) -> None:

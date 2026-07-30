@@ -109,6 +109,41 @@ class JellyfinAPIAuthTests(unittest.TestCase):
         self.assertNotIn("api_key", params)
         self.assertNotIn("ApiKey", params)
 
+    def test_iter_items_adds_incremental_cursor_to_every_page(self):
+        calls = []
+        responses = [
+            {"Items": [{"Id": "i1"}], "TotalRecordCount": 2},
+            {"Items": [{"Id": "i2"}], "TotalRecordCount": 2},
+        ]
+
+        def fake_request(method, url, **kwargs):
+            calls.append((method, url, kwargs))
+            return FakeResponse(responses.pop(0))
+
+        cursor = "2026-07-30T09:55:00Z"
+        with patch("jellyfin_stats.jellyfin_api.httpx.request", fake_request):
+            items = list(self.api.iter_items(
+                "library-1", page_size=1, min_date_last_saved=cursor))
+
+        self.assertEqual(items, [{"Id": "i1"}, {"Id": "i2"}])
+        self.assertEqual([call[2]["params"]["StartIndex"] for call in calls], [0, 1])
+        self.assertEqual(
+            [call[2]["params"]["minDateLastSaved"] for call in calls],
+            [cursor, cursor],
+        )
+
+    def test_iter_items_omits_incremental_cursor_for_full_sync(self):
+        calls = []
+
+        def fake_request(method, url, **kwargs):
+            calls.append((method, url, kwargs))
+            return FakeResponse({"Items": [], "TotalRecordCount": 0})
+
+        with patch("jellyfin_stats.jellyfin_api.httpx.request", fake_request):
+            list(self.api.iter_items("library-1"))
+
+        self.assertNotIn("minDateLastSaved", calls[0][2]["params"])
+
 
 if __name__ == "__main__":
     unittest.main()

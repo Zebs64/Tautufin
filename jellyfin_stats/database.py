@@ -164,6 +164,19 @@ MIGRATIONS: list[tuple[int, list[str]]] = [
             "ALTER TABLE users ADD COLUMN can_view_all INTEGER NOT NULL DEFAULT 0",
         ],
     ),
+    (
+        5,
+        [
+            # État persistant des synchronisations. Une ligne absente signifie
+            # qu'une full sync d'amorçage est requise.
+            """
+            CREATE TABLE sync_state (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+            """,
+        ],
+    ),
 ]
 
 
@@ -228,6 +241,30 @@ def execute(sql: str, params=()) -> int:
         return conn.execute(sql, params).rowcount
 
 
+# --- État de synchronisation -----------------------------------------------
+
+_SYNC_CURSOR_KEY = "items_cursor_utc"
+
+
+def get_sync_cursor() -> str | None:
+    row = query_one("SELECT value FROM sync_state WHERE key = ?", (_SYNC_CURSOR_KEY,))
+    return row["value"] if row else None
+
+
+def set_sync_cursor(value: str) -> None:
+    execute(
+        """
+        INSERT INTO sync_state (key, value) VALUES (?, ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value
+        """,
+        (_SYNC_CURSOR_KEY, value),
+    )
+
+
+def clear_sync_cursor() -> None:
+    execute("DELETE FROM sync_state WHERE key = ?", (_SYNC_CURSOR_KEY,))
+
+
 # --- Maintenance -----------------------------------------------------------
 
 # Tables de données (caches + historique) ; vidées par un reset. Les tables
@@ -288,6 +325,7 @@ def reset_data() -> dict:
     with db() as conn:
         for table in _DATA_TABLES:
             deleted[table] = conn.execute(f"DELETE FROM {table}").rowcount
+        conn.execute("DELETE FROM sync_state WHERE key = ?", (_SYNC_CURSOR_KEY,))
     # VACUUM doit s'exécuter hors transaction.
     conn = sqlite3.connect(_db_path, timeout=30)
     conn.isolation_level = None
