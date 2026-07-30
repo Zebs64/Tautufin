@@ -156,22 +156,26 @@ class JellyfinAPI:
             return None
         return resp.content, resp.headers.get("Content-Type", "image/jpeg")
 
-    def iter_items(self, parent_id: str, page_size: int = 500):
+    def iter_items(self, parent_id: str, page_size: int = 500,
+                   min_date_last_saved: str | None = None):
         """Itère sur les médias d'une bibliothèque, avec pagination."""
         start = 0
         while True:
+            params = {
+                "ParentId": parent_id,
+                "Recursive": "true",
+                "IncludeItemTypes": "Movie,Series,Episode,Audio,MusicAlbum",
+                "Fields": "Genres,RunTimeTicks,ProductionYear,MediaStreams,"
+                          "SeriesName,ParentIndexNumber,IndexNumber,DateCreated,"
+                          "People",
+                "StartIndex": start,
+                "Limit": page_size,
+            }
+            if min_date_last_saved is not None:
+                params["minDateLastSaved"] = min_date_last_saved
             data = self._get(
                 "/Items",
-                params={
-                    "ParentId": parent_id,
-                    "Recursive": "true",
-                    "IncludeItemTypes": "Movie,Series,Episode,Audio,MusicAlbum",
-                    "Fields": "Genres,RunTimeTicks,ProductionYear,MediaStreams,"
-                              "SeriesName,ParentIndexNumber,IndexNumber,DateCreated,"
-                              "People",
-                    "StartIndex": start,
-                    "Limit": page_size,
-                },
+                params=params,
             ) or {}
             items = data.get("Items", [])
             yield from items
