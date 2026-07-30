@@ -5,7 +5,7 @@
   <h1>{% if user.can_view_everyone %}Activité en cours{% else %}Mon activité{% endif %}</h1>
   {% if not jellyfin_configured and user.is_admin %}
   <div class="alert alert-warn">Jellyfin n'est pas configuré —
-    <a href="/settings">renseignez l'URL et la clé API dans Settings</a>.</div>
+    <a href="/settings">renseignez l'URL et la clé API dans Réglages</a>.</div>
   {% endif %}
 </div>
 

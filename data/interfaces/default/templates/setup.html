@@ -10,7 +10,7 @@
 
   <form method="post" action="/setup">
     <fieldset>
-      <legend>Serveur Jellyfin (optionnel, configurable plus tard dans Settings)</legend>
+      <legend>Serveur Jellyfin (optionnel, configurable plus tard dans Réglages)</legend>
       <label>URL du serveur
         <input type="url" name="jellyfin_url" placeholder="http://192.168.1.10:8096"
                value="{{ (form or {}).get('jellyfin_url', '') }}">
