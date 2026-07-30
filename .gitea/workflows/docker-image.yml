@@ -31,6 +31,8 @@ jobs:
             --password-stdin
 
       - name: Build image
+        env:
+          REF: ${{ gitea.ref }}
         run: |
           IMAGE="$(echo "$REGISTRY/$IMAGE_NAME" | tr '[:upper:]' '[:lower:]')"
 
@@ -39,9 +41,20 @@ jobs:
             -t "$IMAGE:latest" \
             .
 
+          if [[ "$REF" == refs/tags/* ]]; then
+            VERSION_TAG="${REF#refs/tags/}"
+            docker tag "$IMAGE:${{ gitea.sha }}" "$IMAGE:$VERSION_TAG"
+          fi
+
       - name: Push image
+        env:
+          REF: ${{ gitea.ref }}
         run: |
           IMAGE="$(echo "$REGISTRY/$IMAGE_NAME" | tr '[:upper:]' '[:lower:]')"
 
           docker push "$IMAGE:${{ gitea.sha }}"
           docker push "$IMAGE:latest"
+          if [[ "$REF" == refs/tags/* ]]; then
+            VERSION_TAG="${REF#refs/tags/}"
+            docker push "$IMAGE:$VERSION_TAG"
+          fi
