@@ -94,7 +94,7 @@ def build(days: int | None = 30, user_id: str | None = None, year: int | None = 
     client_filter = ""
     if hide_unknown:
         client_filter = " AND client_name IS NOT NULL AND TRIM(client_name) != ''"
-    client_rows = database.query(
+    all_client_rows = database.query(
         f"""
         SELECT COALESCE(NULLIF(TRIM(client_name), ''), ?) AS client,
                COUNT(*) AS plays,
@@ -110,7 +110,6 @@ def build(days: int | None = 30, user_id: str | None = None, year: int | None = 
         FROM session_history WHERE {where}{client_filter}
         GROUP BY client
         ORDER BY plays DESC, duration_seconds DESC, client ASC
-        LIMIT 10
         """,
         [unknown_label, *params],
     )
@@ -121,10 +120,11 @@ def build(days: int | None = 30, user_id: str | None = None, year: int | None = 
         """,
         [unknown_label, *params],
     )
-    for row in client_rows:
+    for row in all_client_rows:
         for key in ("plays", "duration_seconds", "direct_play", "direct_stream",
                     "transcode", "unknown"):
             row[key] = int(row[key] or 0)
+    client_rows = all_client_rows[:10]
 
     transcode_seconds = int(summary_row.get("transcode_seconds") or 0)
     transcode_kwh = max(0, watts) / 1000 * transcode_seconds / 3600
@@ -147,10 +147,11 @@ def build(days: int | None = 30, user_id: str | None = None, year: int | None = 
     video_codecs = _distribution(where, params, "video_codec", "Inconnu")
     audio_codecs = _distribution(where, params, "audio_codec", "Inconnu")
     diagnostics = []
-    transcoders = [row for row in client_rows if row["transcode"] > 0]
+    transcoders = [row for row in all_client_rows if row["transcode"] > 0]
     if transcoders:
         leader = max(transcoders, key=lambda row: (row["transcode"], row["client"]))
-        share = round(leader["transcode"] / method_counts["transcode"] * 100)
+        eligible_transcodes = sum(row["transcode"] for row in transcoders)
+        share = round(leader["transcode"] / eligible_transcodes * 100)
         diagnostics.append({
             "kind": "transcode_leader",
             "text": f"{leader['client']} concentre {share} % des lectures transcodées.",

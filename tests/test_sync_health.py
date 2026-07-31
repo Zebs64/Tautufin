@@ -1,3 +1,4 @@
+import sqlite3
 import tempfile
 import unittest
 from datetime import datetime, timezone
@@ -151,6 +152,41 @@ class SyncHealthTests(unittest.TestCase):
         self.assertNotIn("super-secret", health["error"])
         self.assertNotIn("other-secret", health["error"])
         self.assertNotIn("jellyfin.private", health["error"])
+
+    def test_final_health_failure_rolls_back_cursor_and_preserves_previous_success(self):
+        previous_cursor = "2026-07-31T09:00:00Z"
+        previous_success = "2026-07-31T09:00:01Z"
+        database.set_sync_cursor(previous_cursor)
+        database.set_sync_health({
+            "status": "success",
+            "last_success_at": previous_success,
+        })
+        database.execute(
+            """
+            CREATE TRIGGER fail_final_success_health
+            BEFORE INSERT ON sync_state
+            WHEN NEW.key = 'sync_health'
+             AND instr(NEW.value, '\"status\":\"success\"') > 0
+            BEGIN
+                SELECT RAISE(ABORT, 'injected final health failure');
+            END
+            """
+        )
+        start = datetime(2026, 7, 31, 10, 0, tzinfo=timezone.utc)
+        end = datetime(2026, 7, 31, 10, 0, 1, tzinfo=timezone.utc)
+
+        with patch("jellyfin_stats.scheduler._utc_now", side_effect=[start, end, end]):
+            with self.assertRaisesRegex(sqlite3.IntegrityError,
+                                        "injected final health failure"):
+                scheduler.sync_all(FakeHealthAPI(), force_full=False)
+
+        health = database.get_sync_health()
+        self.assertEqual(database.get_sync_cursor(), previous_cursor)
+        self.assertEqual(health["last_success_at"], previous_success)
+        self.assertEqual(health["status"], "error")
+        self.assertEqual(health["phase"], "error")
+        self.assertTrue(health["cursor_preserved"])
+        self.assertIn("injected final health failure", health["error"])
 
     def test_health_survives_reinitialization_and_reset_clears_only_sync_keys(self):
         database.set_sync_cursor("2026-07-31T10:00:00Z")

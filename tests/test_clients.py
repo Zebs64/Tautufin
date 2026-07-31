@@ -102,6 +102,56 @@ class ClientStatisticsTests(unittest.TestCase):
         self.assertEqual(result["summary"]["active_clients"], 11)
         self.assertEqual(len(result["clients"]), 10)
 
+    def test_transcode_leader_uses_full_scoped_set_beyond_top_ten(self):
+        for index in range(10):
+            for _ in range(3):
+                self._insert("leaders", f"High-{index:02d}", "DirectPlay", 60,
+                             "1080p", "h264", "aac")
+        self._insert("leaders", "High-00", "Transcode", 60,
+                     "1080p", "h264", "aac")
+        for _ in range(2):
+            self._insert("leaders", "Actual-Leader", "Transcode", 60,
+                         "1080p", "h264", "aac")
+
+        result = clients.build(days=None, user_id="leaders")
+
+        self.assertNotIn("Actual-Leader", [row["client"] for row in result["clients"]])
+        self.assertEqual(
+            result["diagnostics"][0],
+            {
+                "kind": "transcode_leader",
+                "text": "Actual-Leader concentre 67 % des lectures transcodées.",
+            },
+        )
+
+    def test_transcode_leader_respects_scope_hidden_users_and_unknown_preferences(self):
+        database.execute("DELETE FROM session_history")
+        for _ in range(2):
+            self._insert("u1", "Visible", "Transcode", 60, "1080p", "h264", "aac")
+        for _ in range(3):
+            self._insert("u2", "Other", "Transcode", 60, "1080p", "h264", "aac")
+        for _ in range(10):
+            self._insert("hidden", "Secret", "Transcode", 60, "1080p", "h264", "aac")
+        for _ in range(4):
+            self._insert("u1", None, "Transcode", 60, "1080p", "h264", "aac")
+
+        scoped = clients.build(days=None, user_id="u1", hide_unknown=True)
+        global_hidden = clients.build(days=None, hide_unknown=True)
+        global_plex = clients.build(days=None, hide_unknown=False, unknown_label="Plex")
+
+        self.assertEqual(
+            scoped["diagnostics"][0]["text"],
+            "Visible concentre 100 % des lectures transcodées.",
+        )
+        self.assertEqual(
+            global_hidden["diagnostics"][0]["text"],
+            "Other concentre 60 % des lectures transcodées.",
+        )
+        self.assertEqual(
+            global_plex["diagnostics"][0]["text"],
+            "Plex concentre 44 % des lectures transcodées.",
+        )
+
     def test_year_filter_and_available_years_use_the_same_scope(self):
         old_year = date.today().year - 1
         self._insert("u1", "Old", "DirectPlay", 60, "480p", "h264", "aac",

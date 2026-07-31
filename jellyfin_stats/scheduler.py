@@ -251,7 +251,6 @@ def sync_all(api, report=None, force_full: bool = False) -> dict:
             metrics=metrics,
         )
         finished_at = _utc_now()
-        database.set_sync_cursor(started_text)
         health = database.get_sync_health()
         health.update(
             status="success", phase="done", finished_at=_format_utc(finished_at),
@@ -261,7 +260,7 @@ def sync_all(api, report=None, force_full: bool = False) -> dict:
             items_received=items, items_changed=metrics.get("items_changed", 0),
             error=None, cursor_preserved=False,
         )
-        database.set_sync_health(health)
+        database.finalize_sync_success(started_text, health)
         logger.info(
             "Synchronisation Jellyfin : %d utilisateurs, %d bibliothèques, "
             "%d médias reçus, %d insérés/modifiés",
@@ -276,10 +275,11 @@ def sync_all(api, report=None, force_full: bool = False) -> dict:
     except Exception as exc:
         finished_at = _utc_now()
         health = database.get_sync_health()
+        cursor_preserved = database.get_sync_cursor() == cursor
         health.update(
             status="error", phase="error", finished_at=_format_utc(finished_at),
             duration_seconds=round((finished_at - started_at).total_seconds(), 3),
-            error=_sanitize_sync_error(exc), cursor_preserved=True,
+            error=_sanitize_sync_error(exc), cursor_preserved=cursor_preserved,
         )
         database.set_sync_health(health)
         logger.exception("Synchronisation Jellyfin échouée")
