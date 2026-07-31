@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Clients — Tautufin{% endblock %}
+{% block content %}
+<div class="page-head row">
+  <div>
+    <h1>Clients</h1>
+    <p class="muted">Diagnostic historique des clients et des méthodes de lecture.</p>
+  </div>
+  <div class="filters-inline" id="clients-filters">
+    {% if user.can_view_everyone %}
+    <label>Utilisateur
+      <select id="clients-user">
+        <option value="">Tous</option>
+        {% for u in jf_users %}
+        <option value="{{ u.jellyfin_user_id }}">{{ u.username }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    {% endif %}
+    <label>Période
+      <select id="clients-days">
+        <option value="7">7 derniers jours</option>
+        <option value="30" selected>30 derniers jours</option>
+        <option value="90">90 derniers jours</option>
+        <option value="365">365 derniers jours</option>
+        {% if years %}
+        <optgroup label="Année civile">
+          {% for y in years %}<option value="year:{{ y }}">Année {{ y }}</option>{% endfor %}
+        </optgroup>
+        {% endif %}
+        <option value="0">Depuis toujours</option>
+      </select>
+    </label>
+  </div>
+</div>
+
+<div class="kpi-row clients-kpis" aria-label="Indicateurs clients">
+  <div class="kpi"><span class="kpi-val" id="kpi-active">—</span><span class="kpi-lab">Clients actifs</span></div>
+  <div class="kpi"><span class="kpi-val" id="kpi-plays">—</span><span class="kpi-lab">Lectures</span></div>
+  <div class="kpi"><span class="kpi-val" id="kpi-duration">—</span><span class="kpi-lab">Durée totale</span></div>
+  <div class="kpi"><span class="kpi-val" id="kpi-direct">—</span><span class="kpi-lab">Direct Play</span></div>
+  <div class="kpi"><span class="kpi-val" id="kpi-transcode">—</span><span class="kpi-lab">Transcodage</span></div>
+  <div class="kpi"><span class="kpi-val" id="kpi-transcode-time">—</span><span class="kpi-lab">Temps transcodé</span></div>
+  <div class="kpi"><span class="kpi-val" id="kpi-cost">—</span><span class="kpi-lab">Coût estimé</span></div>
+</div>
+
+<section class="clients-section">
+  <div class="card">
+    <h2>Classement des clients</h2>
+    <div id="clients-table-state" class="muted" role="status">Chargement…</div>
+    <table class="table" id="clients-table" hidden>
+      <thead><tr>
+        <th class="sortable" data-sort="client" tabindex="0">Client</th>
+        <th class="sortable sorted-desc" data-sort="plays" tabindex="0">Lectures</th>
+        <th class="sortable" data-sort="duration_seconds" tabindex="0">Durée</th>
+        <th class="sortable" data-sort="direct_play" tabindex="0">Direct Play</th>
+        <th class="sortable" data-sort="transcode" tabindex="0">Transcodage</th>
+        <th class="sortable" data-sort="last_used" tabindex="0">Dernière utilisation</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="card" id="clients-diagnostic">
+    <h2>Diagnostic clients</h2>
+    <div id="clients-diagnostic-state" class="muted" role="status">Chargement…</div>
+    <ul class="kv clients-diagnostic-list" id="clients-diagnostic-list"></ul>
+  </div>
+</section>
+
+<div class="charts-grid charts-2col clients-charts">
+  <div class="card chart-card"><h3>📱 Utilisation par client</h3><canvas id="clients-usage"></canvas></div>
+  <div class="card chart-card"><h3>⚙️ Méthodes de lecture par client</h3><canvas id="clients-methods"></canvas></div>
+  <div class="card chart-card"><h3>🖥️ Résolutions observées</h3><canvas id="clients-resolutions"></canvas></div>
+  <div class="card chart-card"><h3>🎞️ Codecs vidéo observés</h3><canvas id="clients-video-codecs"></canvas></div>
+  <div class="card chart-card chart-wide"><h3>🔊 Codecs audio observés</h3><canvas id="clients-audio-codecs"></canvas></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="/static/js/app.js"></script>
+<script src="/static/js/chart-state.js"></script>
+<script src="/static/js/clients.js"></script>
+{% endblock %}

@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import (__version__, auth, database, graphs, history, import_playback,
+from . import (__version__, auth, clients, database, graphs, history, import_playback,
                import_streamystats, infer_history, media)
 from . import libraries as libraries_mod
 from . import users as users_mod
@@ -447,6 +447,15 @@ def create_app(config: Config) -> FastAPI:
         jf_users = users_mod.list_users_with_stats() if user.can_view_everyone else []
         return render(request, "graphs.html", user=user, page="graphs",
                       jf_users=jf_users, years=graphs.available_years())
+
+    @app.get("/clients")
+    def clients_page(request: Request, user: CurrentUser = Depends(require_user)):
+        jf_users = users_mod.list_users_with_stats() if user.can_view_everyone else []
+        return render(
+            request, "clients.html", user=user, page="clients",
+            jf_users=jf_users,
+            years=clients.available_years(scoped_user_id(user, None)),
+        )
 
     @app.get("/users")
     def users_page(request: Request, user: CurrentUser = Depends(require_global_view)):
@@ -884,6 +893,23 @@ def create_app(config: Config) -> FastAPI:
     ):
         return graphs.plays_over_time(days or None, group, metric,
                                       scoped_user_id(user, user_id), year)
+
+    @app.get("/api/clients")
+    def api_clients(
+        user: CurrentUser = Depends(require_user),
+        days: int = DaysParam,
+        user_id: str | None = Query(None),
+        year: int | None = YearParam,
+    ):
+        return clients.build(
+            days or None,
+            scoped_user_id(user, user_id),
+            year,
+            hide_unknown=config.hide_unknown_clients,
+            unknown_label="Plex" if config.unknown_as_plex else "Inconnu",
+            watts=config.transcode_watts,
+            electricity_price=config.electricity_price,
+        )
 
     GRAPH_FUNCS = {
         "by_library": graphs.by_library,
