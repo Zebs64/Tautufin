@@ -9,6 +9,7 @@
 import asyncio
 import json
 import logging
+import re
 import threading
 from datetime import datetime, timedelta, timezone
 
@@ -25,6 +26,7 @@ logger = logging.getLogger(__name__)
 _PEOPLE_TYPES = {"Actor", "Director", "Writer", "GuestStar"}
 _PEOPLE_MAX = 25
 _SYNC_OVERLAP = timedelta(minutes=5)
+_SYNC_ERROR_MAX = 240
 
 
 def _utc_now() -> datetime:
@@ -48,6 +50,18 @@ def _incremental_start(cursor: str | None) -> str | None:
         logger.warning("Curseur de synchronisation non UTC, full sync requise")
         return None
     return _format_utc(parsed - _SYNC_OVERLAP)
+
+
+def _sanitize_sync_error(exc: Exception) -> str:
+    """Message utilisateur borné, sans URL ni secret courant."""
+    message = re.sub(r"https?://\S+", "[adresse masquée]", str(exc), flags=re.I)
+    message = re.sub(
+        r"(?i)\b(api[_-]?key|token|password|credential)\s*[=:]\s*\S+",
+        r"\1=[masqué]",
+        message,
+    )
+    message = " ".join(message.split()) or "Erreur de synchronisation"
+    return message[:_SYNC_ERROR_MAX]
 
 
 def _people_json(people) -> str | None:
@@ -91,13 +105,17 @@ def sync_users(api) -> int:
 
 
 def sync_libraries_and_items(api, report=None,
-                             min_date_last_saved: str | None = None) -> int:
+                             min_date_last_saved: str | None = None,
+                             metrics: dict | None = None) -> int:
     total_items = 0
+    total_changed = 0
     folders = [f for f in api.get_libraries() if f.get("ItemId")]
+    if metrics is not None:
+        metrics.update(libraries=len(folders), items_received=0, items_changed=0)
     for idx, folder in enumerate(folders):
         if report:
             report(phase="libraries", current=idx, total=len(folders),
-                   label=folder.get("Name", "?"))
+                   label=folder.get("Name", "?"), libraries=len(folders))
         library_id = folder["ItemId"]
         # Phase réseau HORS transaction : récupérer les médias sans tenir le
         # verrou d'écriture SQLite pendant les appels HTTP (sinon le poller et
@@ -113,7 +131,7 @@ def sync_libraries_and_items(api, report=None,
                               if s.get("Type") == "Video"), {})
                 audio = next((s for s in item.get("MediaStreams", [])
                               if s.get("Type") == "Audio"), {})
-                conn.execute(
+                changed = conn.execute(
                     """
                     INSERT INTO items
                         (item_id, library_id, name, type, series_name,
@@ -165,6 +183,7 @@ def sync_libraries_and_items(api, report=None,
                         now_iso(),
                     ),
                 )
+                total_changed += changed.rowcount
             item_count_update = "" if min_date_last_saved else \
                 "item_count = excluded.item_count,"
             conn.execute(
@@ -181,8 +200,10 @@ def sync_libraries_and_items(api, report=None,
                  folder.get("CollectionType"), count, now_iso()),
             )
         total_items += count
+        if metrics is not None:
+            metrics.update(items_received=total_items, items_changed=total_changed)
         if report:
-            report(items=total_items)
+            report(items=total_items, items_changed=total_changed)
     if report:
         report(current=len(folders), label="")
     return total_items
@@ -190,18 +211,79 @@ def sync_libraries_and_items(api, report=None,
 
 def sync_all(api, report=None, force_full: bool = False) -> dict:
     started_at = _utc_now()
-    incremental_start = None if force_full else \
-        _incremental_start(database.get_sync_cursor())
-    if report:
-        report(phase="users", label="Utilisateurs")
-    users = sync_users(api)
-    if report:
-        report(users=users)
-    items = sync_libraries_and_items(
-        api, report=report, min_date_last_saved=incremental_start)
-    database.set_sync_cursor(_format_utc(started_at))
-    logger.info("Synchronisation Jellyfin : %d utilisateurs, %d médias", users, items)
-    return {"users": users, "items": items}
+    cursor = database.get_sync_cursor()
+    incremental_start = None if force_full else _incremental_start(cursor)
+    mode = "incremental" if incremental_start else "full"
+    started_text = _format_utc(started_at)
+    health = database.get_sync_health()
+    health.update(
+        status="running", mode=mode, phase="users", started_at=started_text,
+        last_attempt_at=started_text, finished_at=None, duration_seconds=None,
+        users=0, libraries=0, items_received=0, items_changed=0,
+        error=None, cursor_preserved=False,
+    )
+    database.set_sync_health(health)
+
+    def report_progress(**values) -> None:
+        if report:
+            report(**values)
+        progress = database.get_sync_health()
+        progress["status"] = "running"
+        if "phase" in values:
+            progress["phase"] = values["phase"]
+        if "users" in values:
+            progress["users"] = values["users"]
+        if "libraries" in values:
+            progress["libraries"] = values["libraries"]
+        if "items" in values:
+            progress["items_received"] = values["items"]
+        if "items_changed" in values:
+            progress["items_changed"] = values["items_changed"]
+        database.set_sync_health(progress)
+
+    metrics: dict = {}
+    try:
+        report_progress(phase="users", label="Utilisateurs")
+        users = sync_users(api)
+        report_progress(users=users)
+        items = sync_libraries_and_items(
+            api, report=report_progress, min_date_last_saved=incremental_start,
+            metrics=metrics,
+        )
+        finished_at = _utc_now()
+        database.set_sync_cursor(started_text)
+        health = database.get_sync_health()
+        health.update(
+            status="success", phase="done", finished_at=_format_utc(finished_at),
+            last_success_at=_format_utc(finished_at),
+            duration_seconds=round((finished_at - started_at).total_seconds(), 3),
+            users=users, libraries=metrics.get("libraries", 0),
+            items_received=items, items_changed=metrics.get("items_changed", 0),
+            error=None, cursor_preserved=False,
+        )
+        database.set_sync_health(health)
+        logger.info(
+            "Synchronisation Jellyfin : %d utilisateurs, %d bibliothèques, "
+            "%d médias reçus, %d insérés/modifiés",
+            users, health["libraries"], items, health["items_changed"],
+        )
+        return {
+            "users": users,
+            "libraries": health["libraries"],
+            "items": items,
+            "items_changed": health["items_changed"],
+        }
+    except Exception as exc:
+        finished_at = _utc_now()
+        health = database.get_sync_health()
+        health.update(
+            status="error", phase="error", finished_at=_format_utc(finished_at),
+            duration_seconds=round((finished_at - started_at).total_seconds(), 3),
+            error=_sanitize_sync_error(exc), cursor_preserved=True,
+        )
+        database.set_sync_health(health)
+        logger.exception("Synchronisation Jellyfin échouée")
+        raise
 
 
 # --- Suivi de progression d'une synchro en arrière-plan --------------------
@@ -219,6 +301,11 @@ _sync_state = {
 def get_sync_state() -> dict:
     with _sync_lock:
         return dict(_sync_state)
+
+
+def get_sync_status() -> dict:
+    """Progression historique inchangée, enrichie de la santé persistante."""
+    return {**get_sync_state(), "health": database.get_sync_health()}
 
 
 def _sync_set(**kw) -> None:
@@ -243,7 +330,7 @@ def start_sync(api, force_full: bool = True) -> bool:
                       items=result["items"])
         except Exception as exc:  # noqa: BLE001 — on remonte l'erreur à l'UI
             logger.exception("Synchronisation en arrière-plan échouée")
-            _sync_set(phase="error", error=str(exc))
+            _sync_set(phase="error", error=_sanitize_sync_error(exc))
         finally:
             _sync_set(running=False, finished_at=now_iso())
 

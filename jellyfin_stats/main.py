@@ -26,7 +26,7 @@ from .activity import ActivityMonitor
 from .auth import CurrentUser, RateLimiter
 from .config import Config
 from .jellyfin_api import JellyfinAPI, JellyfinError
-from .scheduler import Scheduler, get_sync_state, start_sync, sync_all
+from .scheduler import Scheduler, get_sync_status, start_sync, sync_all
 
 logger = logging.getLogger(__name__)
 
@@ -988,11 +988,11 @@ def create_app(config: Config) -> FastAPI:
         # Lance la synchro en arrière-plan (thread daemon) : elle survit à la
         # navigation. La progression se suit via GET /api/sync/status.
         started = start_sync(api)
-        return {"started": started, **get_sync_state()}
+        return {"started": started, **get_sync_status()}
 
     @app.get("/api/sync/status")
     def api_sync_status(user: CurrentUser = Depends(require_admin)):
-        return get_sync_state()
+        return get_sync_status()
 
     @app.post("/api/import/upload")
     def api_import_upload(user: CurrentUser = Depends(require_admin),

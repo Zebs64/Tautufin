@@ -118,6 +118,8 @@ class IncrementalSyncTests(unittest.TestCase):
         api = FakeSyncAPI([item])
         bounds = [
             datetime(2026, 7, 30, 10, 0, tzinfo=timezone.utc),
+            datetime(2026, 7, 30, 10, 0, tzinfo=timezone.utc),
+            datetime(2026, 7, 30, 11, 0, tzinfo=timezone.utc),
             datetime(2026, 7, 30, 11, 0, tzinfo=timezone.utc),
         ]
 
