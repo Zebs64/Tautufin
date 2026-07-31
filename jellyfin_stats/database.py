@@ -248,6 +248,16 @@ _SYNC_CURSOR_KEY = "items_cursor_utc"
 _SYNC_HEALTH_KEY = "sync_health"
 
 
+def _upsert_sync_state(conn, key: str, value: str) -> None:
+    conn.execute(
+        """
+        INSERT INTO sync_state (key, value) VALUES (?, ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value
+        """,
+        (key, value),
+    )
+
+
 def empty_sync_health() -> dict:
     """État stable renvoyé avant la première tentative de synchronisation."""
     return {
@@ -274,13 +284,8 @@ def get_sync_cursor() -> str | None:
 
 
 def set_sync_cursor(value: str) -> None:
-    execute(
-        """
-        INSERT INTO sync_state (key, value) VALUES (?, ?)
-        ON CONFLICT(key) DO UPDATE SET value = excluded.value
-        """,
-        (_SYNC_CURSOR_KEY, value),
-    )
+    with db() as conn:
+        _upsert_sync_state(conn, _SYNC_CURSOR_KEY, value)
 
 
 def clear_sync_cursor() -> None:
@@ -306,13 +311,19 @@ def get_sync_health() -> dict:
 def set_sync_health(value: dict) -> None:
     health = empty_sync_health()
     health.update(value)
-    execute(
-        """
-        INSERT INTO sync_state (key, value) VALUES (?, ?)
-        ON CONFLICT(key) DO UPDATE SET value = excluded.value
-        """,
-        (_SYNC_HEALTH_KEY, json.dumps(health, ensure_ascii=False, separators=(",", ":"))),
-    )
+    serialized = json.dumps(health, ensure_ascii=False, separators=(",", ":"))
+    with db() as conn:
+        _upsert_sync_state(conn, _SYNC_HEALTH_KEY, serialized)
+
+
+def finalize_sync_success(cursor: str, health: dict) -> None:
+    """Valide atomiquement le curseur et la santé d'une synchronisation réussie."""
+    normalized = empty_sync_health()
+    normalized.update(health)
+    serialized = json.dumps(normalized, ensure_ascii=False, separators=(",", ":"))
+    with db() as conn:
+        _upsert_sync_state(conn, _SYNC_CURSOR_KEY, cursor)
+        _upsert_sync_state(conn, _SYNC_HEALTH_KEY, serialized)
 
 
 def clear_sync_health() -> None:
