@@ -146,51 +146,57 @@ function pieFrom(data, canvasId) {
   });
 }
 
-async function loadAll() {
+function hasGraphData(data) {
+  return Boolean((data.series || []).some(series =>
+    (series.data || []).some(value => Number(value) > 0)));
+}
+
+function loadGraph(id, url, render, hasData = hasGraphData, emptyMessage) {
+  ChartState.load(id, () => fetchJSON(url), hasData, render, emptyMessage);
+}
+
+function loadAll() {
   const isAdmin = document.querySelector('.charts-grid').dataset.isAdmin === '1';
   const group = document.getElementById('graph-group').value;
 
-  fetchJSON('/api/graphs/plays_over_time?' + params({group}))
-    .then(d => areaFrom(d, 'chart-over-time')).catch(() => {});
+  loadGraph('chart-over-time', '/api/graphs/plays_over_time?' + params({group}),
+    d => areaFrom(d, 'chart-over-time'));
 
   if (isAdmin)
-    fetchJSON('/api/graphs/by_user?' + params())
-      .then(d => pieFrom(d, 'chart-by-user')).catch(() => {});
+    loadGraph('chart-by-user', '/api/graphs/by_user?' + params(),
+      d => pieFrom(d, 'chart-by-user'));
 
-  fetchJSON('/api/graphs/top_items?' + params({kind: 'movie'}))
-    .then(d => barFrom(d, 'chart-top-movies', {horizontal: true})).catch(() => {});
-  fetchJSON('/api/graphs/top_items?' + params({kind: 'series'}))
-    .then(d => barFrom(d, 'chart-top-series', {horizontal: true, color: 1})).catch(() => {});
-  fetchJSON('/api/graphs/top_people?' + params({kind: 'actor'}))
-    .then(d => rankedList('list-top-actors', d, 'Aucun acteur (synchro en cours ?)')).catch(() => {});
-  fetchJSON('/api/graphs/top_people?' + params({kind: 'director'}))
-    .then(d => rankedList('list-top-directors', d, 'Aucun réalisateur (synchro en cours ?)')).catch(() => {});
-  fetchJSON('/api/graphs/by_day_of_week?' + params())
-    .then(d => barFrom(d, 'chart-by-dow', {color: 5})).catch(() => {});
-  fetchJSON('/api/graphs/by_hour_of_day?' + params())
-    .then(d => barFrom(d, 'chart-by-hour', {color: 6})).catch(() => {});
-  fetchJSON('/api/graphs/by_library?' + params())
-    .then(d => barFrom(d, 'chart-by-library', {color: 2})).catch(() => {});
-  fetchJSON('/api/graphs/by_genre?' + params())
-    .then(d => barFrom(d, 'chart-by-genre', {color: 3})).catch(() => {});
-  fetchJSON('/api/graphs/by_resolution?' + params())
-    .then(d => pieFrom(d, 'chart-by-resolution')).catch(() => {});
-  fetchJSON('/api/graphs/by_client?' + params())
-    .then(d => barFrom(d, 'chart-by-client', {color: 4})).catch(() => {});
-  fetchJSON('/api/graphs/by_play_method?' + params())
-    .then(d => pieFrom(d, 'chart-by-method')).catch(() => {});
-  fetchJSON('/api/graphs/transcode_cost?' + params())
-    .then(showTranscodeCost).catch(() => {});
+  loadGraph('chart-top-movies', '/api/graphs/top_items?' + params({kind: 'movie'}),
+    d => barFrom(d, 'chart-top-movies', {horizontal: true}));
+  loadGraph('chart-top-series', '/api/graphs/top_items?' + params({kind: 'series'}),
+    d => barFrom(d, 'chart-top-series', {horizontal: true, color: 1}));
+  loadGraph('list-top-actors', '/api/graphs/top_people?' + params({kind: 'actor'}),
+    d => rankedList('list-top-actors', d), hasGraphData, 'Aucun acteur');
+  loadGraph('list-top-directors', '/api/graphs/top_people?' + params({kind: 'director'}),
+    d => rankedList('list-top-directors', d), hasGraphData, 'Aucun réalisateur');
+  loadGraph('chart-by-dow', '/api/graphs/by_day_of_week?' + params(),
+    d => barFrom(d, 'chart-by-dow', {color: 5}));
+  loadGraph('chart-by-hour', '/api/graphs/by_hour_of_day?' + params(),
+    d => barFrom(d, 'chart-by-hour', {color: 6}));
+  loadGraph('chart-by-library', '/api/graphs/by_library?' + params(),
+    d => barFrom(d, 'chart-by-library', {color: 2}));
+  loadGraph('chart-by-genre', '/api/graphs/by_genre?' + params(),
+    d => barFrom(d, 'chart-by-genre', {color: 3}));
+  loadGraph('chart-by-resolution', '/api/graphs/by_resolution?' + params(),
+    d => pieFrom(d, 'chart-by-resolution'));
+  loadGraph('chart-by-client', '/api/graphs/by_client?' + params(),
+    d => barFrom(d, 'chart-by-client', {color: 4}));
+  loadGraph('chart-by-method', '/api/graphs/by_play_method?' + params(),
+    d => pieFrom(d, 'chart-by-method'));
+  loadGraph('transcode-cost', '/api/graphs/transcode_cost?' + params(),
+    showTranscodeCost, d => Number(d.seconds) > 0,
+    'Aucun transcodage vidéo sur la période.');
 }
 
 // Estimation conso/coût du transcodage, sous le camembert des méthodes.
 function showTranscodeCost(d) {
   const el = document.getElementById('transcode-cost');
   if (!el) return;
-  if (!d.seconds) {
-    el.textContent = '⚡ Aucun transcodage vidéo sur la période — rien de gaspillé 🎉';
-    return;
-  }
   el.innerHTML =
     `⚡ ~${fmtDuration(d.seconds)} de transcodage vidéo` +
     `<br>Électricité consommée : <strong>${d.kwh} kWh</strong>` +

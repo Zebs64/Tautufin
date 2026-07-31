@@ -134,6 +134,21 @@ h3 { font-size: .98em; margin: .2em 0 .7em; color: var(--text-muted); font-weigh
 .settings-grid .card { margin-bottom: 0; }
 @media (max-width: 900px) { .settings-grid { grid-template-columns: 1fr; } }
 
+.sync-health-head { display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin-bottom: 12px; }
+.sync-health-head h3 { margin: 0; }
+.sync-health-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px 18px; margin: 0; }
+.sync-health-grid div { min-width: 0; }
+.sync-health-grid dt { color: var(--text-muted); font-size: .78em; }
+.sync-health-grid dd { margin: 1px 0 0; font-weight: 600; overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums; }
+.sync-health-error { display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border);
+  color: var(--err); font-size: .85em; }
+.sync-health-error strong { color: var(--text); }
+@media (max-width: 390px) { .sync-health-grid { grid-template-columns: 1fr; } }
+
 /* Carte « zone dangereuse » (reset base) + retours de maintenance. */
 .card-danger { border-color: hsl(0, 55%, 38%); }
 .card-danger h3 { color: hsl(0, 75%, 72%); }
@@ -157,6 +172,10 @@ h3 { font-size: .98em; margin: .2em 0 .7em; color: var(--text-muted); font-weigh
 }
 .chart-wide { grid-column: 1 / -1; }
 .chart-card canvas { max-height: 320px; }
+.chart-state { min-height: 96px; display: flex; align-items: center;
+  justify-content: center; gap: 8px; text-align: center; color: var(--text-muted); }
+.chart-card .chart-state { min-height: 260px; }
+.chart-state-error { color: var(--err); }
 .transcode-cost { margin: 12px 0 0; font-size: .85em; line-height: 1.5; text-align: center;
   border-top: 1px solid var(--border); padding-top: 10px; }
 .transcode-cost strong { color: var(--accent); }
@@ -530,6 +549,9 @@ label.check input { display: inline; width: auto; margin: 0; accent-color: var(-
 /* Case à cocher seule, centrée dans une cellule de tableau (gestion des droits). */
 label.check-center { display: flex; justify-content: center; gap: 0; }
 input:focus, select:focus { outline: none; border-color: var(--accent); background: var(--bg-input); }
+:where(a, button, input, select):focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 3px;
+}
 label > .muted { font-size: .85em; display: block; }
 fieldset { border: 1px solid var(--border); border-radius: var(--radius-lg); margin: 14px 0; padding: 6px 14px 12px; }
 legend { color: var(--text-muted); padding: 0 8px; }
@@ -551,6 +573,7 @@ form.inline input { width: 170px; margin: 0; display: inline-block; padding: 6px
 
 .btn {
   display: inline-block; padding: 8px 19px; border-radius: 3em; cursor: pointer;
+  min-height: 36px;
   background: var(--bg-input); color: var(--text);
   border: 1px solid var(--border-light); font-size: .95em;
   transition: filter .2s, border-color .2s, box-shadow .2s, transform .15s;
@@ -559,7 +582,7 @@ form.inline input { width: 170px; margin: 0; display: inline-block; padding: 6px
   border-color: var(--accent); text-decoration: none;
   box-shadow: 0 0 0.6em rgba(119, 91, 244, 0.25);
 }
-.btn:active { transform: scale(.97); }
+.btn:active { transform: scale(.96); }
 .btn-primary {
   background: linear-gradient(135deg, var(--accent), var(--accent-deep));
   border-color: var(--accent); color: #fff; font-weight: 600;
@@ -581,6 +604,22 @@ form.inline input { width: 170px; margin: 0; display: inline-block; padding: 6px
 .filters-inline { display: flex; gap: 12px; flex-wrap: wrap; }
 .filters-inline label { margin: 0; font-size: .85em; }
 .filters-inline select { width: auto; }
+.history-filter-actions { align-self: end; margin: 6px 0; }
+.history-summary { display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px; margin: -8px 2px 14px; }
+.history-summary strong { font-variant-numeric: tabular-nums; }
+.filter-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.filter-chip { min-height: 32px; padding: 4px 11px; border: 1px solid var(--border-light);
+  border-radius: 3em; background: var(--bg-input-alpha); color: var(--text);
+  cursor: pointer; }
+.filter-chip:hover { border-color: var(--accent); }
+.table-state { text-align: center; padding: 28px 12px !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important;
+    transition-duration: .01ms !important; animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important; }
+}
 
 /* --- Login / setup --------------------------------------------------------------- */
 .auth-box {
@@ -615,6 +654,8 @@ form.inline input { width: 170px; margin: 0; display: inline-block; padding: 6px
 .badge-admin { background: linear-gradient(135deg, var(--accent), var(--accent-deep)); color: #fff; }
 .badge-ok { background: rgba(50, 167, 105, .2); color: var(--ok); }
 .badge-off { background: var(--bg-input-alpha); color: var(--text-muted); }
+.badge-running { background: rgba(119, 91, 244, .2); color: var(--accent); }
+.badge-error { background: rgba(217, 84, 84, .16); color: var(--err); }
 
 .error-card { text-align: center; max-width: 420px; margin: 10vh auto; }
 .error-card h1 { font-size: 3em; color: var(--err); }

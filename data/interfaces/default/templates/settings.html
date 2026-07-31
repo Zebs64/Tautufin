@@ -91,6 +91,28 @@
                    value="{{ config.electricity_price }}"></label>
         </div>
       </div>
+
+      <div class="card sync-health-card" id="sync-health" aria-live="polite">
+        <div class="sync-health-head">
+          <h3>État de la synchronisation</h3>
+          <span class="badge badge-off" id="sync-health-badge">Non initialisée</span>
+        </div>
+        <dl class="sync-health-grid">
+          <div><dt>Dernière tentative</dt><dd id="sync-health-attempt">—</dd></div>
+          <div><dt>Dernier succès</dt><dd id="sync-health-success">Jamais synchronisée</dd></div>
+          <div><dt>Mode / phase</dt><dd id="sync-health-mode">—</dd></div>
+          <div><dt>Durée</dt><dd id="sync-health-duration">—</dd></div>
+          <div><dt>Utilisateurs</dt><dd id="sync-health-users">0</dd></div>
+          <div><dt>Bibliothèques</dt><dd id="sync-health-libraries">0</dd></div>
+          <div><dt>Médias reçus</dt><dd id="sync-health-received">0</dd></div>
+          <div><dt>Insérés / modifiés</dt><dd id="sync-health-changed">0</dd></div>
+        </dl>
+        <div class="sync-health-error" id="sync-health-error" hidden>
+          <span id="sync-health-error-message"></span>
+          <strong id="sync-health-cursor">Curseur préservé</strong>
+          <button type="button" class="btn btn-sm" id="sync-health-retry">Actualiser</button>
+        </div>
+      </div>
     </div>
 
     <div class="actions actions-sticky">
@@ -326,11 +348,62 @@ document.getElementById('test-jellyfin').addEventListener('click', async () => {
 // Elle continue même si on quitte la page ; on la « reprend » à l'affichage.
 let syncTimer = null;
 
+function syncDate(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('fr-FR');
+}
+
+function renderSyncHealth(health, progress) {
+  health = health || {};
+  const status = health.status || 'never';
+  const labels = {
+    never: ['Non initialisée', 'badge-off'],
+    running: ['En cours', 'badge-running'],
+    success: ['À jour', 'badge-ok'],
+    error: ['Erreur', 'badge-error'],
+  };
+  const badge = document.getElementById('sync-health-badge');
+  const [label, badgeClass] = labels[status] || labels.never;
+  badge.textContent = label;
+  badge.className = `badge ${badgeClass}`;
+  document.getElementById('sync-health-attempt').textContent = syncDate(health.last_attempt_at);
+  document.getElementById('sync-health-success').textContent = health.last_success_at
+    ? syncDate(health.last_success_at) : 'Jamais synchronisée';
+  const mode = health.mode === 'incremental' ? 'Incrémental'
+    : (health.mode === 'full' ? 'Full' : '—');
+  const phase = status === 'running' ? (health.phase || progress.phase || 'démarrage') : null;
+  document.getElementById('sync-health-mode').textContent = phase ? `${mode} · ${phase}` : mode;
+  document.getElementById('sync-health-duration').textContent =
+    health.duration_seconds == null ? '—' : `${health.duration_seconds.toLocaleString('fr-FR')} s`;
+  document.getElementById('sync-health-users').textContent = health.users || 0;
+  document.getElementById('sync-health-libraries').textContent = health.libraries || 0;
+  document.getElementById('sync-health-received').textContent = health.items_received || 0;
+  document.getElementById('sync-health-changed').textContent = health.items_changed || 0;
+  const error = document.getElementById('sync-health-error');
+  error.hidden = status !== 'error';
+  document.getElementById('sync-health-error-message').textContent = health.error || '';
+  document.getElementById('sync-health-cursor').hidden = !health.cursor_preserved;
+}
+
+function renderSyncHealthLoadError(error) {
+  console.error('Chargement de la santé de synchronisation impossible', error);
+  const badge = document.getElementById('sync-health-badge');
+  badge.textContent = 'Erreur';
+  badge.className = 'badge badge-error';
+  const box = document.getElementById('sync-health-error');
+  box.hidden = false;
+  document.getElementById('sync-health-error-message').textContent =
+    'Impossible de charger l’état de la synchronisation.';
+  document.getElementById('sync-health-cursor').hidden = true;
+}
+
 function renderSync(s) {
   const box = document.getElementById('sync-progress');
   const label = document.getElementById('sync-progress-label');
   const fill = document.getElementById('sync-bar-fill');
   const out = document.getElementById('sync-result');
+  renderSyncHealth(s.health, s);
   if (s.running) {
     box.hidden = false;
     out.textContent = ''; out.className = '';
@@ -358,8 +431,13 @@ async function pollSync() {
   try {
     const s = await fetchJSON('/api/sync/status');
     renderSync(s);
-    if (!s.running) { clearInterval(syncTimer); syncTimer = null; }
-  } catch (e) { clearInterval(syncTimer); syncTimer = null; }
+    if (s.running && !syncTimer) syncTimer = setInterval(pollSync, 1000);
+    if (!s.running && syncTimer) { clearInterval(syncTimer); syncTimer = null; }
+  } catch (e) {
+    if (syncTimer) clearInterval(syncTimer);
+    syncTimer = null;
+    renderSyncHealthLoadError(e);
+  }
 }
 
 function watchSync() {
@@ -377,7 +455,8 @@ document.getElementById('sync-now').addEventListener('click', async () => {
 
 // Reprise : si une synchro tourne déjà (lancée avant, ou périodique), on
 // affiche sa progression dès l'ouverture des Réglages.
-fetchJSON('/api/sync/status').then(s => { if (s.running) watchSync(); }).catch(() => {});
+pollSync();
+document.getElementById('sync-health-retry').addEventListener('click', pollSync);
 document.getElementById('verify-db').addEventListener('click', async () => {
   const out = document.getElementById('verify-result');
   out.textContent = 'Vérification…';
