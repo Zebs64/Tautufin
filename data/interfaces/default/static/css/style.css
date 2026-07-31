@@ -31,6 +31,7 @@ body {
   margin: 0;
   min-height: 100vh;
   background: linear-gradient(0deg, var(--darker) 35%, var(--lighter)) fixed;
+  background-color: var(--darker);
   color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 15px;
@@ -180,6 +181,14 @@ h3 { font-size: .98em; margin: .2em 0 .7em; color: var(--text-muted); font-weigh
   border-top: 1px solid var(--border); padding-top: 10px; }
 .transcode-cost strong { color: var(--accent); }
 .transcode-cost .micro { font-size: .88em; opacity: .7; }
+
+/* Vue Clients : mêmes primitives que Graphiques, sans second système visuel. */
+.clients-kpis { margin: 0 0 18px; }
+.clients-section { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 18px; }
+.clients-section .card { min-width: 0; }
+.clients-diagnostic-list { margin: 0; }
+@media (max-width: 900px) { .clients-section { grid-template-columns: 1fr; } }
 
 /* --- Images : posters, vignettes, avatars ----------------------------------- */
 .poster {
