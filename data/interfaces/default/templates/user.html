@@ -108,6 +108,7 @@
 {% if profile %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="/static/js/app.js"></script>
+<script src="/static/js/chart-state.js"></script>
 <script>
 const USER_ID = {{ profile.jellyfin_user_id | tojson }};
 // Barres exprimées en temps de visionnage : les données arrivent en secondes,
@@ -127,13 +128,20 @@ function userHoursBar(canvasId, data, color) {
                            ticks: {callback: v => v + ' h'}}}},
   });
 }
-fetchJSON(`/api/graphs/by_genre?days=0&user_id=${encodeURIComponent(USER_ID)}`)
-  .then(d => radarChart('chart-user-genres', d.categories, d.series[0] ? d.series[0].data : []))
-  .catch(() => {});
-fetchJSON(`/api/graphs/by_day_of_week?days=0&metric=duration&user_id=${encodeURIComponent(USER_ID)}`)
-  .then(d => userHoursBar('chart-user-dow', d, CHART_COLORS[0])).catch(() => {});
-fetchJSON(`/api/graphs/by_hour_of_day?days=0&metric=duration&user_id=${encodeURIComponent(USER_ID)}`)
-  .then(d => userHoursBar('chart-user-hour', d, CHART_COLORS[1])).catch(() => {});
+const hasUserGraphData = data => Boolean((data.series || []).some(series =>
+  (series.data || []).some(value => Number(value) > 0)));
+ChartState.load('chart-user-genres',
+  () => fetchJSON(`/api/graphs/by_genre?days=0&user_id=${encodeURIComponent(USER_ID)}`),
+  hasUserGraphData,
+  d => radarChart('chart-user-genres', d.categories, d.series[0].data));
+ChartState.load('chart-user-dow',
+  () => fetchJSON(`/api/graphs/by_day_of_week?days=0&metric=duration&user_id=${encodeURIComponent(USER_ID)}`),
+  hasUserGraphData,
+  d => userHoursBar('chart-user-dow', d, CHART_COLORS[0]));
+ChartState.load('chart-user-hour',
+  () => fetchJSON(`/api/graphs/by_hour_of_day?days=0&metric=duration&user_id=${encodeURIComponent(USER_ID)}`),
+  hasUserGraphData,
+  d => userHoursBar('chart-user-hour', d, CHART_COLORS[1]));
 </script>
 {% endif %}
 {% endblock %}

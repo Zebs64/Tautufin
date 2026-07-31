@@ -32,6 +32,14 @@
   <label>Du <input type="date" name="date_from"></label>
   <label>Au <input type="date" name="date_to"></label>
   <label>Recherche <input type="search" name="search" placeholder="Titre…"></label>
+  <div class="history-filter-actions">
+    <button type="button" class="btn btn-sm" id="history-reset">Réinitialiser</button>
+  </div>
+</div>
+
+<div class="history-summary">
+  <div class="filter-chips" id="history-chips" aria-label="Filtres actifs"></div>
+  <strong id="history-total">0 lecture</strong>
 </div>
 
 <div class="card">
@@ -48,7 +56,7 @@
         {% if user.is_admin %}<th data-sort="ip" class="sortable">IP</th>{% endif %}
       </tr>
     </thead>
-    <tbody><tr><td colspan="8" class="muted">Chargement…</td></tr></tbody>
+    <tbody aria-live="polite"><tr><td colspan="8" class="muted">Chargement…</td></tr></tbody>
   </table>
   <div class="pagination">
     <button class="btn btn-sm" id="prev-page">←</button>
