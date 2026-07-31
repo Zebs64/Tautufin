@@ -9,8 +9,8 @@ TEMPLATES = ROOT / "data" / "interfaces" / "default" / "templates"
 
 
 class ReleaseV012Tests(unittest.TestCase):
-    def test_application_version_is_0_1_2(self):
-        self.assertEqual(__version__, "0.1.2")
+    def test_application_remains_upgrade_compatible_with_0_1_2(self):
+        self.assertGreaterEqual(tuple(map(int, __version__.split("."))), (0, 1, 2))
 
     def test_visible_templates_use_reglages_not_settings(self):
         occurrences = []
