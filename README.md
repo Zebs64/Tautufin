@@ -33,8 +33,11 @@ utilisateurs, auto-hébergé.
 - 📊 **Graphiques riches** (Chart.js) : lectures dans le temps, films / séries /
   musique, top utilisateurs, genres, acteurs, réalisateurs, résolutions, clients,
   Direct Play vs transcodage…
+- 📱 **Diagnostic Clients** : KPIs, classement triable, méthodes de lecture,
+  résolutions/codecs et constats déterministes sur les transcodages
 - 📜 **Historique** filtrable (utilisateur, type, bibliothèque, période),
-  recherchable, triable et paginé — avec poster et logo du client
+  recherchable, triable et paginé — filtres partageables dans l'URL, reset,
+  total explicite, poster et logo du client
 - 👤 **Profils par utilisateur** : KPIs, clients préférés, top film/série/chanson
   (par temps de visionnage), habitudes (jour, heure), lectures récentes
 - ✨ **Wrapped** : rétrospective annuelle par utilisateur (tops, genres,
@@ -50,6 +53,10 @@ utilisateurs, auto-hébergé.
   **et** backup [Streamystats](https://github.com/fredrikburmester/streamystats)
   (idempotent)
 - ⚡ **Estimation de conso** : électricité et coût imputables au transcodage
+- 🩺 **Santé de synchronisation persistante** dans Réglages : dernière tentative,
+  dernier succès, mode, compteurs et erreur utilisateur assainie
+- 🔁 **États graphiques explicites** : chargement, absence de données, erreur et
+  nouvelle tentative ciblée au lieu d'un échec silencieux
 - 🛠️ **Maintenance** intégrée : sauvegarde, vérification et réinitialisation de
   la base
 - 🖼️ Posters et avatars servis via un **proxy côté serveur** avec cache — la clé
@@ -198,6 +205,17 @@ période (base configurable dans les Réglages).
 
 ![Graphiques](docs/screenshots/graphiques.png)
 
+### Clients
+
+Vue historique dédiée aux clients : sept indicateurs, classement triable et cinq
+graphiques bornés (utilisation, méthodes, résolutions, codecs vidéo et audio).
+Le diagnostic signale uniquement des constats vérifiables dans les chiffres ; il
+reste neutre quand aucune conclusion fiable n'est disponible. Les utilisateurs
+standard restent strictement limités à leur propre historique ; admin et droit
+*vision* disposent de la vue globale et du filtre utilisateur.
+
+![Clients](docs/screenshots/clients.png)
+
 ### Profil utilisateur
 
 Indicateurs clés, répartition par type, clients préférés, **top film / série /
@@ -227,8 +245,10 @@ en posters.
 ### Historique
 
 Tableau filtrable (utilisateur, type, bibliothèque, dates, recherche), triable et
-paginé. Poster du média (poster de la **série** pour un épisode), logo du client,
-et — pour les admins — l'adresse IP.
+paginé. Les filtres sont reflétés dans l'URL, restaurés avec précédent/suivant,
+affichés sous forme de chips supprimables et réinitialisables. Le total et les
+erreurs sont explicites. Poster du média (poster de la **série** pour un épisode),
+logo du client et — pour les admins — adresse IP.
 
 ![Historique](docs/screenshots/historique.png)
 
@@ -242,8 +262,8 @@ temps total, dernière activité). Chaque ligne mène au profil correspondant.
 ### Réglages
 
 Organisés en sections : **Connexion Jellyfin** (serveur, capture, polling,
-clients inconnus, base de l'estimation énergie), **Apparence**, **Accès &
-utilisateurs**, et **Maintenance**.
+clients inconnus, base de l'estimation énergie et santé persistante de la
+synchronisation), **Apparence**, **Accès & utilisateurs**, et **Maintenance**.
 
 ![Réglages](docs/screenshots/reglages.png)
 
@@ -323,6 +343,14 @@ Section *Réglages → Maintenance* (admin) :
   sont conservés** ; les données Jellyfin sont repeuplées à la synchro suivante.
   Action irréversible — exportez un backup d'abord.
 
+### Mise à niveau depuis v0.1.2
+
+L'image `v0.2.0` démarre directement sur une configuration et une base `v0.1.2`.
+Le schéma SQLite reste en **version 5** : aucune migration v6, aucun export/import
+et aucune reconstruction de l'historique ne sont nécessaires. La nouvelle santé
+de synchronisation utilise une clé JSON dans `sync_state`; une ancienne version
+l'ignore, ce qui conserve un rollback simple vers `v0.1.2`.
+
 ---
 
 ## Configuration (`config.ini`)
@@ -355,6 +383,7 @@ jellyfin_stats/
 ├── jellyfin_api.py      # wrapper API Jellyfin
 ├── activity.py          # suivi des sessions + seuils de durée minimale
 ├── history.py           # historique (filtres, tri, pagination)
+├── clients.py           # diagnostic historique clients/transcodages
 ├── graphs.py            # agrégations pour Chart.js
 ├── users.py             # profils & gestion des utilisateurs
 ├── libraries.py         # bibliothèques & catalogue
