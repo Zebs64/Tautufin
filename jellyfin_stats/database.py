@@ -5,6 +5,7 @@ Au démarrage, toutes les migrations de ``MIGRATIONS`` dont le numéro est
 supérieur sont appliquées dans l'ordre, chacune dans une transaction.
 """
 
+import json
 import logging
 import os
 import sqlite3
@@ -244,6 +245,27 @@ def execute(sql: str, params=()) -> int:
 # --- État de synchronisation -----------------------------------------------
 
 _SYNC_CURSOR_KEY = "items_cursor_utc"
+_SYNC_HEALTH_KEY = "sync_health"
+
+
+def empty_sync_health() -> dict:
+    """État stable renvoyé avant la première tentative de synchronisation."""
+    return {
+        "status": "never",
+        "mode": None,
+        "phase": "idle",
+        "started_at": None,
+        "last_attempt_at": None,
+        "last_success_at": None,
+        "finished_at": None,
+        "duration_seconds": None,
+        "users": 0,
+        "libraries": 0,
+        "items_received": 0,
+        "items_changed": 0,
+        "error": None,
+        "cursor_preserved": False,
+    }
 
 
 def get_sync_cursor() -> str | None:
@@ -263,6 +285,38 @@ def set_sync_cursor(value: str) -> None:
 
 def clear_sync_cursor() -> None:
     execute("DELETE FROM sync_state WHERE key = ?", (_SYNC_CURSOR_KEY,))
+
+
+def get_sync_health() -> dict:
+    row = query_one("SELECT value FROM sync_state WHERE key = ?", (_SYNC_HEALTH_KEY,))
+    if not row:
+        return empty_sync_health()
+    try:
+        value = json.loads(row["value"])
+        if not isinstance(value, dict):
+            raise ValueError("le document n'est pas un objet JSON")
+    except (TypeError, ValueError, json.JSONDecodeError) as exc:
+        logger.warning("État de santé de synchronisation invalide, ignoré : %s", exc)
+        return empty_sync_health()
+    health = empty_sync_health()
+    health.update(value)
+    return health
+
+
+def set_sync_health(value: dict) -> None:
+    health = empty_sync_health()
+    health.update(value)
+    execute(
+        """
+        INSERT INTO sync_state (key, value) VALUES (?, ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value
+        """,
+        (_SYNC_HEALTH_KEY, json.dumps(health, ensure_ascii=False, separators=(",", ":"))),
+    )
+
+
+def clear_sync_health() -> None:
+    execute("DELETE FROM sync_state WHERE key = ?", (_SYNC_HEALTH_KEY,))
 
 
 # --- Maintenance -----------------------------------------------------------
@@ -325,7 +379,10 @@ def reset_data() -> dict:
     with db() as conn:
         for table in _DATA_TABLES:
             deleted[table] = conn.execute(f"DELETE FROM {table}").rowcount
-        conn.execute("DELETE FROM sync_state WHERE key = ?", (_SYNC_CURSOR_KEY,))
+        conn.execute(
+            "DELETE FROM sync_state WHERE key IN (?, ?)",
+            (_SYNC_CURSOR_KEY, _SYNC_HEALTH_KEY),
+        )
     # VACUUM doit s'exécuter hors transaction.
     conn = sqlite3.connect(_db_path, timeout=30)
     conn.isolation_level = None
