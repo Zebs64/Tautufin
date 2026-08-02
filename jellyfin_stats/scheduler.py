@@ -124,19 +124,25 @@ def sync_libraries_and_items(api, report=None, force_full: bool = False,
         inventory = list(api.iter_item_inventory(library_id))
         if any(not item.get("Id") for item in inventory):
             raise JellyfinError("Inventaire Jellyfin incomplet : identifiant média absent")
+        if any(
+            not isinstance(item.get("Etag"), str) or not item["Etag"].strip()
+            for item in inventory
+        ):
+            raise JellyfinError("Inventaire Jellyfin incomplet : ETag média absent")
         local_markers = {
-            row["item_id"]: row["source_date_last_refreshed"]
+            row["item_id"]: row["source_etag"]
             for row in database.query(
-                "SELECT item_id, source_date_last_refreshed FROM items "
+                "SELECT item_id, source_etag FROM items "
                 "WHERE library_id = ?", (library_id,)
             )
         }
+        inventory_etags = {item["Id"]: item["Etag"] for item in inventory}
         target_ids = [
             item["Id"] for item in inventory
             if force_full
             or item["Id"] not in local_markers
             or local_markers[item["Id"]] is None
-            or local_markers[item["Id"]] != item.get("DateLastRefreshed")
+            or local_markers[item["Id"]] != item["Etag"]
         ]
         rich_items = list(api.iter_items_by_ids(target_ids)) if target_ids else []
         rich_by_id = {item.get("Id"): item for item in rich_items if item.get("Id")}
@@ -145,6 +151,16 @@ def sync_libraries_and_items(api, report=None, force_full: bool = False,
             raise JellyfinError(
                 f"Réponse Jellyfin incomplète : média {missing_ids[0]} absent"
             )
+        for item_id in target_ids:
+            rich_etag = rich_by_id[item_id].get("Etag")
+            if not isinstance(rich_etag, str) or not rich_etag.strip():
+                raise JellyfinError(
+                    f"Réponse Jellyfin incomplète : ETag du média {item_id} absent"
+                )
+            if rich_etag != inventory_etags[item_id]:
+                raise JellyfinError(
+                    f"Réponse Jellyfin incohérente : ETag du média {item_id} divergent"
+                )
 
         # Données riches et marqueur correspondant sont validés ensemble.
         with database.db() as conn:
@@ -162,7 +178,7 @@ def sync_libraries_and_items(api, report=None, force_full: bool = False,
                          season_number, episode_number, year, genres,
                          runtime_seconds, video_resolution, video_codec,
                          audio_codec, people, added_at, updated_at,
-                         source_date_last_refreshed)
+                         source_etag)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(item_id) DO UPDATE SET
                         library_id = excluded.library_id,
@@ -180,7 +196,7 @@ def sync_libraries_and_items(api, report=None, force_full: bool = False,
                         people = excluded.people,
                         added_at = excluded.added_at,
                         updated_at = excluded.updated_at,
-                        source_date_last_refreshed = excluded.source_date_last_refreshed
+                        source_etag = excluded.source_etag
                     WHERE items.library_id IS NOT excluded.library_id
                        OR items.name IS NOT excluded.name
                        OR items.type IS NOT excluded.type
@@ -195,8 +211,7 @@ def sync_libraries_and_items(api, report=None, force_full: bool = False,
                        OR items.audio_codec IS NOT excluded.audio_codec
                        OR items.people IS NOT excluded.people
                        OR items.added_at IS NOT excluded.added_at
-                       OR items.source_date_last_refreshed
-                          IS NOT excluded.source_date_last_refreshed
+                       OR items.source_etag IS NOT excluded.source_etag
                     """,
                     (
                         item["Id"], library_id, item.get("Name"), item.get("Type"),
@@ -208,7 +223,7 @@ def sync_libraries_and_items(api, report=None, force_full: bool = False,
                         video.get("Codec"), audio.get("Codec"),
                         _people_json(item.get("People")),
                         (item.get("DateCreated") or "").replace("T", " ")[:19] or None,
-                        now_iso(), item.get("DateLastRefreshed"),
+                        now_iso(), item["Etag"],
                     ),
                 )
                 total_changed += changed.rowcount

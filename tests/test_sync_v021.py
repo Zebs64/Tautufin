@@ -20,7 +20,7 @@ def rich_item(item_id, marker=REFRESH_1, name=None):
         "Genres": ["Drame"],
         "MediaStreams": [],
         "People": [],
-        "DateLastRefreshed": marker,
+        "Etag": marker,
     }
 
 
@@ -70,7 +70,7 @@ class TwoPassSyncTests(unittest.TestCase):
         database.execute(
             """
             INSERT INTO items
-                (item_id, library_id, name, type, source_date_last_refreshed)
+                (item_id, library_id, name, type, source_etag)
             VALUES (?, 'lib-1', ?, 'Movie', ?)
             """,
             (item_id, name or item_id, marker),
@@ -83,7 +83,7 @@ class TwoPassSyncTests(unittest.TestCase):
 
     def test_large_unchanged_inventory_makes_no_rich_call(self):
         inventory = [
-            {"Id": f"item-{index}", "DateLastRefreshed": REFRESH_1}
+            {"Id": f"item-{index}", "Etag": REFRESH_1}
             for index in range(200)
         ]
         for item in inventory:
@@ -104,8 +104,8 @@ class TwoPassSyncTests(unittest.TestCase):
         self._seed_item("same", REFRESH_1)
         self._seed_item("changed", REFRESH_1, name="Ancien")
         inventory = [
-            {"Id": "same", "DateLastRefreshed": REFRESH_1},
-            {"Id": "changed", "DateLastRefreshed": REFRESH_2},
+            {"Id": "same", "Etag": REFRESH_1},
+            {"Id": "changed", "Etag": REFRESH_2},
         ]
         api = FakeTwoPassAPI(
             inventory,
@@ -120,14 +120,14 @@ class TwoPassSyncTests(unittest.TestCase):
         self.assertEqual(result["items_changed"], 1)
         self.assertEqual(
             database.query_one(
-                "SELECT name, source_date_last_refreshed FROM items WHERE item_id = 'changed'"
+                "SELECT name, source_etag FROM items WHERE item_id = 'changed'"
             ),
-            {"name": "Nouveau", "source_date_last_refreshed": REFRESH_2},
+            {"name": "Nouveau", "source_etag": REFRESH_2},
         )
 
     def test_missing_item_is_enriched_and_inserted(self):
         api = FakeTwoPassAPI(
-            [{"Id": "new", "DateLastRefreshed": REFRESH_1}],
+            [{"Id": "new", "Etag": REFRESH_1}],
             [rich_item("new")],
         )
 
@@ -138,17 +138,17 @@ class TwoPassSyncTests(unittest.TestCase):
         self.assertEqual(result["items_changed"], 1)
         self.assertEqual(
             database.query_one(
-                "SELECT source_date_last_refreshed FROM items WHERE item_id = 'new'"
+                "SELECT source_etag FROM items WHERE item_id = 'new'"
             ),
-            {"source_date_last_refreshed": REFRESH_1},
+            {"source_etag": REFRESH_1},
         )
 
     def test_manual_full_sync_enriches_all_items_even_when_markers_match(self):
         self._seed_item("one", REFRESH_1)
         self._seed_item("two", REFRESH_1)
         inventory = [
-            {"Id": "one", "DateLastRefreshed": REFRESH_1},
-            {"Id": "two", "DateLastRefreshed": REFRESH_1},
+            {"Id": "one", "Etag": REFRESH_1},
+            {"Id": "two", "Etag": REFRESH_1},
         ]
         api = FakeTwoPassAPI(inventory, [rich_item("one"), rich_item("two")])
 
@@ -164,7 +164,7 @@ class TwoPassSyncTests(unittest.TestCase):
         database.set_sync_cursor(previous_cursor)
         database.set_sync_health({"status": "success", "last_success_at": previous_success})
         api = FakeTwoPassAPI(
-            [{"Id": "changed", "DateLastRefreshed": REFRESH_2}],
+            [{"Id": "changed", "Etag": REFRESH_2}],
             fail_rich=True,
         )
 
@@ -172,10 +172,10 @@ class TwoPassSyncTests(unittest.TestCase):
             self._run(api)
 
         row = database.query_one(
-            "SELECT name, source_date_last_refreshed FROM items WHERE item_id = 'changed'"
+            "SELECT name, source_etag FROM items WHERE item_id = 'changed'"
         )
         health = database.get_sync_health()
-        self.assertEqual(row, {"name": "Ancien", "source_date_last_refreshed": REFRESH_1})
+        self.assertEqual(row, {"name": "Ancien", "source_etag": REFRESH_1})
         self.assertEqual(database.get_sync_cursor(), previous_cursor)
         self.assertEqual(health["last_success_at"], previous_success)
         self.assertTrue(health["cursor_preserved"])
@@ -187,15 +187,15 @@ class TwoPassSyncTests(unittest.TestCase):
         database.execute(
             """
             CREATE TRIGGER fail_marker_update
-            BEFORE UPDATE OF source_date_last_refreshed ON items
-            WHEN NEW.source_date_last_refreshed = '2026-08-02T10:00:00.0000000Z'
+            BEFORE UPDATE OF source_etag ON items
+            WHEN NEW.source_etag = '2026-08-02T10:00:00.0000000Z'
             BEGIN
                 SELECT RAISE(ABORT, 'injected marker failure');
             END
             """
         )
         api = FakeTwoPassAPI(
-            [{"Id": "changed", "DateLastRefreshed": REFRESH_2}],
+            [{"Id": "changed", "Etag": REFRESH_2}],
             [rich_item("changed", REFRESH_2, name="Nouveau")],
         )
 
@@ -204,16 +204,16 @@ class TwoPassSyncTests(unittest.TestCase):
 
         self.assertEqual(
             database.query_one(
-                "SELECT name, source_date_last_refreshed FROM items WHERE item_id = 'changed'"
+                "SELECT name, source_etag FROM items WHERE item_id = 'changed'"
             ),
-            {"name": "Ancien", "source_date_last_refreshed": REFRESH_1},
+            {"name": "Ancien", "source_etag": REFRESH_1},
         )
         self.assertEqual(database.get_sync_cursor(), previous_cursor)
 
     def test_missing_rich_response_does_not_validate_cursor_or_marker(self):
         previous_cursor = "2026-08-02T10:00:00Z"
         database.set_sync_cursor(previous_cursor)
-        api = FakeTwoPassAPI([{"Id": "missing", "DateLastRefreshed": REFRESH_1}])
+        api = FakeTwoPassAPI([{"Id": "missing", "Etag": REFRESH_1}])
 
         with self.assertRaisesRegex(Exception, "missing"):
             self._run(api)
@@ -253,20 +253,20 @@ class DatabaseV6MigrationTests(unittest.TestCase):
         conn.commit()
         conn.close()
 
-    def test_populated_v5_migrates_to_v6_without_loss_and_is_idempotent(self):
+    def test_populated_v5_migrates_to_v7_without_loss_and_is_idempotent(self):
         self._create_populated_v5()
 
         database.init(self.db_path)
         database.init(self.db_path)
 
         self.assertEqual(
-            database.query_one("SELECT version FROM schema_version"), {"version": 6}
+            database.query_one("SELECT version FROM schema_version"), {"version": 7}
         )
         self.assertEqual(
             database.query_one(
-                "SELECT name, source_date_last_refreshed FROM items WHERE item_id = 'item-1'"
+                "SELECT name, source_etag FROM items WHERE item_id = 'item-1'"
             ),
-            {"name": "Film conservé", "source_date_last_refreshed": None},
+            {"name": "Film conservé", "source_etag": None},
         )
         self.assertEqual(database.get_sync_cursor(), "2026-08-01T10:00:00Z")
         self.assertTrue(database.integrity_check()["ok"])

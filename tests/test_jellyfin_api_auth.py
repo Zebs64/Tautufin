@@ -92,9 +92,9 @@ class JellyfinAPIAuthTests(unittest.TestCase):
     def test_light_inventory_is_paginated_without_rich_fields_or_images(self):
         calls = []
         responses = [
-            {"Items": [{"Id": "i1", "DateLastRefreshed": "r1"}],
+            {"Items": [{"Id": "i1", "Etag": "r1"}],
              "TotalRecordCount": 2},
-            {"Items": [{"Id": "i2", "DateLastRefreshed": "r2"}],
+            {"Items": [{"Id": "i2", "Etag": "r2"}],
              "TotalRecordCount": 2},
         ]
 
@@ -113,7 +113,7 @@ class JellyfinAPIAuthTests(unittest.TestCase):
             self.assertIn('Token="secret-token"', headers["Authorization"])
             params = kwargs["params"]
             self.assertEqual(params["ParentId"], "library-1")
-            self.assertEqual(params["Fields"], "DateLastRefreshed")
+            self.assertEqual(params["Fields"], "Etag")
             self.assertEqual(params["EnableImages"], "false")
             self.assertEqual(params["EnableUserData"], "false")
             for forbidden in ("People", "MediaStreams", "UserData"):
@@ -142,7 +142,7 @@ class JellyfinAPIAuthTests(unittest.TestCase):
         for _, _, kwargs in calls:
             self.assertIn("People", kwargs["params"]["Fields"])
             self.assertIn("MediaStreams", kwargs["params"]["Fields"])
-            self.assertIn("DateLastRefreshed", kwargs["params"]["Fields"])
+            self.assertIn("Etag", kwargs["params"]["Fields"])
 
 
 if __name__ == "__main__":

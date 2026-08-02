@@ -157,14 +157,14 @@ class JellyfinAPI:
         return resp.content, resp.headers.get("Content-Type", "image/jpeg")
 
     def iter_item_inventory(self, parent_id: str, page_size: int = 500):
-        """Inventaire léger paginé : identifiant et marqueur de rafraîchissement."""
+        """Inventaire léger paginé : identifiant et ETag source."""
         start = 0
         while True:
             params = {
                 "ParentId": parent_id,
                 "Recursive": "true",
                 "IncludeItemTypes": "Movie,Series,Episode,Audio,MusicAlbum",
-                "Fields": "DateLastRefreshed",
+                "Fields": "Etag",
                 "EnableImages": "false",
                 "EnableUserData": "false",
                 "StartIndex": start,
@@ -182,7 +182,7 @@ class JellyfinAPI:
         ids = list(item_ids)
         fields = (
             "Genres,RunTimeTicks,ProductionYear,MediaStreams,SeriesName,"
-            "ParentIndexNumber,IndexNumber,DateCreated,People,DateLastRefreshed"
+            "ParentIndexNumber,IndexNumber,DateCreated,People,Etag"
         )
         for offset in range(0, len(ids), batch_size):
             batch = ids[offset:offset + batch_size]

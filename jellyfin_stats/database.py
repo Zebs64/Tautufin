@@ -186,6 +186,14 @@ MIGRATIONS: list[tuple[int, list[str]]] = [
             "ALTER TABLE items ADD COLUMN source_date_last_refreshed TEXT",
         ],
     ),
+    (
+        7,
+        [
+            # ETag réellement exposé par Jellyfin 10.11.11. La colonne v6 est
+            # conservée pour permettre un rollback applicatif sans perte.
+            "ALTER TABLE items ADD COLUMN source_etag TEXT",
+        ],
+    ),
 ]
 
 

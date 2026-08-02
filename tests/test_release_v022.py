@@ -10,15 +10,15 @@ from jellyfin_stats.config import Config
 from jellyfin_stats.main import create_app
 
 
-class ReleaseV021Tests(unittest.TestCase):
-    def test_application_reports_version_0_2_1(self):
-        self.assertEqual(__version__, "0.2.1")
+class ReleaseV022Tests(unittest.TestCase):
+    def test_application_reports_version_0_2_2(self):
+        self.assertEqual(__version__, "0.2.2")
 
-    def test_schema_is_v6(self):
+    def test_schema_is_v7(self):
         with tempfile.TemporaryDirectory() as tmp:
             database.init(str(Path(tmp) / "tautufin.db"))
             version = database.query_one("SELECT version FROM schema_version")
-        self.assertEqual(version["version"], 6)
+        self.assertEqual(version, {"version": 7})
 
     def test_clients_route_navigation_and_static_assets_are_served(self):
         with tempfile.TemporaryDirectory() as tmp:
