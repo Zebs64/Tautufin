@@ -63,6 +63,29 @@
         </div>
       </div>
 
+      <div class="card sync-health-card" id="sync-health" aria-live="polite">
+        <div class="sync-health-head">
+          <h3>État de la synchronisation</h3>
+          <span class="badge badge-off" id="sync-health-badge">Non initialisée</span>
+        </div>
+        <dl class="sync-health-grid">
+          <div><dt>Dernière tentative</dt><dd id="sync-health-attempt">—</dd></div>
+          <div><dt>Dernier succès</dt><dd id="sync-health-success">Jamais synchronisée</dd></div>
+          <div><dt>Mode / phase</dt><dd id="sync-health-mode">—</dd></div>
+          <div><dt>Durée</dt><dd id="sync-health-duration">—</dd></div>
+          <div><dt>Utilisateurs</dt><dd id="sync-health-users">0</dd></div>
+          <div><dt>Bibliothèques</dt><dd id="sync-health-libraries">0</dd></div>
+          <div><dt>Médias inspectés</dt><dd id="sync-health-inspected">0</dd></div>
+          <div><dt>Médias enrichis</dt><dd id="sync-health-enriched">0</dd></div>
+          <div><dt>Insérés / modifiés</dt><dd id="sync-health-changed">0</dd></div>
+        </dl>
+        <div class="sync-health-error" id="sync-health-error" hidden>
+          <span id="sync-health-error-message"></span>
+          <strong id="sync-health-cursor">Curseur préservé</strong>
+          <button type="button" class="btn btn-sm" id="sync-health-retry">Actualiser</button>
+        </div>
+      </div>
+
       <div class="card">
         <h3>Clients inconnus</h3>
         <p class="muted">Certaines lectures n'ont pas de client identifié — typiquement
@@ -92,27 +115,7 @@
         </div>
       </div>
 
-      <div class="card sync-health-card" id="sync-health" aria-live="polite">
-        <div class="sync-health-head">
-          <h3>État de la synchronisation</h3>
-          <span class="badge badge-off" id="sync-health-badge">Non initialisée</span>
-        </div>
-        <dl class="sync-health-grid">
-          <div><dt>Dernière tentative</dt><dd id="sync-health-attempt">—</dd></div>
-          <div><dt>Dernier succès</dt><dd id="sync-health-success">Jamais synchronisée</dd></div>
-          <div><dt>Mode / phase</dt><dd id="sync-health-mode">—</dd></div>
-          <div><dt>Durée</dt><dd id="sync-health-duration">—</dd></div>
-          <div><dt>Utilisateurs</dt><dd id="sync-health-users">0</dd></div>
-          <div><dt>Bibliothèques</dt><dd id="sync-health-libraries">0</dd></div>
-          <div><dt>Médias reçus</dt><dd id="sync-health-received">0</dd></div>
-          <div><dt>Insérés / modifiés</dt><dd id="sync-health-changed">0</dd></div>
-        </dl>
-        <div class="sync-health-error" id="sync-health-error" hidden>
-          <span id="sync-health-error-message"></span>
-          <strong id="sync-health-cursor">Curseur préservé</strong>
-          <button type="button" class="btn btn-sm" id="sync-health-retry">Actualiser</button>
-        </div>
-      </div>
+
     </div>
 
     <div class="actions actions-sticky">
@@ -378,7 +381,9 @@ function renderSyncHealth(health, progress) {
     health.duration_seconds == null ? '—' : `${health.duration_seconds.toLocaleString('fr-FR')} s`;
   document.getElementById('sync-health-users').textContent = health.users || 0;
   document.getElementById('sync-health-libraries').textContent = health.libraries || 0;
-  document.getElementById('sync-health-received').textContent = health.items_received || 0;
+  document.getElementById('sync-health-inspected').textContent =
+    health.items_inspected ?? health.items_received ?? 0;
+  document.getElementById('sync-health-enriched').textContent = health.items_enriched || 0;
   document.getElementById('sync-health-changed').textContent = health.items_changed || 0;
   const error = document.getElementById('sync-health-error');
   error.hidden = status !== 'error';

@@ -104,28 +104,52 @@ def sync_users(api) -> int:
     return len(users)
 
 
-def sync_libraries_and_items(api, report=None,
-                             min_date_last_saved: str | None = None,
+def sync_libraries_and_items(api, report=None, force_full: bool = False,
                              metrics: dict | None = None) -> int:
-    total_items = 0
+    total_inspected = 0
+    total_enriched = 0
     total_changed = 0
     folders = [f for f in api.get_libraries() if f.get("ItemId")]
     if metrics is not None:
-        metrics.update(libraries=len(folders), items_received=0, items_changed=0)
+        metrics.update(
+            libraries=len(folders), items_received=0, items_inspected=0,
+            items_enriched=0, items_changed=0,
+        )
     for idx, folder in enumerate(folders):
         if report:
             report(phase="libraries", current=idx, total=len(folders),
                    label=folder.get("Name", "?"), libraries=len(folders))
         library_id = folder["ItemId"]
-        # Phase réseau HORS transaction : récupérer les médias sans tenir le
-        # verrou d'écriture SQLite pendant les appels HTTP (sinon le poller et
-        # les sessions HTTP se prennent un « database is locked »).
-        items = list(api.iter_items(
-            library_id, min_date_last_saved=min_date_last_saved))
-        count = len(items)
-        # Phase écriture : transaction courte.
+        # Réseau hors transaction : inventaire léger, puis DTO riches ciblés.
+        inventory = list(api.iter_item_inventory(library_id))
+        if any(not item.get("Id") for item in inventory):
+            raise JellyfinError("Inventaire Jellyfin incomplet : identifiant média absent")
+        local_markers = {
+            row["item_id"]: row["source_date_last_refreshed"]
+            for row in database.query(
+                "SELECT item_id, source_date_last_refreshed FROM items "
+                "WHERE library_id = ?", (library_id,)
+            )
+        }
+        target_ids = [
+            item["Id"] for item in inventory
+            if force_full
+            or item["Id"] not in local_markers
+            or local_markers[item["Id"]] is None
+            or local_markers[item["Id"]] != item.get("DateLastRefreshed")
+        ]
+        rich_items = list(api.iter_items_by_ids(target_ids)) if target_ids else []
+        rich_by_id = {item.get("Id"): item for item in rich_items if item.get("Id")}
+        missing_ids = [item_id for item_id in target_ids if item_id not in rich_by_id]
+        if missing_ids:
+            raise JellyfinError(
+                f"Réponse Jellyfin incomplète : média {missing_ids[0]} absent"
+            )
+
+        # Données riches et marqueur correspondant sont validés ensemble.
         with database.db() as conn:
-            for item in items:
+            for item_id in target_ids:
+                item = rich_by_id[item_id]
                 runtime_ticks = item.get("RunTimeTicks")
                 video = next((s for s in item.get("MediaStreams", [])
                               if s.get("Type") == "Video"), {})
@@ -137,8 +161,9 @@ def sync_libraries_and_items(api, report=None,
                         (item_id, library_id, name, type, series_name,
                          season_number, episode_number, year, genres,
                          runtime_seconds, video_resolution, video_codec,
-                         audio_codec, people, added_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         audio_codec, people, added_at, updated_at,
+                         source_date_last_refreshed)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(item_id) DO UPDATE SET
                         library_id = excluded.library_id,
                         name = excluded.name,
@@ -154,7 +179,8 @@ def sync_libraries_and_items(api, report=None,
                         audio_codec = excluded.audio_codec,
                         people = excluded.people,
                         added_at = excluded.added_at,
-                        updated_at = excluded.updated_at
+                        updated_at = excluded.updated_at,
+                        source_date_last_refreshed = excluded.source_date_last_refreshed
                     WHERE items.library_id IS NOT excluded.library_id
                        OR items.name IS NOT excluded.name
                        OR items.type IS NOT excluded.type
@@ -169,6 +195,8 @@ def sync_libraries_and_items(api, report=None,
                        OR items.audio_codec IS NOT excluded.audio_codec
                        OR items.people IS NOT excluded.people
                        OR items.added_at IS NOT excluded.added_at
+                       OR items.source_date_last_refreshed
+                          IS NOT excluded.source_date_last_refreshed
                     """,
                     (
                         item["Id"], library_id, item.get("Name"), item.get("Type"),
@@ -180,33 +208,38 @@ def sync_libraries_and_items(api, report=None,
                         video.get("Codec"), audio.get("Codec"),
                         _people_json(item.get("People")),
                         (item.get("DateCreated") or "").replace("T", " ")[:19] or None,
-                        now_iso(),
+                        now_iso(), item.get("DateLastRefreshed"),
                     ),
                 )
                 total_changed += changed.rowcount
-            item_count_update = "" if min_date_last_saved else \
-                "item_count = excluded.item_count,"
             conn.execute(
-                f"""
+                """
                 INSERT INTO libraries (library_id, name, collection_type, item_count, updated_at)
                 VALUES (?, ?, ?, ?, ?)
                 ON CONFLICT(library_id) DO UPDATE SET
                     name = excluded.name,
                     collection_type = excluded.collection_type,
-                    {item_count_update}
+                    item_count = excluded.item_count,
                     updated_at = excluded.updated_at
                 """,
                 (library_id, folder.get("Name", "?"),
-                 folder.get("CollectionType"), count, now_iso()),
+                 folder.get("CollectionType"), len(inventory), now_iso()),
             )
-        total_items += count
+        total_inspected += len(inventory)
+        total_enriched += len(target_ids)
         if metrics is not None:
-            metrics.update(items_received=total_items, items_changed=total_changed)
+            metrics.update(
+                items_received=total_inspected, items_inspected=total_inspected,
+                items_enriched=total_enriched, items_changed=total_changed,
+            )
         if report:
-            report(items=total_items, items_changed=total_changed)
+            report(
+                items=total_inspected, items_inspected=total_inspected,
+                items_enriched=total_enriched, items_changed=total_changed,
+            )
     if report:
         report(current=len(folders), label="")
-    return total_items
+    return total_inspected
 
 
 def sync_all(api, report=None, force_full: bool = False) -> dict:
@@ -219,7 +252,8 @@ def sync_all(api, report=None, force_full: bool = False) -> dict:
     health.update(
         status="running", mode=mode, phase="users", started_at=started_text,
         last_attempt_at=started_text, finished_at=None, duration_seconds=None,
-        users=0, libraries=0, items_received=0, items_changed=0,
+        users=0, libraries=0, items_received=0, items_inspected=0,
+        items_enriched=0, items_changed=0,
         error=None, cursor_preserved=False,
     )
     database.set_sync_health(health)
@@ -237,6 +271,10 @@ def sync_all(api, report=None, force_full: bool = False) -> dict:
             progress["libraries"] = values["libraries"]
         if "items" in values:
             progress["items_received"] = values["items"]
+        if "items_inspected" in values:
+            progress["items_inspected"] = values["items_inspected"]
+        if "items_enriched" in values:
+            progress["items_enriched"] = values["items_enriched"]
         if "items_changed" in values:
             progress["items_changed"] = values["items_changed"]
         database.set_sync_health(progress)
@@ -247,8 +285,7 @@ def sync_all(api, report=None, force_full: bool = False) -> dict:
         users = sync_users(api)
         report_progress(users=users)
         items = sync_libraries_and_items(
-            api, report=report_progress, min_date_last_saved=incremental_start,
-            metrics=metrics,
+            api, report=report_progress, force_full=(mode == "full"), metrics=metrics,
         )
         finished_at = _utc_now()
         health = database.get_sync_health()
@@ -257,19 +294,24 @@ def sync_all(api, report=None, force_full: bool = False) -> dict:
             last_success_at=_format_utc(finished_at),
             duration_seconds=round((finished_at - started_at).total_seconds(), 3),
             users=users, libraries=metrics.get("libraries", 0),
-            items_received=items, items_changed=metrics.get("items_changed", 0),
+            items_received=items, items_inspected=items,
+            items_enriched=metrics.get("items_enriched", 0),
+            items_changed=metrics.get("items_changed", 0),
             error=None, cursor_preserved=False,
         )
         database.finalize_sync_success(started_text, health)
         logger.info(
             "Synchronisation Jellyfin : %d utilisateurs, %d bibliothèques, "
-            "%d médias reçus, %d insérés/modifiés",
-            users, health["libraries"], items, health["items_changed"],
+            "%d médias inspectés, %d enrichis, %d insérés/modifiés",
+            users, health["libraries"], items, health["items_enriched"],
+            health["items_changed"],
         )
         return {
             "users": users,
             "libraries": health["libraries"],
             "items": items,
+            "items_inspected": items,
+            "items_enriched": health["items_enriched"],
             "items_changed": health["items_changed"],
         }
     except Exception as exc:

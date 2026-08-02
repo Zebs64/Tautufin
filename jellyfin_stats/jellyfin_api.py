@@ -156,32 +156,52 @@ class JellyfinAPI:
             return None
         return resp.content, resp.headers.get("Content-Type", "image/jpeg")
 
-    def iter_items(self, parent_id: str, page_size: int = 500,
-                   min_date_last_saved: str | None = None):
-        """Itère sur les médias d'une bibliothèque, avec pagination."""
+    def iter_item_inventory(self, parent_id: str, page_size: int = 500):
+        """Inventaire léger paginé : identifiant et marqueur de rafraîchissement."""
         start = 0
         while True:
             params = {
                 "ParentId": parent_id,
                 "Recursive": "true",
                 "IncludeItemTypes": "Movie,Series,Episode,Audio,MusicAlbum",
-                "Fields": "Genres,RunTimeTicks,ProductionYear,MediaStreams,"
-                          "SeriesName,ParentIndexNumber,IndexNumber,DateCreated,"
-                          "People",
+                "Fields": "DateLastRefreshed",
+                "EnableImages": "false",
+                "EnableUserData": "false",
                 "StartIndex": start,
                 "Limit": page_size,
             }
-            if min_date_last_saved is not None:
-                params["minDateLastSaved"] = min_date_last_saved
-            data = self._get(
-                "/Items",
-                params=params,
-            ) or {}
+            data = self._get("/Items", params=params) or {}
             items = data.get("Items", [])
             yield from items
             start += len(items)
             if not items or start >= data.get("TotalRecordCount", 0):
                 return
+
+    def iter_items_by_ids(self, item_ids, batch_size: int = 100):
+        """Récupère les DTO riches par lots bornés via le filtre Jellyfin ``Ids``."""
+        ids = list(item_ids)
+        fields = (
+            "Genres,RunTimeTicks,ProductionYear,MediaStreams,SeriesName,"
+            "ParentIndexNumber,IndexNumber,DateCreated,People,DateLastRefreshed"
+        )
+        for offset in range(0, len(ids), batch_size):
+            batch = ids[offset:offset + batch_size]
+            start = 0
+            while True:
+                data = self._get(
+                    "/Items",
+                    params={
+                        "Ids": ",".join(batch),
+                        "Fields": fields,
+                        "StartIndex": start,
+                        "Limit": batch_size,
+                    },
+                ) or {}
+                items = data.get("Items", [])
+                yield from items
+                start += len(items)
+                if not items or start >= data.get("TotalRecordCount", 0):
+                    break
 
     def iter_played_items(self, user_id: str,
                           item_types: str = "Movie,Episode,Audio,AudioBook,MusicVideo",

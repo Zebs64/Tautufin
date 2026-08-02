@@ -14,9 +14,15 @@ class FakeLibraryAPI:
     def get_libraries(self):
         return [{"ItemId": "lib-1", "Name": "Films", "CollectionType": "movies"}]
 
-    def iter_items(self, parent_id, min_date_last_saved=None):
+    def iter_item_inventory(self, parent_id):
         self.last_parent_id = parent_id
-        self.last_cursor = min_date_last_saved
+        yield {
+            "Id": self.item["Id"],
+            "DateLastRefreshed": self.item.get("DateLastRefreshed"),
+        }
+
+    def iter_items_by_ids(self, item_ids):
+        self.last_item_ids = list(item_ids)
         yield dict(self.item)
 
 
@@ -73,10 +79,10 @@ class DatabaseV5Tests(unittest.TestCase):
         conn.commit()
         conn.close()
 
-    def test_new_database_reaches_schema_v5_without_cursor(self):
+    def test_new_database_reaches_schema_v6_without_cursor(self):
         database.init(self.db_path)
 
-        self.assertEqual(database.query_one("SELECT version FROM schema_version")["version"], 5)
+        self.assertEqual(database.query_one("SELECT version FROM schema_version")["version"], 6)
         self.assertIsNone(database.get_sync_cursor())
         self.assertEqual(database.integrity_check()["integrity"], ["ok"])
         self.assertEqual(database.integrity_check()["foreign_key_violations"], 0)
@@ -101,8 +107,11 @@ class DatabaseV5Tests(unittest.TestCase):
         database.init(self.db_path)
         after_second_init = {table: database.query(f"SELECT * FROM {table}")
                              for table in tables}
+        for snapshot in (after_upgrade, after_second_init):
+            for row in snapshot["items"]:
+                row.pop("source_date_last_refreshed", None)
 
-        self.assertEqual(database.query_one("SELECT version FROM schema_version")["version"], 5)
+        self.assertEqual(database.query_one("SELECT version FROM schema_version")["version"], 6)
         self.assertEqual(after_upgrade, before)
         self.assertEqual(after_second_init, before)
         self.assertIsNone(database.get_sync_cursor())
@@ -125,6 +134,7 @@ class DatabaseV5Tests(unittest.TestCase):
             "Genres": None,
             "MediaStreams": [],
             "People": None,
+            "DateLastRefreshed": "refresh-1",
         }
         api = FakeLibraryAPI(item)
 
@@ -137,6 +147,7 @@ class DatabaseV5Tests(unittest.TestCase):
         )
 
         api.item["Name"] = "Film modifié"
+        api.item["DateLastRefreshed"] = "refresh-2"
         with patch("jellyfin_stats.scheduler.now_iso", side_effect=["third", "library-3"]):
             scheduler.sync_libraries_and_items(api)
         changed = database.query_one(
