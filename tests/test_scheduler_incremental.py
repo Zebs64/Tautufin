@@ -13,7 +13,8 @@ class FakeSyncAPI:
     def __init__(self, items=None, fail=False):
         self.items = items or []
         self.fail = fail
-        self.item_cursors = []
+        self.inventory_calls = []
+        self.rich_calls = []
 
     def get_users(self):
         return []
@@ -21,11 +22,20 @@ class FakeSyncAPI:
     def get_libraries(self):
         return [{"ItemId": "lib-1", "Name": "Films", "CollectionType": "movies"}]
 
-    def iter_items(self, parent_id, min_date_last_saved=None):
-        self.item_cursors.append(min_date_last_saved)
+    def iter_item_inventory(self, parent_id):
+        self.inventory_calls.append(parent_id)
         if self.fail:
             raise RuntimeError("Jellyfin failure")
-        yield from [dict(item) for item in self.items]
+        yield from [
+            {"Id": item["Id"], "DateLastRefreshed": item.get("DateLastRefreshed")}
+            for item in self.items
+        ]
+
+    def iter_items_by_ids(self, item_ids):
+        ids = list(item_ids)
+        self.rich_calls.append(ids)
+        by_id = {item["Id"]: item for item in self.items}
+        yield from [dict(by_id[item_id]) for item_id in ids]
 
 
 class InlineThread:
@@ -54,10 +64,11 @@ class IncrementalSyncTests(unittest.TestCase):
         with patch("jellyfin_stats.scheduler._utc_now", return_value=started):
             scheduler.sync_all(api)
 
-        self.assertEqual(api.item_cursors, [None])
+        self.assertEqual(api.inventory_calls, ["lib-1"])
+        self.assertEqual(database.get_sync_health()["mode"], "full")
         self.assertEqual(database.get_sync_cursor(), "2026-07-30T11:00:00Z")
 
-    def test_existing_cursor_runs_incremental_with_five_minute_overlap(self):
+    def test_existing_cursor_runs_incremental_inventory(self):
         database.set_sync_cursor("2026-07-30T10:00:00Z")
         api = FakeSyncAPI()
         started = datetime(2026, 7, 30, 11, 0, tzinfo=timezone.utc)
@@ -65,7 +76,8 @@ class IncrementalSyncTests(unittest.TestCase):
         with patch("jellyfin_stats.scheduler._utc_now", return_value=started):
             scheduler.sync_all(api)
 
-        self.assertEqual(api.item_cursors, ["2026-07-30T09:55:00Z"])
+        self.assertEqual(api.inventory_calls, ["lib-1"])
+        self.assertEqual(database.get_sync_health()["mode"], "incremental")
         self.assertEqual(database.get_sync_cursor(), "2026-07-30T11:00:00Z")
 
     def test_invalid_cursor_falls_back_to_full(self):
@@ -78,7 +90,8 @@ class IncrementalSyncTests(unittest.TestCase):
         ):
             scheduler.sync_all(api)
 
-        self.assertEqual(api.item_cursors, [None])
+        self.assertEqual(api.inventory_calls, ["lib-1"])
+        self.assertEqual(database.get_sync_health()["mode"], "full")
 
     def test_forced_full_omits_cursor_and_refreshes_it(self):
         database.set_sync_cursor("2026-07-30T10:00:00Z")
@@ -90,7 +103,8 @@ class IncrementalSyncTests(unittest.TestCase):
         ):
             scheduler.sync_all(api, force_full=True)
 
-        self.assertEqual(api.item_cursors, [None])
+        self.assertEqual(api.inventory_calls, ["lib-1"])
+        self.assertEqual(database.get_sync_health()["mode"], "full")
         self.assertEqual(database.get_sync_cursor(), "2026-07-30T12:00:00Z")
 
     def test_partial_failure_preserves_previous_cursor(self):
@@ -114,6 +128,7 @@ class IncrementalSyncTests(unittest.TestCase):
             "Genres": ["Drame"],
             "MediaStreams": [],
             "People": [],
+            "DateLastRefreshed": "refresh-1",
         }
         api = FakeSyncAPI([item])
         bounds = [
@@ -132,7 +147,8 @@ class IncrementalSyncTests(unittest.TestCase):
         row = database.query_one(
             "SELECT updated_at FROM items WHERE item_id = 'item-1'"
         )
-        self.assertEqual(api.item_cursors, [None, "2026-07-30T09:55:00Z"])
+        self.assertEqual(api.inventory_calls, ["lib-1", "lib-1"])
+        self.assertEqual(api.rich_calls, [["item-1"]])
         self.assertEqual(row, {"updated_at": "first"})
 
     def test_manual_start_forces_full_and_running_guard_is_preserved(self):

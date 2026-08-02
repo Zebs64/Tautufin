@@ -178,6 +178,14 @@ MIGRATIONS: list[tuple[int, list[str]]] = [
             """,
         ],
     ),
+    (
+        6,
+        [
+            # Marqueur source stable utilisé par la synchronisation en deux passes.
+            # Nullable : le premier cycle après migration enrichit le média.
+            "ALTER TABLE items ADD COLUMN source_date_last_refreshed TEXT",
+        ],
+    ),
 ]
 
 
@@ -272,6 +280,8 @@ def empty_sync_health() -> dict:
         "users": 0,
         "libraries": 0,
         "items_received": 0,
+        "items_inspected": 0,
+        "items_enriched": 0,
         "items_changed": 0,
         "error": None,
         "cursor_preserved": False,

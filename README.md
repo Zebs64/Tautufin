@@ -54,7 +54,9 @@ utilisateurs, auto-hébergé.
   (idempotent)
 - ⚡ **Estimation de conso** : électricité et coût imputables au transcodage
 - 🩺 **Santé de synchronisation persistante** dans Réglages : dernière tentative,
-  dernier succès, mode, compteurs et erreur utilisateur assainie
+  dernier succès, mode, médias inspectés/enrichis/modifiés et erreur assainie
+- 🪶 **Synchronisation légère en deux passes** : inventaire par marqueur Jellyfin,
+  puis enrichissement riche limité aux médias nouveaux ou rafraîchis
 - 🔁 **États graphiques explicites** : chargement, absence de données, erreur et
   nouvelle tentative ciblée au lieu d'un échec silencieux
 - 🛠️ **Maintenance** intégrée : sauvegarde, vérification et réinitialisation de
@@ -343,13 +345,14 @@ Section *Réglages → Maintenance* (admin) :
   sont conservés** ; les données Jellyfin sont repeuplées à la synchro suivante.
   Action irréversible — exportez un backup d'abord.
 
-### Mise à niveau depuis v0.1.2
+### Mise à niveau vers v0.2.1
 
-L'image `v0.2.0` démarre directement sur une configuration et une base `v0.1.2`.
-Le schéma SQLite reste en **version 5** : aucune migration v6, aucun export/import
-et aucune reconstruction de l'historique ne sont nécessaires. La nouvelle santé
-de synchronisation utilise une clé JSON dans `sync_state`; une ancienne version
-l'ignore, ce qui conserve un rollback simple vers `v0.1.2`.
+L'image `v0.2.1` démarre directement sur une configuration et une base v0.2.0.
+Le schéma SQLite passe en **version 6** par ajout d'un marqueur nullable sur les
+médias existants. Le premier cycle réenrichit donc le catalogue une fois, puis les
+cycles automatiques inspectent l'inventaire léger et n'enrichissent que les médias
+nouveaux ou rafraîchis. La synchronisation manuelle reste exhaustive. Un rollback
+applicatif vers v0.2.0 reste possible : cette version ignore la colonne ajoutée.
 
 ---
 

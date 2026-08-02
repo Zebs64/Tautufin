@@ -11,7 +11,8 @@ from jellyfin_stats import database, scheduler
 class FakeHealthAPI:
     def __init__(self, *, fail=False):
         self.fail = fail
-        self.item_cursors = []
+        self.inventory_calls = []
+        self.rich_calls = []
 
     def get_users(self):
         return [
@@ -25,21 +26,29 @@ class FakeHealthAPI:
             {"ItemId": "lib-2", "Name": "Séries", "CollectionType": "tvshows"},
         ]
 
-    def iter_items(self, parent_id, min_date_last_saved=None):
-        self.item_cursors.append(min_date_last_saved)
+    def iter_item_inventory(self, parent_id):
+        self.inventory_calls.append(parent_id)
         if self.fail:
             raise RuntimeError(
                 "GET https://jellyfin.private/Items?api_key=super-secret "
                 "token=other-secret\n" + "détail " * 100
             )
-        yield {
-            "Id": f"item-{parent_id}",
-            "Name": parent_id,
-            "Type": "Movie",
-            "Genres": [],
-            "MediaStreams": [],
-            "People": [],
-        }
+        yield {"Id": f"item-{parent_id}", "DateLastRefreshed": "refresh-1"}
+
+    def iter_items_by_ids(self, item_ids):
+        ids = list(item_ids)
+        self.rich_calls.append(ids)
+        for item_id in ids:
+            parent_id = item_id.removeprefix("item-")
+            yield {
+                "Id": item_id,
+                "Name": parent_id,
+                "Type": "Movie",
+                "Genres": [],
+                "MediaStreams": [],
+                "People": [],
+                "DateLastRefreshed": "refresh-1",
+            }
 
 
 class SyncHealthTests(unittest.TestCase):
@@ -94,6 +103,8 @@ class SyncHealthTests(unittest.TestCase):
                 "users": 2,
                 "libraries": 2,
                 "items_received": 2,
+                "items_inspected": 2,
+                "items_enriched": 2,
                 "items_changed": 2,
                 "error": None,
                 "cursor_preserved": False,
@@ -109,15 +120,19 @@ class SyncHealthTests(unittest.TestCase):
             scheduler.sync_all(api, force_full=False)
         first_health = database.get_sync_health()
 
-        api.item_cursors.clear()
+        api.inventory_calls.clear()
+        api.rich_calls.clear()
         later = datetime(2026, 7, 31, 11, 0, tzinfo=timezone.utc)
         with patch("jellyfin_stats.scheduler._utc_now", side_effect=[later, later]):
             scheduler.sync_all(api, force_full=False)
 
         health = database.get_sync_health()
         self.assertEqual(first_health["mode"], "incremental")
-        self.assertEqual(api.item_cursors, ["2026-07-31T09:55:00Z"] * 2)
+        self.assertEqual(api.inventory_calls, ["lib-1", "lib-2"])
+        self.assertEqual(api.rich_calls, [])
         self.assertEqual(health["items_received"], 2)
+        self.assertEqual(health["items_inspected"], 2)
+        self.assertEqual(health["items_enriched"], 0)
         self.assertEqual(health["items_changed"], 0)
         self.assertEqual(database.get_sync_cursor(), "2026-07-31T11:00:00Z")
 
@@ -209,7 +224,7 @@ class SyncHealthTests(unittest.TestCase):
             {"value": "keep"},
         )
         self.assertEqual(
-            database.query_one("SELECT version FROM schema_version"), {"version": 5}
+            database.query_one("SELECT version FROM schema_version"), {"version": 6}
         )
 
     def test_status_combines_legacy_progress_with_persistent_health(self):

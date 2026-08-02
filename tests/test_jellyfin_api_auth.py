@@ -89,60 +89,60 @@ class JellyfinAPIAuthTests(unittest.TestCase):
         self.assertNotIn("Token=", headers["Authorization"])
         self.assertEqual(self.config.jellyfin_api_key, "secret-token")
 
-    def test_iter_items_sends_auth_header_and_no_query_secret(self):
-        calls = []
-
-        def fake_request(method, url, **kwargs):
-            calls.append((method, url, kwargs))
-            return FakeResponse({"Items": [{"Id": "i1"}], "TotalRecordCount": 1})
-
-        with patch("jellyfin_stats.jellyfin_api.httpx.request", fake_request):
-            items = list(self.api.iter_items("library-1", page_size=10))
-
-        self.assertEqual(items, [{"Id": "i1"}])
-        _, _, kwargs = calls[0]
-        headers = kwargs["headers"]
-        self.assertEqual(set(headers), {"Authorization"})
-        self.assertIn('Token="secret-token"', headers["Authorization"])
-        params = kwargs["params"]
-        self.assertEqual(params["ParentId"], "library-1")
-        self.assertNotIn("api_key", params)
-        self.assertNotIn("ApiKey", params)
-
-    def test_iter_items_adds_incremental_cursor_to_every_page(self):
+    def test_light_inventory_is_paginated_without_rich_fields_or_images(self):
         calls = []
         responses = [
-            {"Items": [{"Id": "i1"}], "TotalRecordCount": 2},
-            {"Items": [{"Id": "i2"}], "TotalRecordCount": 2},
+            {"Items": [{"Id": "i1", "DateLastRefreshed": "r1"}],
+             "TotalRecordCount": 2},
+            {"Items": [{"Id": "i2", "DateLastRefreshed": "r2"}],
+             "TotalRecordCount": 2},
         ]
 
         def fake_request(method, url, **kwargs):
             calls.append((method, url, kwargs))
             return FakeResponse(responses.pop(0))
 
-        cursor = "2026-07-30T09:55:00Z"
         with patch("jellyfin_stats.jellyfin_api.httpx.request", fake_request):
-            items = list(self.api.iter_items(
-                "library-1", page_size=1, min_date_last_saved=cursor))
+            items = list(self.api.iter_item_inventory("library-1", page_size=1))
 
-        self.assertEqual(items, [{"Id": "i1"}, {"Id": "i2"}])
+        self.assertEqual([item["Id"] for item in items], ["i1", "i2"])
         self.assertEqual([call[2]["params"]["StartIndex"] for call in calls], [0, 1])
-        self.assertEqual(
-            [call[2]["params"]["minDateLastSaved"] for call in calls],
-            [cursor, cursor],
-        )
+        for _, _, kwargs in calls:
+            headers = kwargs["headers"]
+            self.assertEqual(set(headers), {"Authorization"})
+            self.assertIn('Token="secret-token"', headers["Authorization"])
+            params = kwargs["params"]
+            self.assertEqual(params["ParentId"], "library-1")
+            self.assertEqual(params["Fields"], "DateLastRefreshed")
+            self.assertEqual(params["EnableImages"], "false")
+            self.assertEqual(params["EnableUserData"], "false")
+            for forbidden in ("People", "MediaStreams", "UserData"):
+                self.assertNotIn(forbidden, params["Fields"])
+            self.assertNotIn("ImageTypes", params)
+            self.assertNotIn("api_key", params)
+            self.assertNotIn("ApiKey", params)
 
-    def test_iter_items_omits_incremental_cursor_for_full_sync(self):
+    def test_rich_items_are_requested_by_bounded_id_batches(self):
         calls = []
+        responses = [
+            {"Items": [{"Id": "i1"}, {"Id": "i2"}], "TotalRecordCount": 2},
+            {"Items": [{"Id": "i3"}], "TotalRecordCount": 1},
+        ]
 
         def fake_request(method, url, **kwargs):
             calls.append((method, url, kwargs))
-            return FakeResponse({"Items": [], "TotalRecordCount": 0})
+            return FakeResponse(responses.pop(0))
 
         with patch("jellyfin_stats.jellyfin_api.httpx.request", fake_request):
-            list(self.api.iter_items("library-1"))
+            items = list(self.api.iter_items_by_ids(["i1", "i2", "i3"], batch_size=2))
 
-        self.assertNotIn("minDateLastSaved", calls[0][2]["params"])
+        self.assertEqual([item["Id"] for item in items], ["i1", "i2", "i3"])
+        self.assertEqual([call[2]["params"]["Ids"] for call in calls], ["i1,i2", "i3"])
+        self.assertEqual([call[2]["params"]["Limit"] for call in calls], [2, 2])
+        for _, _, kwargs in calls:
+            self.assertIn("People", kwargs["params"]["Fields"])
+            self.assertIn("MediaStreams", kwargs["params"]["Fields"])
+            self.assertIn("DateLastRefreshed", kwargs["params"]["Fields"])
 
 
 if __name__ == "__main__":

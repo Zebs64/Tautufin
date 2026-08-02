@@ -16,11 +16,13 @@ class ReliabilityUIContractTests(unittest.TestCase):
         energy = source.index("Estimation énergie (transcodage)")
         health = source.index("État de la synchronisation")
 
-        self.assertLess(polling, unknown)
+        self.assertLess(polling, health)
+        self.assertLess(health, unknown)
         self.assertLess(unknown, energy)
-        self.assertLess(energy, health)
         self.assertIn('id="sync-health"', source)
         self.assertIn("Curseur préservé", source)
+        self.assertIn("Médias inspectés", source)
+        self.assertIn("Médias enrichis", source)
 
     def test_graph_pages_load_shared_state_helper_before_consumers(self):
         graphs = (TEMPLATES / "graphs.html").read_text(encoding="utf-8")
