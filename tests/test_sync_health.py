@@ -33,7 +33,7 @@ class FakeHealthAPI:
                 "GET https://jellyfin.private/Items?api_key=super-secret "
                 "token=other-secret\n" + "détail " * 100
             )
-        yield {"Id": f"item-{parent_id}", "DateLastRefreshed": "refresh-1"}
+        yield {"Id": f"item-{parent_id}", "Etag": "refresh-1"}
 
     def iter_items_by_ids(self, item_ids):
         ids = list(item_ids)
@@ -47,7 +47,7 @@ class FakeHealthAPI:
                 "Genres": [],
                 "MediaStreams": [],
                 "People": [],
-                "DateLastRefreshed": "refresh-1",
+                "Etag": "refresh-1",
             }
 
 
@@ -224,7 +224,7 @@ class SyncHealthTests(unittest.TestCase):
             {"value": "keep"},
         )
         self.assertEqual(
-            database.query_one("SELECT version FROM schema_version"), {"version": 6}
+            database.query_one("SELECT version FROM schema_version"), {"version": 7}
         )
 
     def test_status_combines_legacy_progress_with_persistent_health(self):

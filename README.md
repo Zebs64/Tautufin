@@ -345,14 +345,16 @@ Section *Réglages → Maintenance* (admin) :
   sont conservés** ; les données Jellyfin sont repeuplées à la synchro suivante.
   Action irréversible — exportez un backup d'abord.
 
-### Mise à niveau vers v0.2.1
+### Mise à niveau vers v0.2.2
 
-L'image `v0.2.1` démarre directement sur une configuration et une base v0.2.0.
-Le schéma SQLite passe en **version 6** par ajout d'un marqueur nullable sur les
+L'image `v0.2.2` démarre directement sur une configuration et une base v0.2.1.
+Le schéma SQLite passe en **version 7** par ajout d'un ETag source nullable sur les
 médias existants. Le premier cycle réenrichit donc le catalogue une fois, puis les
 cycles automatiques inspectent l'inventaire léger et n'enrichissent que les médias
-nouveaux ou rafraîchis. La synchronisation manuelle reste exhaustive. Un rollback
-applicatif vers v0.2.0 reste possible : cette version ignore la colonne ajoutée.
+nouveaux ou dont l'ETag Jellyfin a changé. Un inventaire ou une réponse enrichie
+sans ETag cohérent échoue explicitement sans avancer le curseur. La synchronisation
+manuelle reste exhaustive. Un rollback applicatif vers v0.2.1 ou v0.2.0 reste
+possible : ces versions ignorent la colonne v7, et la colonne v6 est conservée.
 
 ---
 

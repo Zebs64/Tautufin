@@ -27,7 +27,7 @@ class FakeSyncAPI:
         if self.fail:
             raise RuntimeError("Jellyfin failure")
         yield from [
-            {"Id": item["Id"], "DateLastRefreshed": item.get("DateLastRefreshed")}
+            {"Id": item["Id"], "Etag": item.get("Etag")}
             for item in self.items
         ]
 
@@ -128,7 +128,7 @@ class IncrementalSyncTests(unittest.TestCase):
             "Genres": ["Drame"],
             "MediaStreams": [],
             "People": [],
-            "DateLastRefreshed": "refresh-1",
+            "Etag": "refresh-1",
         }
         api = FakeSyncAPI([item])
         bounds = [

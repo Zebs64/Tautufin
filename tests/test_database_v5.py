@@ -18,7 +18,7 @@ class FakeLibraryAPI:
         self.last_parent_id = parent_id
         yield {
             "Id": self.item["Id"],
-            "DateLastRefreshed": self.item.get("DateLastRefreshed"),
+            "Etag": self.item.get("Etag"),
         }
 
     def iter_items_by_ids(self, item_ids):
@@ -79,10 +79,12 @@ class DatabaseV5Tests(unittest.TestCase):
         conn.commit()
         conn.close()
 
-    def test_new_database_reaches_schema_v6_without_cursor(self):
+    def test_new_database_reaches_schema_v7_without_cursor(self):
         database.init(self.db_path)
 
-        self.assertEqual(database.query_one("SELECT version FROM schema_version")["version"], 6)
+        self.assertEqual(
+            database.query_one("SELECT version FROM schema_version"), {"version": 7}
+        )
         self.assertIsNone(database.get_sync_cursor())
         self.assertEqual(database.integrity_check()["integrity"], ["ok"])
         self.assertEqual(database.integrity_check()["foreign_key_violations"], 0)
@@ -110,8 +112,11 @@ class DatabaseV5Tests(unittest.TestCase):
         for snapshot in (after_upgrade, after_second_init):
             for row in snapshot["items"]:
                 row.pop("source_date_last_refreshed", None)
+                row.pop("source_etag", None)
 
-        self.assertEqual(database.query_one("SELECT version FROM schema_version")["version"], 6)
+        self.assertEqual(
+            database.query_one("SELECT version FROM schema_version"), {"version": 7}
+        )
         self.assertEqual(after_upgrade, before)
         self.assertEqual(after_second_init, before)
         self.assertIsNone(database.get_sync_cursor())
@@ -134,7 +139,7 @@ class DatabaseV5Tests(unittest.TestCase):
             "Genres": None,
             "MediaStreams": [],
             "People": None,
-            "DateLastRefreshed": "refresh-1",
+            "Etag": "refresh-1",
         }
         api = FakeLibraryAPI(item)
 
@@ -147,7 +152,7 @@ class DatabaseV5Tests(unittest.TestCase):
         )
 
         api.item["Name"] = "Film modifié"
-        api.item["DateLastRefreshed"] = "refresh-2"
+        api.item["Etag"] = "refresh-2"
         with patch("jellyfin_stats.scheduler.now_iso", side_effect=["third", "library-3"]):
             scheduler.sync_libraries_and_items(api)
         changed = database.query_one(
