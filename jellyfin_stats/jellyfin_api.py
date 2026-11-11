@@ -110,12 +110,6 @@ class JellyfinAPI:
     def get_users(self) -> list[dict]:
         return self._get("/Users") or []
 
-    def get_user(self, user_id: str) -> dict | None:
-        try:
-            return self._get(f"/Users/{user_id}")
-        except JellyfinError:
-            return None
-
     def get_sessions(self) -> list[dict]:
         return self._get("/Sessions") or []
 
