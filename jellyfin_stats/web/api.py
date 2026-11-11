@@ -38,6 +38,15 @@ def register(app: FastAPI, context) -> None:
     # API JSON
     # ------------------------------------------------------------------
 
+    def _present_rows(rows: list[dict], user: CurrentUser) -> None:
+        """Lignes d'historique : client inconnu affiché « Plex » si réglé, IP
+        réservée à l'admin."""
+        for row in rows:
+            if config.unknown_as_plex and not row.get("client_name"):
+                row["client_name"] = "Plex"
+            if not user.is_admin:
+                row.pop("ip_address", None)
+
     @app.get("/api/activity")
     def api_activity(user: CurrentUser = Depends(require_user)):
         sessions = monitor.snapshot(scoped_user_id(user, None))
@@ -75,14 +84,17 @@ def register(app: FastAPI, context) -> None:
             page=page,
             page_size=page_size,
         )
-        if config.unknown_as_plex:
-            for row in result["rows"]:
-                if not row.get("client_name"):
-                    row["client_name"] = "Plex"
-        if not user.is_admin:
-            for row in result["rows"]:
-                row.pop("ip_address", None)
+        _present_rows(result["rows"], user)
         return result
+
+    @app.get("/api/history/viewings/{viewing_id}/segments")
+    def api_viewing_segments(viewing_id: int, user: CurrentUser = Depends(require_user)):
+        """Segments d'un visionnage (ligne dépliée de l'historique)."""
+        rows = history.viewing_segments(viewing_id, scoped_user_id(user, None))
+        if not rows:
+            raise HTTPException(404, "Visionnage introuvable")
+        _present_rows(rows, user)
+        return {"segments": rows}
 
     @app.get("/api/history.csv")
     def api_history_csv(

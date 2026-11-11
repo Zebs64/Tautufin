@@ -22,7 +22,47 @@ function mediaCell(r) {
   const inner = r.item_id
     ? `<a href="/media/${encodeURIComponent(r.item_id)}">${title}</a>${badge}`
     : `${title}${badge}`;
-  return `<span class="cell-media">${thumb}<span>${inner}</span></span>`;
+  // Visionnage en plusieurs fois : bouton qui déplie ses segments.
+  const toggle = r.segments > 1
+    ? `<button type="button" class="viewing-toggle" data-viewing="${r.id}" aria-expanded="false"
+         title="Afficher les ${r.segments} parties de ce visionnage">en ${r.segments} fois</button>`
+    : '';
+  return `<span class="cell-media">${thumb}<span>${inner}${toggle}</span></span>`;
+}
+
+function percentText(value) {
+  return value != null ? Math.round(value) + '%' : '—';
+}
+
+function segmentRows(parentId, segments) {
+  return segments.map((s, i) => `
+    <tr class="segment-row" data-parent="${parentId}">
+      <td>${dateCell(s.started_at)}</td>
+      ${canView ? '<td></td>' : ''}
+      <td class="segment-label">Partie ${i + 1}${s.stopped_at ? ` <span class="muted">→ ${esc(fmtDateTime(s.stopped_at))}</span>` : ''}</td>
+      <td></td>
+      <td>${fmtDuration(s.play_duration)}</td>
+      <td>${percentText(s.percent_complete)}</td>
+      <td>${clientCell(s)}</td>
+      ${isAdmin ? `<td>${esc(s.ip_address || '—')}</td>` : ''}
+    </tr>`).join('');
+}
+
+async function toggleViewing(button) {
+  const id = button.dataset.viewing;
+  const open = button.getAttribute('aria-expanded') === 'true';
+  tbody.querySelectorAll(`tr[data-parent="${id}"]`).forEach(row => row.remove());
+  button.setAttribute('aria-expanded', String(!open));
+  if (open) return;
+  const parent = button.closest('tr');
+  try {
+    const data = await fetchJSON(`/api/history/viewings/${encodeURIComponent(id)}/segments`);
+    if (button.getAttribute('aria-expanded') !== 'true') return;  // replié entre-temps
+    parent.insertAdjacentHTML('afterend', segmentRows(id, data.segments));
+  } catch (error) {
+    console.error('Chargement des parties impossible', error);
+    button.setAttribute('aria-expanded', 'false');
+  }
 }
 
 function clientCell(r) {
@@ -155,7 +195,7 @@ function renderRows(rows) {
       <td>${mediaCell(r)}</td>
       <td>${esc(r.item_type_label || r.item_type || '—')}</td>
       <td>${fmtDuration(r.play_duration)}</td>
-      <td>${r.percent_complete != null ? Math.round(r.percent_complete) + '%' : '—'}</td>
+      <td>${percentText(r.percent_complete)}</td>
       <td>${clientCell(r)}</td>
       ${isAdmin ? `<td>${esc(r.ip_address || '—')}</td>` : ''}
     </tr>`).join('');
@@ -223,6 +263,10 @@ document.getElementById('history-reset').addEventListener('click', () => {
   document.getElementById('page-size').value = '25';
   renderSort();
   load();
+});
+tbody.addEventListener('click', event => {
+  const button = event.target.closest('.viewing-toggle');
+  if (button) toggleViewing(button);
 });
 document.getElementById('history-chips').addEventListener('click', event => {
   const chip = event.target.closest('[data-filter]');

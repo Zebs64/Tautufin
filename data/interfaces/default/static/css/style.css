@@ -544,6 +544,19 @@ th.sorted-desc::after { content: " ▼"; color: var(--accent); }
   .table { display: block; overflow-x: auto; }
 }
 
+/* Historique : visionnage en plusieurs fois et ses parties dépliées. */
+.viewing-toggle {
+  display: inline-block; margin-left: 8px; padding: 1px 9px; border-radius: 3em;
+  font: inherit; font-size: .78em; color: var(--text-muted); cursor: pointer;
+  background: var(--bg-input-alpha); border: 1px solid var(--border-light);
+}
+.viewing-toggle::after { content: " ▸"; }
+.viewing-toggle[aria-expanded="true"] { color: var(--text); border-color: var(--accent); }
+.viewing-toggle[aria-expanded="true"]::after { content: " ▾"; }
+.viewing-toggle:hover { color: var(--text); border-color: var(--accent); }
+.table tr.segment-row td { font-size: .9em; color: var(--text-muted); background: rgba(0, 0, 0, .14); }
+.table tr.segment-row td.segment-label { padding-left: 60px; }
+
 .pagination { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
 .pagination select { width: auto; display: inline-block; }
 
