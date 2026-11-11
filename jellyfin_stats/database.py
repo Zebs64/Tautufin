@@ -232,6 +232,33 @@ MIGRATIONS: list[tuple[int, list[str]]] = [
 ]
 
 
+# Écart toléré entre une lecture importée et la même lecture capturée en live :
+# le live date la session au premier polling (à poll_interval près), la source
+# importée à son propre horodatage.
+LIVE_OVERLAP_SECONDS = 120
+
+
+def has_live_play_near(conn, jellyfin_user_id: str, item_id: str, started_at: str) -> bool:
+    """Une lecture capturée en live existe-t-elle déjà pour ce couple
+    (utilisateur, média) à ±LIVE_OVERLAP_SECONDS ? Seule la source 'live' est
+    comparée : les lignes d'une même source importée peuvent légitimement être
+    proches (Playback Reporting écrit un segment par reprise après pause) et ne
+    doivent pas être fusionnées. Requête servie par l'index de dédoublonnage."""
+    delta = f"{LIVE_OVERLAP_SECONDS} seconds"
+    return (
+        conn.execute(
+            """
+            SELECT 1 FROM session_history
+            WHERE jellyfin_user_id = ? AND item_id = ? AND source = 'live'
+              AND started_at BETWEEN datetime(?, '-' || ?) AND datetime(?, '+' || ?)
+            LIMIT 1
+            """,
+            (jellyfin_user_id, item_id, started_at, delta, started_at, delta),
+        ).fetchone()
+        is not None
+    )
+
+
 def year_bounds(year: int) -> tuple[str, str]:
     """Bornes [1er janvier, 1er janvier suivant) d'une année civile, au format
     texte de ``started_at``. Comparer la colonne nue à ces bornes permet à

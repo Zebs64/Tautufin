@@ -168,6 +168,10 @@ def run_import(path: str, api, minimum_duration: int, minimum_percent: int) -> d
                     report["filtered"] += 1
                     continue
 
+                if item_id and database.has_live_play_near(conn, user_id, item_id, started_at):
+                    report["duplicates"] += 1  # déjà capturée en live
+                    continue
+
                 percent = s.get("percentComplete")
                 if percent is None and runtime_seconds:
                     percent = min(100.0, play_duration / runtime_seconds * 100)

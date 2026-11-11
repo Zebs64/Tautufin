@@ -330,7 +330,10 @@ Workflow : *Analyser* (nombre d'entrées, plage de dates, utilisateurs) puis
 bibliothèque depuis le cache de médias, application des seuils de durée minimale).
 
 L'import est **idempotent** — clé de déduplication `(utilisateur, média, date de
-début)`, index SQL unique.
+début)`, index SQL unique. Une lecture déjà capturée en live (même utilisateur et
+même média, à ±2 minutes) n'est pas réimportée ; les segments rapprochés d'une
+même source (Playback Reporting en écrit un par reprise après pause) sont tous
+conservés.
 
 > **Fuseau horaire.** Les backups Streamystats horodatent en **UTC** ; Playback
 > Reporting et le monitoring en **heure locale**. Tautufin convertit les

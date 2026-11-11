@@ -227,6 +227,10 @@ def run_import(path: str, api, minimum_duration: int, minimum_percent: int) -> d
                     report["filtered"] += 1
                     continue
 
+                if database.has_live_play_near(conn, user_id, row["ItemId"], started_at):
+                    report["duplicates"] += 1  # déjà capturée en live
+                    continue
+
                 percent = min(100.0, duration / runtime * 100) if runtime else None
                 cursor = conn.execute(
                     """

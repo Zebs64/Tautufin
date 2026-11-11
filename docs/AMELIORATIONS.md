@@ -39,7 +39,7 @@ sont ailleurs :
 | 9 | Limiter l'écriture `last_active` à chaque requête | Perf | Faible | S |
 | 10 | ✅ v0.3.0 — Persister les sessions de lecture en cours | Robustesse | **Très haute** | M |
 | 11 | ✅ v0.3.0 — Stocker `series_id` dans l'historique | Données/Perf | Haute | M |
-| 12 | Dédoublonnage tolérant entre imports et capture live | Données | Haute | M |
+| 12 | ✅ — Dédoublonnage tolérant entre imports et capture live | Données | Haute | M |
 | 13 | ✅ v0.3.0 — Retirer du catalogue les médias supprimés de Jellyfin | Données | Moyenne | M |
 | 14 | Contrôle d'origine (CSRF) et logout en POST | Sécurité | Moyenne | S |
 | 15 | Notifications sortantes (ntfy, Discord, webhook) | Fonctionnel | Haute | M |
@@ -52,8 +52,8 @@ sont ailleurs :
 | 22 | Horodatages locaux naïfs (heure d'été) | Données | Faible | L |
 
 Faits : n° 1, 2, 3, 6 et 8 en v0.2.3 (n° 5 en partie), n° 10, 11 et 13 en
-v0.3.0, n° 4 ensuite. Prochaines étapes conseillées : n° 12 (dédoublonnage
-des imports) et 15 (notifications).
+v0.3.0, n° 4 et 12 ensuite. Prochaines étapes conseillées : n° 15
+(notifications), 7 (reverse proxy) et 14 (contrôle d'origine).
 
 ---
 
@@ -95,6 +95,15 @@ lecture reprise en cours de média : à ne pas faire.)
 tests sur le cycle arrêt/reprise.
 
 ### 12. Dédoublonnage tolérant entre imports et capture live — valeur haute, M
+
+**Statut : fait, sous une forme restreinte.** Mesure sur la base de prod :
+aucun doublon import/live, mais 318 paires d'imports à moins de 5 minutes dont
+70 à 85 % de durées différentes, soit des segments d'une même lecture
+(Playback Reporting écrit une ligne par reprise après pause). Une fenêtre
+appliquée à toutes les sources aurait donc supprimé du temps vu. Seul le
+recouvrement avec une lecture **live** (±2 min) est écarté ; les lignes d'une
+même source importée ne sont jamais fusionnées. La solution ci-dessous
+(fenêtre générale, factorisée avec l'inférence) est à éviter.
 
 **Problème.** Les imports Playback Reporting et Streamystats dédoublonnent par
 `INSERT OR IGNORE` sur l'index unique `(utilisateur, média, started_at)`
