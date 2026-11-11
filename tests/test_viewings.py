@@ -302,6 +302,8 @@ class ViewingCountsTests(unittest.TestCase):
 
         year = wrapped.build("u1", 2025)
         self.assertEqual((year["totals"]["plays"], year["totals"]["episodes"]), (2, 1))
+        # % moyen sur la progression finale (98 et 97), pas sur les morceaux.
+        self.assertEqual(year["avg_percent"], 98)
 
     def test_a_client_used_only_to_finish_a_viewing_has_no_play_slice(self):
         # « Phone » n'a servi qu'à la fin du film : du temps vu, aucune lecture.

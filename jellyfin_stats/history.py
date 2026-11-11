@@ -109,6 +109,49 @@ def _image_id(alias: str) -> str:
         {alias}.item_id)"""
 
 
+def _viewings_cte(where_sql: str) -> str:
+    """CTE ``v`` : un visionnage par premier segment (alias ``f``) satisfaisant
+    ``where_sql``, avec ses agrégats et son dernier segment (``last_id``).
+    « MAX(...), s.id » : SQLite renvoie l'id de la ligne qui porte le maximum.
+    À joindre à ``session_history sh`` (premier segment) et ``l`` (dernier)."""
+    return f"""
+        WITH v AS (
+            SELECT f.id AS vid, COUNT(s.id) AS segments,
+                   COALESCE(SUM(s.play_duration), f.play_duration) AS total_duration,
+                   MAX(s.started_at) AS last_started_at, s.id AS last_id
+            FROM session_history f
+            LEFT JOIN session_history s ON s.viewing_id = f.id
+            WHERE {database.first_segment_sql("f")} AND {where_sql}
+            GROUP BY f.id
+        )"""
+
+
+# Progression finale d'un visionnage : celle du segment seul, sinon la position
+# live du dernier segment, sinon la part cumulée vue (plafonnée à 100 %).
+_FINAL_PERCENT = """CASE
+    WHEN v.segments <= 1 THEN sh.percent_complete
+    WHEN l.source = 'live' AND l.percent_complete IS NOT NULL THEN l.percent_complete
+    WHEN l.runtime_seconds > 0 THEN MIN(100.0, v.total_duration * 100.0 / l.runtime_seconds)
+    ELSE l.percent_complete
+END"""
+
+
+def average_final_percent(where_sql: str, params: list) -> float | None:
+    """Moyenne des progressions finales des visionnages filtrés (``where_sql``
+    porte sur le premier segment, alias ``f``)."""
+    row = database.query_one(
+        f"""
+        {_viewings_cte(where_sql)}
+        SELECT AVG({_FINAL_PERCENT}) AS avg_percent
+        FROM v
+        JOIN session_history sh ON sh.id = v.vid
+        LEFT JOIN session_history l ON l.id = v.last_id
+        """,
+        params,
+    )
+    return row["avg_percent"] if row else None
+
+
 def get_history(
     user_id: str | None = None,
     media_type: str | None = None,
@@ -137,36 +180,17 @@ def get_history(
     page = max(1, page)
     page_size = min(max(1, page_size), PAGE_SIZE_MAX)
     first = database.first_segment_sql("f")
-
     total = database.query_one(
         f"SELECT COUNT(*) AS n FROM session_history f WHERE {first} AND {where_sql}", params
     )["n"]
-    # v : un visionnage par premier segment filtré, avec ses agrégats ; le
-    # dernier segment (l) donne la progression finale. « MAX(...), s.id » :
-    # SQLite renvoie l'id de la ligne qui porte le maximum.
     rows = database.query(
         f"""
-        WITH v AS (
-            SELECT f.id AS vid, COUNT(s.id) AS segments,
-                   COALESCE(SUM(s.play_duration), f.play_duration) AS total_duration,
-                   MAX(s.started_at) AS last_started_at, s.id AS last_id
-            FROM session_history f
-            LEFT JOIN session_history s ON s.viewing_id = f.id
-            WHERE {first} AND {where_sql}
-            GROUP BY f.id
-        )
+        {_viewings_cte(where_sql)}
         SELECT {_ROW_COLUMNS},
                MAX(v.segments, 1) AS segments,
                v.total_duration AS play_duration,
                COALESCE(l.stopped_at, sh.stopped_at) AS stopped_at,
-               CASE
-                   WHEN v.segments <= 1 THEN sh.percent_complete
-                   WHEN l.source = 'live' AND l.percent_complete IS NOT NULL
-                       THEN l.percent_complete
-                   WHEN l.runtime_seconds > 0
-                       THEN MIN(100.0, v.total_duration * 100.0 / l.runtime_seconds)
-                   ELSE l.percent_complete
-               END AS final_percent,
+               {_FINAL_PERCENT} AS final_percent,
                {viewings.estimated_sql("sh")} AS estimated,
                {_image_id("sh")} AS image_id
         FROM v

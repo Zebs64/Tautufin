@@ -8,7 +8,7 @@ jours consécutifs et profil de visionnage. Tout est dérivé de
 
 from datetime import date, timedelta
 
-from . import database
+from . import database, history
 
 WEEKDAYS_FR = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
 MONTHS_FR = [
@@ -98,8 +98,7 @@ def build(jellyfin_user_id: str, year: int) -> dict:
                SUM(CASE WHEN item_type = 'Episode' AND {database.first_segment_sql()}
                    THEN 1 ELSE 0 END) AS episodes,
                COUNT(DISTINCT CASE WHEN item_type = 'Episode' THEN series_name END) AS series,
-               COUNT(DISTINCT date(started_at)) AS active_days,
-               AVG(percent_complete) AS avg_percent
+               COUNT(DISTINCT date(started_at)) AS active_days
         FROM session_history WHERE {base}
         """,
         p,
@@ -236,7 +235,12 @@ def build(jellyfin_user_id: str, year: int) -> dict:
             "plays_pct": _pct(totals["plays"], prev["plays"]),
         }
 
-    avg_percent = round(totals["avg_percent"]) if totals["avg_percent"] is not None else None
+    # % de complétion : progression finale de chaque visionnage (un film vu en
+    # trois fois compte pour sa position finale, pas pour ses trois morceaux).
+    final = history.average_final_percent(
+        "f.jellyfin_user_id = ? AND f.started_at >= ? AND f.started_at < ?", list(p)
+    )
+    avg_percent = round(final) if final is not None else None
 
     return {
         "year": year,
