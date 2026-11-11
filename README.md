@@ -41,10 +41,14 @@ utilisateurs, auto-hébergé.
   recherchable, triable et paginé — une ligne par visionnage (un film repris
   après une pause compte une fois, parties dépliables), séparateurs par jour,
   filtres partageables dans l'URL, poster et logo du client
-- 👤 **Profils par utilisateur** : KPIs, clients préférés, top film/série/chanson
-  (par temps de visionnage), habitudes (jour, heure), lectures récentes
-- ✨ **Wrapped** : rétrospective annuelle par utilisateur (tops, genres,
-  saisonnalité, plus longue série de jours, comparaison N-1, % de complétion…)
+- 👤 **Profils par utilisateur** : KPIs, calendrier d'activité sur 12 mois,
+  clients préférés, top film/série/chanson (par temps de visionnage), habitudes
+  (jour, heure), lectures récentes
+- ✨ **Wrapped** animé : rétrospective annuelle par utilisateur (tops, genres,
+  saisonnalité, calendrier de l'année, plus longue série de jours, comparaison
+  N-1, % de complétion…) et compte à rebours avant l'ouverture
+- 🎬 **Fiches média** : progression de chaque spectateur (vu en entier, en cours,
+  épisodes vus d'une série), timeline et lectures récentes
 - 🗂️ **Bibliothèques** : vue d'ensemble avec l'image de la médiathèque, et
   catalogue recherchable des films / séries
 - 👥 **Multi-utilisateurs** : chacun voit ses propres stats ; les admins (et les
@@ -68,7 +72,8 @@ utilisateurs, auto-hébergé.
   la base
 - 🖼️ Posters et avatars servis via un **proxy côté serveur** avec cache — la clé
   API Jellyfin n'est jamais exposée au navigateur
-- 🎨 Thème sombre responsive ; logo et favicon personnalisables
+- 🎨 Thème sombre responsive, icônes dans le style de Jellyfin, couleur d'accent
+  au choix ; logo et favicon personnalisables
 
 ---
 
@@ -247,9 +252,11 @@ posters cliquables et logo du client.
 Une rétrospective annuelle façon « Spotify Wrapped », par utilisateur et par
 année : temps total, tops films/séries en posters, genres, saisonnalité, jour et
 créneau favoris, plus longue série de jours consécutifs, **comparaison avec
-l'année précédente** et **% de complétion moyen**. Pour garder la surprise, le
+l'année précédente**, **% de complétion moyen** et calendrier de l'année jour par
+jour, le tout animé (apparition au défilement, chiffres qui défilent ; désactivé
+si le système demande moins d'animations). Pour garder la surprise, le
 Wrapped de l'année en cours ne s'ouvre que le **31 décembre** ; d'ici là, le
-profil donne rendez-vous et mène à l'année précédente.
+profil donne rendez-vous (compte à rebours) et mène à l'année précédente.
 
 ![Wrapped](docs/screenshots/wrapped.png)
 
@@ -392,6 +399,26 @@ Section *Réglages → Maintenance* (admin) :
   bibliothèques, utilisateurs Jellyfin). **Les comptes locaux et votre session
   sont conservés** ; les données Jellyfin sont repeuplées à la synchro suivante.
   Action irréversible — exportez un backup d'abord.
+
+### Mise à niveau vers v0.5.0
+
+Version d'interface, **sans changement de schéma** : la base reste en version 12
+et un retour à v0.4.0 reste possible.
+
+- **Icônes** : les émojis laissent place aux icônes Material, celles de
+  l'interface Jellyfin.
+- **Couleur d'accent** au choix dans *Réglages → Apparence* (violet par défaut,
+  bleu Jellyfin, vert, orange, rose), nouvelle clé `[UI] accent`.
+- **Wrapped** animé, avec calendrier de l'année et compte à rebours avant
+  l'ouverture ; le % de complétion moyen porte désormais sur la progression finale
+  de chaque visionnage (il remonte un peu).
+- **Profil** : calendrier d'activité des 12 derniers mois.
+- **Fiche média** : fond flou tiré du fanart et carte « Qui l'a vu, et jusqu'où »
+  (progression de chaque spectateur) à la place du tableau par spectateur.
+- **Squelettes de chargement** à la place des « Chargement… ».
+- **Réglages et Import** revus : navigation par section, interrupteurs, étapes
+  numérotées, zone de dépôt du fichier.
+- **Bibliothèques** : retour à l'image Jellyfin de la bibliothèque.
 
 ### Mise à niveau vers v0.4.0
 
