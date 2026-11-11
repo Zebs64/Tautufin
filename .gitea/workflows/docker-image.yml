@@ -12,21 +12,43 @@ permissions:
   contents: read
   packages: write
 
+# Aucune valeur propre à l'instance ici : tout vient de la configuration Gitea
+# (Paramètres du dépôt ou de l'organisation > Actions > Variables / Secrets).
+#   vars.REGISTRY_HOST     nom d'hôte du registre de conteneurs (obligatoire)
+#   vars.REGISTRY_USER     compte utilisé pour docker login (obligatoire)
+#   vars.IMAGE_NAME        chemin de l'image, défaut : propriétaire/dépôt
+#   secrets.REGISTRY_TOKEN jeton d'accès avec droit d'écriture sur les paquets
 env:
-  REGISTRY: registry.example.invalid
-  IMAGE_NAME: ${{ gitea.repository }}
+  REGISTRY: ${{ vars.REGISTRY_HOST }}
+  REGISTRY_USER: ${{ vars.REGISTRY_USER }}
+  IMAGE_NAME: ${{ vars.IMAGE_NAME || gitea.repository }}
 
 jobs:
   docker:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Check registry configuration
+        env:
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: |
+          missing=0
+          for name in REGISTRY REGISTRY_USER REGISTRY_TOKEN; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name n'est pas configuré dans Gitea (Actions > Variables / Secrets)"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Login to Gitea registry
+      - name: Login to registry
+        env:
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
         run: |
-          echo "${{ secrets.REGISTRY_TOKEN }}" | docker login "$REGISTRY" \
+          printf '%s' "$REGISTRY_TOKEN" | docker login "$REGISTRY" \
             -u "$REGISTRY_USER" \
             --password-stdin
 
