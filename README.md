@@ -400,6 +400,15 @@ Section *Réglages → Maintenance* (admin) :
   sont conservés** ; les données Jellyfin sont repeuplées à la synchro suivante.
   Action irréversible — exportez un backup d'abord.
 
+### Mise à niveau vers v0.5.1
+
+Correctif d'interface, sans changement de schéma (retour à v0.5.0 possible) :
+
+- **Calendrier d'activité** : plus de barre de défilement au survol des cases du
+  bord.
+- **Graphiques** : « Lectures dans le temps » et les timelines des fiches média
+  s'animent à l'affichage (désactivé si le système demande moins d'animations).
+
 ### Mise à niveau vers v0.5.0
 
 Version d'interface, **sans changement de schéma** : la base reste en version 12
