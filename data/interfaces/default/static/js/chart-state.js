@@ -27,6 +27,14 @@ const ChartState = (() => {
     box.hidden = state === 'ready';
     box.className = `chart-state chart-state-${state}`;
     box.setAttribute('aria-busy', state === 'loading' ? 'true' : 'false');
+    if (state === 'loading') {
+      // Squelette : barres de hauteurs variées, le texte reste pour les lecteurs d'écran.
+      const heights = [45, 70, 55, 85, 60, 40, 75, 50];
+      box.innerHTML = '<div class="sk-chart" aria-hidden="true">' +
+        heights.map(h => `<span class="skeleton" style="height:${h}%"></span>`).join('') +
+        `</div><span class="visually-hidden">${esc(message)}</span>`;
+      return;
+    }
     box.textContent = message;
     if (state === 'error' && retry) {
       box.appendChild(document.createTextNode(' '));

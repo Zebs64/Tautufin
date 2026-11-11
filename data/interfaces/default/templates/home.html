@@ -9,8 +9,12 @@
   {% endif %}
 </div>
 
-<div id="activity" class="activity-grid">
-  <p class="muted">Chargement…</p>
+<div id="activity" class="activity-grid" data-count="1">
+  <div class="card sk-activity" aria-hidden="true">
+    <span class="skeleton sk-circle"></span>
+    <div><span class="skeleton sk-line w-40"></span><span class="skeleton sk-line w-80"></span></div>
+  </div>
+  <span class="visually-hidden" role="status">Chargement…</span>
 </div>
 
 <div class="page-head row">
@@ -31,7 +35,16 @@
 </div>
 
 <div class="stats-grid" id="home-stats">
-  <p class="muted">Chargement…</p>
+  {% for i in range(6) %}
+  <div class="card sk-stat" aria-hidden="true">
+    <span class="skeleton sk-poster"></span>
+    <div>
+      <span class="skeleton sk-line w-60"></span>
+      {% for j in range(5) %}<span class="skeleton sk-line {{ ['w-80', '', 'w-60', 'w-80', 'w-40'][j] }}"></span>{% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+  <span class="visually-hidden" role="status">Chargement…</span>
 </div>
 
 <div id="podium" class="podium-wrap"></div>

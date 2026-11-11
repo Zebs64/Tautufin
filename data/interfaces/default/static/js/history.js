@@ -235,12 +235,28 @@ function renderRows(rows) {
   }).join('');
 }
 
+// Squelette du tableau pendant le chargement (une ligne par lecture attendue).
+function skeletonRows() {
+  const cell = cls => `<td><span class="skeleton sk-line ${cls}"></span></td>`;
+  const row = i => `
+    <tr class="skeleton-row" aria-hidden="true">
+      ${cell('w-60')}
+      ${canView ? cell('w-80') : ''}
+      <td><div class="sk-media"><span class="skeleton sk-thumb"></span>
+        <div><span class="skeleton sk-line ${i % 2 ? 'w-60' : 'w-80'}"></span></div></div></td>
+      ${cell('w-60')}${cell('w-60')}${cell('w-40')}${cell('w-80')}
+      ${isAdmin ? cell('w-80') : ''}
+    </tr>`;
+  return Array.from({length: Math.min(state.page_size, 8)}, (_, i) => row(i)).join('') +
+    `<tr class="visually-hidden"><td>Chargement…</td></tr>`;
+}
+
 async function load(urlMode = 'push') {
   updateURL(urlMode);
   updateExportLink();
   renderChips();
   const generation = ++requestGeneration;
-  tbody.innerHTML = `<tr><td colspan="${columnsCount()}" class="table-state muted">Chargement…</td></tr>`;
+  tbody.innerHTML = skeletonRows();
   document.getElementById('history-total').textContent = 'Chargement…';
   try {
     const data = await fetchJSON('/api/history?' + apiQuery());
