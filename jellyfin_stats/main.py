@@ -8,6 +8,7 @@ import re
 import secrets
 import sys
 import threading
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -163,6 +164,8 @@ def client_logo(client_name: str) -> str:
     return f"/static/img/clients/{client_slug(client_name)}.svg"
 
 
+# Durée de vie d'une absence d'image mise en cache (fichier vide).
+NEGATIVE_IMAGE_CACHE_SECONDS = 24 * 3600
 # Identifiants Jellyfin (GUID avec ou sans tirets) — borne aussi les noms de
 # fichiers du cache d'images.
 JELLYFIN_ID_RE = re.compile(r"^[0-9a-fA-F-]{8,64}$")
@@ -847,7 +850,12 @@ def create_app(config: Config) -> FastAPI:
         image_cache_dir.mkdir(parents=True, exist_ok=True)
         cache_file = image_cache_dir / cache_key
         if cache_file.exists():
-            return cache_file.read_bytes() or None
+            data = cache_file.read_bytes()
+            # Un négatif (fichier vide) expire : l'image a pu être ajoutée
+            # dans Jellyfin depuis (affiche récupérée après l'ajout du média).
+            age = time.time() - cache_file.stat().st_mtime
+            if data or age < NEGATIVE_IMAGE_CACHE_SECONDS:
+                return data or None
         result = fetch() if config.jellyfin_configured else None
         if result:
             cache_file.write_bytes(result[0])
