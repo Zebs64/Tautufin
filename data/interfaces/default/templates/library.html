@@ -69,7 +69,7 @@
   {% for m in detail.catalog %}
   <a class="poster-card" href="/media/{{ m.item_id }}" data-name="{{ m.name | lower }}">
     <img class="poster" loading="lazy" alt="" src="/image/item/{{ m.item_id }}?w=200">
-    <span class="poster-title">{{ m.name }}</span>
+    <span class="poster-title" title="{{ m.name }}">{{ m.name }}</span>
     {% if m.year %}<span class="poster-year muted">{{ m.year }}</span>{% endif %}
   </a>
   {% else %}

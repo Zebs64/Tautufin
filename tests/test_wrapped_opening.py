@@ -69,6 +69,8 @@ class WrappedOpeningTests(unittest.TestCase):
         self.assertIn("disponible le <strong>31 décembre</strong>", direct.text)
         self.assertNotIn("de visionnage", direct.text)  # aucun chiffre
         self.assertIn("<h1>2026</h1>", opened.text)
+        self.assertIn("jours de visionnage cumulés", opened.text)
+        self.assertNotIn("non-stop", opened.text)
         self.assertNotIn("disponible le", opened.text)
 
     def test_user_with_only_the_current_year_sees_the_appointment(self):

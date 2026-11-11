@@ -190,7 +190,7 @@ def _duration_hm(seconds) -> str:
     seconds = int(seconds or 0)
     hours, minutes = divmod(seconds // 60, 60)
     if hours:
-        return f"{hours}h {minutes:02d}m"
+        return f"{hours}h\u00a0{minutes:02d}m"  # insécable : jamais coupé sur deux lignes
     return f"{minutes}m"
 
 

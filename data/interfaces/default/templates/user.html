@@ -56,7 +56,7 @@
     <ul class="kv">
       {% for t in profile.top_per_kind %}
       <li><span class="kv-key">{{ t.icon }} {{ t.kind }}</span>
-        {% if t.label %}<b class="kv-title">{% if t.item_id %}<a href="/media/{{ t.item_id }}">{{ t.label }}</a>{% else %}{{ t.label }}{% endif %}</b>
+        {% if t.label %}<b class="kv-title" title="{{ t.label }}">{% if t.item_id %}<a href="/media/{{ t.item_id }}">{{ t.label }}</a>{% else %}{{ t.label }}{% endif %}</b>
         {% else %}<b class="muted">—</b>{% endif %}</li>
       {% endfor %}
     </ul>

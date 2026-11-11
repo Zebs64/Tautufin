@@ -16,7 +16,7 @@ from jellyfin_stats.labels import (
     play_method_label,
 )
 from jellyfin_stats.main import create_app
-from jellyfin_stats.web.helpers import _datetime_html
+from jellyfin_stats.web.helpers import _datetime_html, _duration_hm
 
 
 class LabelFunctionsTests(unittest.TestCase):
@@ -65,6 +65,7 @@ class DateLabelsTests(unittest.TestCase):
         self.assertIn('title="2025-11-10 22:31"', html)
         self.assertIn(">10 nov. 2025 22:31</time>", html)
         self.assertEqual(_datetime_html(None), "")
+        self.assertEqual(_duration_hm(3725), "1h\u00a002m")  # insécable
         self.assertNotIn("<script>", str(_datetime_html("<script>x</script>")))
 
 

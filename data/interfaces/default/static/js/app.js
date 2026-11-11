@@ -34,7 +34,8 @@ function esc(s) {
 function fmtDuration(seconds) {
   seconds = Math.round(seconds || 0);
   const h = Math.floor(seconds / 3600), m = Math.floor((seconds % 3600) / 60);
-  return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`;
+  // Espace insécable : une durée n'est jamais coupée sur deux lignes.
+  return h ? `${h}h\u00a0${String(m).padStart(2, '0')}m` : `${m}m`;
 }
 
 // Dates lisibles, mêmes règles que le filtre Jinja « dt » (labels.py) :
