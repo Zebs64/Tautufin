@@ -18,14 +18,14 @@
     </div>
     <p class="wrapped-eyebrow">Rétrospective</p>
     <h1>{{ upcoming_year }}</h1>
-    <p class="wrapped-sub">🎁 Le Wrapped {{ upcoming_year }} de <strong>{{ username or jellyfin_user_id }}</strong>
+    <p class="wrapped-sub">{{ icon('redeem') }} Le Wrapped {{ upcoming_year }} de <strong>{{ username or jellyfin_user_id }}</strong>
       sera disponible le <strong>{{ opening_label }}</strong>. Patience !</p>
   </div>
 </div>
 
 {% elif not years %}
 <div class="page-head">
-  <h1>✨ Wrapped</h1>
+  <h1>{{ icon('auto_awesome') }} Wrapped</h1>
   <a class="btn btn-sm" href="/users/{{ jellyfin_user_id }}">← Profil</a>
 </div>
 <div class="card"><p class="muted">Aucune lecture enregistrée pour cet utilisateur.</p></div>
@@ -83,18 +83,18 @@
   <!-- Comparaison année précédente -->
   {% if data.comparison %}
   <section class="wrapped-section">
-    <h2>📊 Comparé à {{ data.comparison.prev_year }}</h2>
+    <h2>{{ icon('compare_arrows') }} Comparé à {{ data.comparison.prev_year }}</h2>
     <div class="wrapped-cards">
       {% set dp = data.comparison.duration_pct %}
       <div class="wrapped-mini">
-        <span class="wrapped-mini-icon">{{ '📈' if dp > 0 else ('📉' if dp < 0 else '➡️') }}</span>
+        <span class="wrapped-mini-icon">{{ icon('trending_up' if dp > 0 else ('trending_down' if dp < 0 else 'trending_flat')) }}</span>
         <span class="wrapped-mini-val {{ 'delta-up' if dp > 0 else ('delta-down' if dp < 0 else '') }}">{{ '+' if dp > 0 }}{{ dp }} %</span>
         <span class="wrapped-mini-lab">de visionnage vs {{ data.comparison.prev_year }}
           <br><span class="muted">({{ data.comparison.prev_duration | duration_hm }})</span></span>
       </div>
       {% set pp = data.comparison.plays_pct %}
       <div class="wrapped-mini">
-        <span class="wrapped-mini-icon">{{ '📈' if pp > 0 else ('📉' if pp < 0 else '➡️') }}</span>
+        <span class="wrapped-mini-icon">{{ icon('trending_up' if pp > 0 else ('trending_down' if pp < 0 else 'trending_flat')) }}</span>
         <span class="wrapped-mini-val {{ 'delta-up' if pp > 0 else ('delta-down' if pp < 0 else '') }}">{{ '+' if pp > 0 }}{{ pp }} %</span>
         <span class="wrapped-mini-lab">de lectures vs {{ data.comparison.prev_year }}
           <br><span class="muted">({{ data.comparison.prev_plays }})</span></span>
@@ -106,7 +106,7 @@
   <!-- Top séries -->
   {% if data.top_series %}
   <section class="wrapped-section">
-    <h2>📺 Tes séries de l'année</h2>
+    <h2>{{ icon('tv') }} Tes séries de l'année</h2>
     <ol class="wrapped-top">
       {% for s in data.top_series %}
       <li class="wrapped-top-item">
@@ -126,7 +126,7 @@
   <!-- Top films -->
   {% if data.top_movies %}
   <section class="wrapped-section">
-    <h2>🎬 Tes films de l'année</h2>
+    <h2>{{ icon('movie') }} Tes films de l'année</h2>
     <ol class="wrapped-top">
       {% for m in data.top_movies %}
       <li class="wrapped-top-item">
@@ -146,7 +146,7 @@
   <!-- Genres -->
   {% if data.top_genres %}
   <section class="wrapped-section">
-    <h2>🎭 Tes genres de prédilection</h2>
+    <h2>{{ icon('theater_comedy') }} Tes genres de prédilection</h2>
     {% set gmax = (data.top_genres | map(attribute='plays') | max) or 1 %}
     <div class="wrapped-genres">
       {% for g in data.top_genres %}
@@ -161,7 +161,7 @@
 
   <!-- Saisonnalité -->
   <section class="wrapped-section">
-    <h2>📅 Au fil de l'année</h2>
+    <h2>{{ icon('calendar_month') }} Au fil de l'année</h2>
     <div class="wrapped-fact wrapped-fact-sm">
       Ton mois le plus chargé : <strong>{{ data.peak_month.label }}</strong>
       ({{ data.peak_month.duration | duration_hm }}).
@@ -181,23 +181,23 @@
   <div class="wrapped-cards">
     {% if data.avg_percent is not none %}
     <div class="wrapped-mini">
-      <span class="wrapped-mini-icon">🎯</span>
+      <span class="wrapped-mini-icon">{{ icon('task_alt') }}</span>
       <span class="wrapped-mini-val">{{ data.avg_percent }} %</span>
       <span class="wrapped-mini-lab">de complétion en moyenne</span>
     </div>
     {% endif %}
     <div class="wrapped-mini">
-      <span class="wrapped-mini-icon">🗓️</span>
+      <span class="wrapped-mini-icon">{{ icon('event_available') }}</span>
       <span class="wrapped-mini-val">{{ data.fav_dow.label }}</span>
       <span class="wrapped-mini-lab">ton jour préféré</span>
     </div>
     <div class="wrapped-mini">
-      <span class="wrapped-mini-icon">{{ '🦉' if data.night_owl else '☀️' }}</span>
+      <span class="wrapped-mini-icon">{{ icon('bedtime' if data.night_owl else 'light_mode') }}</span>
       <span class="wrapped-mini-val">{{ '%02d' | format(data.fav_hour.hour) }}h–{{ '%02d' | format((data.fav_hour.hour + 1) % 24) }}h</span>
       <span class="wrapped-mini-lab">{{ 'oiseau de nuit' if data.night_owl else 'ton créneau favori' }}</span>
     </div>
     <div class="wrapped-mini">
-      <span class="wrapped-mini-icon">🔥</span>
+      <span class="wrapped-mini-icon">{{ icon('local_fire_department') }}</span>
       <span class="wrapped-mini-val">{{ data.longest_streak }} jour{{ 's' if data.longest_streak > 1 }}</span>
       <span class="wrapped-mini-lab">plus longue série d'affilée</span>
     </div>
@@ -214,7 +214,7 @@
   <div class="wrapped-fact">
     Ta plus grosse journée : le <strong>{{ data.busiest_day.day | date_long }}</strong>,
     <strong>{{ data.busiest_day.duration | duration_hm }}</strong> de visionnage
-    en {{ data.busiest_day.plays }} lecture{{ 's' if data.busiest_day.plays > 1 }}. 🍿
+    en {{ data.busiest_day.plays }} lecture{{ 's' if data.busiest_day.plays > 1 }}.
   </div>
   {% endif %}
 

@@ -25,17 +25,14 @@ btnUpload.addEventListener('click', async () => {
     });
     const body = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(body.detail || `HTTP ${r.status}`);
-    uploadResult.textContent =
-      `✓ ${body.filename} (${(body.size / 1048576).toFixed(1)} Mo)`;
-    uploadResult.className = 'ok';
+    showStatus(uploadResult, true, `${body.filename} (${(body.size / 1048576).toFixed(1)} Mo)`);
     pathInput.value = body.path;
     btnAnalyze.click();   // enchaîne directement sur l'analyse
   } catch (e) {
-    uploadResult.textContent = '✗ ' + e.message;
-    uploadResult.className = 'err';
+    showStatus(uploadResult, false, e.message);
   } finally {
     btnUpload.disabled = false;
-    btnUpload.textContent = '📤 Envoyer le fichier';
+    setButtonLabel(btnUpload, 'upload', 'Envoyer le fichier');
   }
 });
 
@@ -111,13 +108,12 @@ btnInferClean.addEventListener('click', async () => {
   try {
     const r = await postJSON('/api/infer/cleanup', {user_id: inferUser.value});
     inferCount.textContent = r.inferred_count;
-    cleanResult.textContent = `✓ ${r.deleted} session(s) inférée(s) supprimée(s)`;
-    cleanResult.className = 'ok';
+    showStatus(cleanResult, true, `${r.deleted} session(s) inférée(s) supprimée(s)`);
     document.getElementById('infer-result').classList.add('hidden');
   } catch (e) {
-    cleanResult.textContent = '✗ ' + e.message; cleanResult.className = 'err';
+    showStatus(cleanResult, false, e.message);
   } finally {
     btnInfer.disabled = false; btnInferClean.disabled = false;
-    btnInferClean.textContent = '🗑️ Supprimer les sessions inférées';
+    setButtonLabel(btnInferClean, 'delete', 'Supprimer les sessions inférées');
   }
 });

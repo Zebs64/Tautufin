@@ -29,7 +29,7 @@
         <input type="file" id="import-file" accept=".tsv,.db,.json">
       </label>
       <div class="actions">
-        <button class="btn" id="btn-upload" disabled>📤 Envoyer le fichier</button>
+        <button class="btn" id="btn-upload" disabled>{{ icon('upload') }} Envoyer le fichier</button>
         <span id="upload-result"></span>
       </div>
     </div>
@@ -75,10 +75,10 @@
 <div class="card hidden" id="import-result">
   <h2>Rapport d'import</h2>
   <ul class="kv">
-    <li><span>✅ Entrées importées</span><b id="imp-imported"></b></li>
+    <li><span>{{ icon('check_circle') }} Entrées importées</span><b id="imp-imported"></b></li>
     <li><span>↩️ Doublons ignorés</span><b id="imp-duplicates"></b></li>
-    <li><span>⏱️ Filtrées par durée minimum</span><b id="imp-filtered"></b></li>
-    <li><span>⚠️ Erreurs</span><b id="imp-errors"></b></li>
+    <li><span>{{ icon('timer') }} Filtrées par durée minimum</span><b id="imp-filtered"></b></li>
+    <li><span>{{ icon('warning') }} Erreurs</span><b id="imp-errors"></b></li>
   </ul>
 </div>
 
@@ -115,7 +115,7 @@
   </div>
   <div class="actions">
     <button class="btn btn-primary" id="btn-infer">Inférer l'historique</button>
-    <button class="btn" id="btn-infer-clean">🗑️ Supprimer les sessions inférées</button>
+    <button class="btn" id="btn-infer-clean">{{ icon('delete') }} Supprimer les sessions inférées</button>
     <span id="infer-clean-result"></span>
   </div>
 </div>
@@ -123,13 +123,13 @@
 <div class="card hidden" id="infer-result">
   <h2>Rapport d'inférence</h2>
   <ul class="kv">
-    <li><span>👤 Utilisateurs traités</span><b id="inf-users"></b></li>
-    <li><span>✅ Sessions créées</span><b id="inf-created"></b></li>
+    <li><span>{{ icon('person') }} Utilisateurs traités</span><b id="inf-users"></b></li>
+    <li><span>{{ icon('check_circle') }} Sessions créées</span><b id="inf-created"></b></li>
     <li><span>↩️ Doublons ignorés (lecture déjà connue)</span><b id="inf-duplicates"></b></li>
-    <li><span>⏱️ Filtrées par durée minimum</span><b id="inf-filtered"></b></li>
-    <li><span>🗓️ Sans date de lecture</span><b id="inf-no_date"></b></li>
-    <li><span>♻️ Inférées régénérées</span><b id="inf-deleted"></b></li>
-    <li><span>⚠️ Erreurs</span><b id="inf-errors"></b></li>
+    <li><span>{{ icon('timer') }} Filtrées par durée minimum</span><b id="inf-filtered"></b></li>
+    <li><span>{{ icon('event_busy') }} Sans date de lecture</span><b id="inf-no_date"></b></li>
+    <li><span>{{ icon('autorenew') }} Inférées régénérées</span><b id="inf-deleted"></b></li>
+    <li><span>{{ icon('warning') }} Erreurs</span><b id="inf-errors"></b></li>
   </ul>
 </div>
 {% endblock %}

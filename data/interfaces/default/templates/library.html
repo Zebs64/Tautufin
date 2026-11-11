@@ -40,7 +40,7 @@
     </ul>
   </div>
   <div class="card">
-    <h3>🔥 Les plus regardés</h3>
+    <h3>{{ icon('local_fire_department') }} Les plus regardés</h3>
     <ol>
       {% for m in detail.most_watched %}
       <li>{{ m.series_name or m.name }} <span class="muted">— {{ m.plays }} lectures,
@@ -49,11 +49,11 @@
     </ol>
   </div>
   <div class="card">
-    <h3>🧊 Jamais regardés (ajouts récents)</h3>
+    <h3>{{ icon('ac_unit') }} Jamais regardés (ajouts récents)</h3>
     <ol>
       {% for m in detail.never_watched %}
       <li>{{ m.name }} <span class="muted">{{ m.year and '(' ~ m.year ~ ')' or '' }}</span></li>
-      {% else %}<li class="muted">Tout a été regardé 🎉</li>{% endfor %}
+      {% else %}<li class="muted">Tout a été regardé {{ icon('celebration') }}</li>{% endfor %}
     </ol>
   </div>
 </div>

@@ -12,10 +12,10 @@
 <nav class="navbar">
   <a class="brand" href="/">
     {% if has_logo %}<img src="/branding/logo?v={{ logo_ver }}" alt="Tautufin">
-    {% else %}📊 Tautufin{% endif %}
+    {% else %}<img class="brand-mark" src="/static/img/favicon.svg" alt=""> Tautufin{% endif %}
   </a>
   <input type="checkbox" id="nav-toggle" class="nav-toggle">
-  <label for="nav-toggle" class="nav-toggle-label">☰</label>
+  <label for="nav-toggle" class="nav-toggle-label" aria-label="Menu">{{ icon('menu') }}</label>
   <div class="nav-links">
     <a href="/" class="{{ 'active' if page == 'home' }}">Accueil</a>
     <a href="/history" class="{{ 'active' if page == 'history' }}">Historique</a>
@@ -35,7 +35,7 @@
     <a href="/profile" class="nav-user {{ 'active' if page == 'profile' }}">
       {% if user.jellyfin_user_id %}
       <img class="avatar" src="/image/user/{{ user.jellyfin_user_id }}" alt="">
-      {% else %}👤{% endif %}
+      {% else %}{{ icon('person') }}{% endif %}
       {{ user.username }}{% if user.is_admin %} <span class="badge badge-admin">admin</span>{% endif %}
     </a>
     <form method="post" action="/logout" class="nav-logout">

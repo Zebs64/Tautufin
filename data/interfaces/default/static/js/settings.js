@@ -7,9 +7,8 @@ document.getElementById('test-jellyfin').addEventListener('click', async () => {
       url: document.getElementById('jf-url').value,
       api_key: document.getElementById('jf-key').value,
     });
-    out.textContent = r.ok ? `✓ ${r.server} (v${r.version})` : `✗ ${r.error}`;
-    out.className = r.ok ? 'ok' : 'err';
-  } catch (e) { out.textContent = '✗ ' + e.message; out.className = 'err'; }
+    showStatus(out, r.ok, r.ok ? `${r.server} (v${r.version})` : r.error);
+  } catch (e) { showStatus(out, false, e.message); }
 });
 // Synchro Jellyfin : lancée en arrière-plan côté serveur, suivie par polling.
 // Elle continue même si on quitte la page ; on la « reprend » à l'affichage.
@@ -85,11 +84,9 @@ function renderSync(s) {
   } else {
     box.hidden = true;
     if (s.phase === 'done') {
-      out.textContent = `✓ ${s.users} utilisateurs, ${s.items} médias`;
-      out.className = 'ok';
+      showStatus(out, true, `${s.users} utilisateurs, ${s.items} médias`);
     } else if (s.phase === 'error') {
-      out.textContent = '✗ ' + (s.error || 'erreur de synchronisation');
-      out.className = 'err';
+      showStatus(out, false, s.error || 'erreur de synchronisation');
     }
   }
 }
@@ -117,7 +114,7 @@ document.getElementById('sync-now').addEventListener('click', async () => {
   const out = document.getElementById('sync-result');
   out.textContent = ''; out.className = '';
   try { await postJSON('/api/sync', {}); watchSync(); }
-  catch (e) { out.textContent = '✗ ' + e.message; out.className = 'err'; }
+  catch (e) { showStatus(out, false, e.message); }
 });
 
 // Reprise : si une synchro tourne déjà (lancée avant, ou périodique), on
@@ -132,16 +129,16 @@ document.getElementById('verify-db').addEventListener('click', async () => {
     const r = await postJSON('/api/settings/verify-db', {});
     const mb = (r.size_bytes / 1048576).toFixed(1);
     const lines = [
-      r.ok ? '✓ Intégrité OK' : '✗ ' + r.integrity.join(' ; '),
-      r.foreign_key_violations ? `✗ ${r.foreign_key_violations} violation(s) de clé étrangère` : null,
+      r.ok ? 'Intégrité OK' : r.integrity.join(' ; '),
+      r.foreign_key_violations ? `${r.foreign_key_violations} violation(s) de clé étrangère` : null,
       `${r.counts.session_history} lectures · ${r.counts.items} médias · ` +
         `${r.counts.libraries} bibliothèques · ${r.counts.users} users Jellyfin · ` +
         `${r.counts.local_users} comptes locaux`,
       `Taille : ${mb} Mo`,
     ].filter(Boolean);
-    out.innerHTML = lines.map(esc).join('<br>');
+    out.innerHTML = icon(r.ok ? 'check_circle' : 'error') + ' ' + lines.map(esc).join('<br>');
     out.className = 'maint-result ' + (r.ok ? 'ok' : 'err');
-  } catch (e) { out.textContent = '✗ ' + e.message; out.className = 'maint-result err'; }
+  } catch (e) { showStatus(out, false, e.message, 'maint-result'); }
 });
 document.getElementById('clear-image-cache').addEventListener('click', async () => {
   const out = document.getElementById('clear-image-cache-result');
@@ -150,7 +147,6 @@ document.getElementById('clear-image-cache').addEventListener('click', async () 
   try {
     const r = await postJSON('/api/settings/clear-image-cache', {});
     const mb = (r.bytes / 1048576).toFixed(1);
-    out.textContent = `✓ ${r.files} fichier(s) supprimé(s), ${mb} Mo libérés`;
-    out.className = 'maint-result ok';
-  } catch (e) { out.textContent = '✗ ' + e.message; out.className = 'maint-result err'; }
+    showStatus(out, true, `${r.files} fichier(s) supprimé(s), ${mb} Mo libérés`, 'maint-result');
+  } catch (e) { showStatus(out, false, e.message, 'maint-result'); }
 });

@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup, escape
 
+from .. import __version__
 from ..labels import collection_label, date_long_label, datetime_label, media_type_label
 
 BASE_DIR = Path(__file__).resolve().parents[2]  # racine du dépôt (jellyfin_stats/web/ -> ..)
@@ -16,70 +17,48 @@ STATIC_DIR = BASE_DIR / "data" / "interfaces" / "default" / "static"
 MEDIA_TYPES = ["Movie", "Episode", "Audio", "MusicVideo", "AudioBook"]
 PERIOD_DAYS = {"24h": 1, "7d": 7, "30d": 30, "12m": 365, "all": None}
 
+# Icônes : noms de symboles du sprite Material (static/img/icons.svg), même
+# style que l'interface Jellyfin.
 MEDIA_ICONS = {
-    "Movie": "🎬",
-    "Episode": "📺",
-    "Series": "📺",
-    "Season": "📺",
-    "Audio": "🎵",
-    "MusicAlbum": "💿",
-    "MusicVideo": "🎤",
-    "AudioBook": "🎧",
+    "Movie": "movie",
+    "Episode": "tv",
+    "Series": "tv",
+    "Season": "tv",
+    "Audio": "music_note",
+    "MusicAlbum": "album",
+    "MusicVideo": "music_video",
+    "AudioBook": "headphones",
 }
-
-CLIENT_ICONS = [  # mapping par sous-chaîne, premier qui matche
-    (
-        (
-            "android tv",
-            "androidtv",
-            "apple tv",
-            "tvos",
-            "roku",
-            "tizen",
-            "webos",
-            "samsung",
-            "lg tv",
-            "shield",
-        ),
-        "📺",
-    ),
-    (("web", "browser", "chrome", "firefox", "edge", "safari", "opera"), "🌐"),
-    (("iphone", "ipad", "ios", "swiftfin"), "📱"),
-    (("android", "findroid"), "🤖"),
-    (("kodi", "infuse", "emby", "plex"), "🎦"),
-    (("mpv", "vlc", "mediaplayer"), "🎞️"),
-    (("dlna", "cast", "chromecast"), "📡"),
-]
-
 
 LIBRARY_ICONS = {
-    "movies": "🎬",
-    "tvshows": "📺",
-    "music": "🎵",
-    "musicvideos": "🎤",
-    "books": "📚",
-    "homevideos": "🎥",
-    "photos": "🖼️",
-    "boxsets": "🎞️",
-    "livetv": "📡",
-    "playlists": "🎼",
+    "movies": "movie",
+    "tvshows": "tv",
+    "music": "library_music",
+    "musicvideos": "music_video",
+    "books": "menu_book",
+    "homevideos": "videocam",
+    "photos": "photo_library",
+    "boxsets": "collections_bookmark",
+    "livetv": "live_tv",
+    "playlists": "queue_music",
 }
 
 
-def media_icon(media_type: str) -> str:
-    return MEDIA_ICONS.get(media_type or "", "🎞️")
+def icon(name: str, cls: str = "") -> Markup:
+    """Icône SVG du sprite (taille et couleur du texte, décorative)."""
+    classes = f"icon {cls}".strip()
+    return Markup(
+        f'<svg class="{escape(classes)}" aria-hidden="true" focusable="false">'
+        f'<use href="/static/img/icons.svg?v={__version__}#{escape(name)}"></use></svg>'
+    )
 
 
-def library_icon(collection_type: str) -> str:
-    return LIBRARY_ICONS.get((collection_type or "").lower(), "🗂️")
+def media_icon(media_type: str) -> Markup:
+    return icon(MEDIA_ICONS.get(media_type or "", "play_circle"))
 
 
-def client_icon(client_name: str) -> str:
-    name = (client_name or "").lower()
-    for keywords, icon in CLIENT_ICONS:
-        if any(k in name for k in keywords):
-            return icon
-    return "💻"
+def library_icon(collection_type: str) -> Markup:
+    return icon(LIBRARY_ICONS.get((collection_type or "").lower(), "folder"))
 
 
 def _browser_slug(s: str) -> str | None:
@@ -244,6 +223,6 @@ def make_templates() -> Jinja2Templates:
     templates.env.filters["media_type_label"] = media_type_label
     templates.env.filters["collection_label"] = collection_label
     templates.env.filters["library_icon"] = library_icon
-    templates.env.filters["client_icon"] = client_icon
     templates.env.filters["client_logo"] = client_logo
+    templates.env.globals["icon"] = icon
     return templates

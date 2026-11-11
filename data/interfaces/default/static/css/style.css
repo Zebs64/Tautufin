@@ -60,6 +60,7 @@ code {
 }
 .brand:hover { text-decoration: none; }
 .brand img { height: 30px; max-width: 160px; object-fit: contain; }
+.brand img.brand-mark { width: 28px; height: 28px; }
 .nav-links { display: flex; align-items: center; flex: 1; flex-wrap: wrap; gap: 4px; }
 .nav-links a {
   color: var(--text-muted); padding: 8px 14px; margin: 8px 0;
@@ -80,7 +81,7 @@ code {
 .nav-toggle, .nav-toggle-label { display: none; }
 
 @media (max-width: 760px) {
-  .nav-toggle-label { display: block; margin-left: auto; padding: 12px; cursor: pointer; font-size: 1.3em; }
+  .nav-toggle-label { display: flex; margin-left: auto; padding: 12px; cursor: pointer; font-size: 1.4em; color: var(--text); }
   .nav-links { display: none; flex: 1 1 100%; flex-direction: column; align-items: stretch; padding-bottom: 10px; }
   .nav-toggle:checked ~ .nav-links { display: flex; }
   .nav-links a, .nav-logout button { margin: 2px 0; }
@@ -97,6 +98,15 @@ code {
 h1 { font-size: 1.55em; margin: .2em 0; font-weight: 700; letter-spacing: .01em; }
 h2 { font-size: 1.2em; margin: .9em 0 .5em; }
 h3 { font-size: .98em; margin: .2em 0 .7em; color: var(--text-muted); font-weight: 600; }
+
+/* Icônes SVG (sprite Material, style Jellyfin) : taille et couleur du texte. */
+.icon {
+  display: inline-block; width: 1.2em; height: 1.2em; flex-shrink: 0;
+  vertical-align: -0.24em; fill: currentColor;
+}
+/* Titres de cartes et de sections : icône accent, comme les en-têtes Jellyfin. */
+h2 > .icon, h3 > .icon { color: var(--accent); margin-right: .2em; }
+.brand-mark { width: 1.4em; height: 1.4em; vertical-align: -0.3em; border-radius: 22%; }
 .muted { color: var(--text-muted); }
 .hidden, [hidden] { display: none !important; }
 .ok { color: var(--ok); } .err { color: var(--err); }
@@ -318,7 +328,7 @@ h3 { font-size: .98em; margin: .2em 0 .7em; color: var(--text-muted); font-weigh
 .wrapped-mini-val.delta-down { color: var(--err); }
 .wrapped-mini { text-align: center; padding: 20px 12px; border-radius: var(--radius-lg);
   background: var(--bg-card); border: 1px solid var(--border); }
-.wrapped-mini-icon { font-size: 1.8em; line-height: 1; }
+.wrapped-mini-icon { font-size: 1.8em; line-height: 1; color: var(--accent); }
 .wrapped-mini-icon .client-logo { width: 1.6em; height: 1.6em; }
 .wrapped-mini-val { display: block; margin-top: 8px; font-weight: 800; font-size: 1.15em; }
 .wrapped-mini-lab { display: block; margin-top: 2px; font-size: .82em; color: var(--text-muted); }
@@ -390,7 +400,7 @@ h3 { font-size: .98em; margin: .2em 0 .7em; color: var(--text-muted); font-weigh
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   display: flex; align-items: center; gap: 7px;
 }
-.stat-ico { font-size: 1.25em; line-height: 1; }
+.stat-ico { font-size: 1.25em; line-height: 1; color: var(--accent); display: inline-flex; }
 .stat-units {
   color: var(--text-muted); font-size: .7em; flex-shrink: 0;
   text-transform: uppercase; letter-spacing: .05em;
@@ -515,7 +525,7 @@ ul.kv li .kv-title { min-width: 0; text-align: right; overflow: hidden;
   border-radius: var(--radius-sm); box-shadow: var(--shadow-hover); padding: 10px 12px;
   font-size: 1.05em;
 }
-.np-pop-head { font-weight: 700; color: var(--warn); margin-bottom: 6px; }
+.np-pop-head { font-weight: 700; color: var(--warn); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
 .np-pop ul { margin: 0; padding-left: 18px; }
 .np-pop li { margin: 3px 0; }
 .np-progress { position: relative; z-index: 1; height: 6px; background: rgba(255, 255, 255, 0.14); }
@@ -525,7 +535,8 @@ ul.kv li .kv-title { min-width: 0; text-align: right; overflow: hidden;
   position: relative; z-index: 1; display: flex; align-items: center; gap: 12px;
   padding: 11px 18px; background: rgba(17, 24, 39, 0.55);
 }
-.np-state { font-size: 1.05em; flex-shrink: 0; }
+.np-state { font-size: 1.3em; flex-shrink: 0; display: inline-flex; color: var(--accent); }
+.now-playing.paused .np-state { color: var(--warn); }
 .np-titles { display: flex; flex-direction: column; min-width: 0; }
 .np-titles b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .np-ep { color: var(--text-muted); font-size: .78em; }
@@ -809,7 +820,12 @@ form.inline input { width: 170px; margin: 0; display: inline-block; padding: 6px
   font-size: 1.9em; font-weight: 800; color: var(--medal);
   text-shadow: 0 1px 2px hsla(0, 0%, 0%, 0.5);
 }
-.podium-medal { position: absolute; top: 5px; right: 7px; font-size: .9em; }
+.podium-medal { position: absolute; top: 5px; right: 7px; font-size: 1.1em; display: inline-flex;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .6)); }
+.podium-medal.medal-1 { color: #f5c542; }
+.podium-medal.medal-2 { color: #c9ced6; }
+.podium-medal.medal-3 { color: #d08a4e; }
+.podium-title .icon { color: #f5c542; }
 
 .podium-meta { margin-top: 8px; max-width: 110px; }
 .podium-name {

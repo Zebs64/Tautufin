@@ -69,11 +69,11 @@
 </section>
 
 <div class="charts-grid charts-2col clients-charts">
-  <div class="card chart-card"><h3>📱 Utilisation par client</h3><canvas id="clients-usage"></canvas></div>
-  <div class="card chart-card"><h3>⚙️ Méthodes de lecture par client</h3><canvas id="clients-methods"></canvas></div>
-  <div class="card chart-card"><h3>🖥️ Résolutions observées</h3><canvas id="clients-resolutions"></canvas></div>
-  <div class="card chart-card"><h3>🎞️ Codecs vidéo observés</h3><canvas id="clients-video-codecs"></canvas></div>
-  <div class="card chart-card chart-wide"><h3>🔊 Codecs audio observés</h3><canvas id="clients-audio-codecs"></canvas></div>
+  <div class="card chart-card"><h3>{{ icon('devices') }} Utilisation par client</h3><canvas id="clients-usage"></canvas></div>
+  <div class="card chart-card"><h3>{{ icon('tune') }} Méthodes de lecture par client</h3><canvas id="clients-methods"></canvas></div>
+  <div class="card chart-card"><h3>{{ icon('hd') }} Résolutions observées</h3><canvas id="clients-resolutions"></canvas></div>
+  <div class="card chart-card"><h3>{{ icon('theaters') }} Codecs vidéo observés</h3><canvas id="clients-video-codecs"></canvas></div>
+  <div class="card chart-card chart-wide"><h3>{{ icon('volume_up') }} Codecs audio observés</h3><canvas id="clients-audio-codecs"></canvas></div>
 </div>
 {% endblock %}
 {% block scripts %}

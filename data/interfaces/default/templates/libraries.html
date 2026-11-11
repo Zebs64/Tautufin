@@ -14,8 +14,8 @@
       <h3>{{ l.name }}</h3>
       <p class="muted">{{ l.collection_type | collection_label }} · {{ l.item_count }} éléments</p>
       <div class="lib-card-stats">
-        <span>📺 {{ l.total_plays }} lectures</span>
-        <span>⏱️ {{ l.total_duration | duration_hm }}</span>
+        <span>{{ icon('play_arrow') }} {{ l.total_plays }} lectures</span>
+        <span>{{ icon('schedule') }} {{ l.total_duration | duration_hm }}</span>
       </div>
     </div>
   </a>

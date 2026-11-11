@@ -96,23 +96,27 @@ function dateCell(value) {
   return `<time datetime="${exact}" title="${exact}">${esc(fmtDateTime(value))}</time>`;
 }
 
-// Icône par nom de client (même mapping que le filtre Jinja côté serveur).
-const CLIENT_ICON_MAP = [
-  [['android tv', 'androidtv', 'apple tv', 'tvos', 'roku', 'tizen',
-    'webos', 'samsung', 'lg tv', 'shield'], '📺'],
-  [['web', 'browser', 'chrome', 'firefox', 'edge', 'safari', 'opera'], '🌐'],
-  [['iphone', 'ipad', 'ios', 'swiftfin'], '📱'],
-  [['android', 'findroid'], '🤖'],
-  [['kodi', 'infuse', 'emby', 'plex'], '🎦'],
-  [['mpv', 'vlc', 'mediaplayer'], '🎞️'],
-  [['dlna', 'cast', 'chromecast'], '📡'],
-];
+// Icônes SVG du sprite Material (même style que Jellyfin), versionné comme
+// les scripts pour qu'une nouvelle icône ne tombe pas sur un sprite en cache.
+const ASSET_VERSION = (() => {
+  try { return new URL(document.currentScript.src).searchParams.get('v') || ''; }
+  catch (e) { return ''; }
+})();
 
-function clientIcon(name) {
-  const n = (name || '').toLowerCase();
-  for (const [keywords, icon] of CLIENT_ICON_MAP)
-    if (keywords.some(k => n.includes(k))) return icon;
-  return '💻';
+function icon(name, cls) {
+  return `<svg class="icon${cls ? ' ' + cls : ''}" aria-hidden="true" focusable="false">` +
+         `<use href="/static/img/icons.svg?v=${encodeURIComponent(ASSET_VERSION)}#${name}"></use></svg>`;
+}
+
+// Message de résultat (réglages, import) : icône succès/erreur + texte échappé.
+function showStatus(el, ok, text, baseClass) {
+  el.innerHTML = `${icon(ok ? 'check_circle' : 'error')} ${esc(text)}`;
+  el.className = (baseClass ? baseClass + ' ' : '') + (ok ? 'ok' : 'err');
+}
+
+// Libellé de bouton avec icône (rétabli après une action « en cours… »).
+function setButtonLabel(button, iconName, text) {
+  button.innerHTML = `${icon(iconName)} ${esc(text)}`;
 }
 
 // --- Logos officiels des clients (SVG dans /static/img/clients/) --------------

@@ -10,7 +10,7 @@ function mediaLabel(s) {
   return s.item_name;
 }
 
-// Raisons de transcodage Jellyfin → libellés FR (popover ⚠).
+// Raisons de transcodage Jellyfin → libellés FR (popover d’alerte).
 const TRANSCODE_REASONS = {
   ContainerNotSupported: 'Conteneur non supporté par le client',
   VideoCodecNotSupported: 'Codec vidéo non supporté',
@@ -73,7 +73,7 @@ function activityCard(s) {
   const infoBtn = s.transcoding
     ? `<button type="button" class="np-info-btn" aria-label="Raisons du transcodage">!</button>
        <div class="np-pop" hidden>
-         <div class="np-pop-head">⚠ Transcodage en cours</div>
+         <div class="np-pop-head">${icon('warning')} Transcodage en cours</div>
          ${(s.transcode_reasons && s.transcode_reasons.length)
             ? `<ul>${s.transcode_reasons.map(r => `<li>${esc(reasonLabel(r))}</li>`).join('')}</ul>`
             : '<p class="muted">Raison non précisée par le serveur.</p>'}
@@ -113,7 +113,7 @@ function activityCard(s) {
       </div>
       <div class="np-progress"><div style="width:${pct}%"></div></div>
       <div class="np-footer">
-        <span class="np-state">${s.paused ? '⏸' : '▶'}</span>
+        <span class="np-state">${icon(s.paused ? 'pause' : 'play_arrow')}</span>
         <div class="np-titles">
           <b title="${esc(mediaLabel(s))}">${esc(mediaLabel(s))}</b>
           ${s.series_name ? `<span class="np-ep">S${s.season_number || 0} · E${s.episode_number || 0}</span>` : ''}
@@ -139,7 +139,7 @@ function idleState(last) {
       (last.user_name ? ` <span class="muted">par ${esc(last.user_name)}</span>` : '') +
       '</span>';
   }
-  return `<div class="card idle-state"><span class="idle-icon" aria-hidden="true">⏸</span>` +
+  return `<div class="card idle-state"><span class="idle-icon">${icon('pause')}</span>` +
     `<div><strong>Rien en cours</strong>${detail}</div></div>`;
 }
 
@@ -178,23 +178,23 @@ document.addEventListener('click', () =>
 // Définition des blocs (ordre d'affichage, calqué sur Tautulli). top_users
 // n'est renvoyé qu'aux admins : on ne rend que les clés présentes.
 const STAT_DEFS = [
-  {kind: 'top_movies',       icon: '🎬', title: 'Films les plus regardés',     mode: 'metric'},
-  {kind: 'popular_movies',   icon: '🍿', title: 'Films les plus populaires',   mode: 'users'},
-  {kind: 'top_series',       icon: '📺', title: 'Séries les plus regardées',   mode: 'metric'},
-  {kind: 'popular_series',   icon: '🔥', title: 'Séries les plus populaires',  mode: 'users'},
-  {kind: 'recently_watched', icon: '🕑', title: 'Vu récemment',                mode: 'recent'},
-  {kind: 'top_libraries',    icon: '🗂️', title: 'Bibliothèques les plus actives', mode: 'metric'},
-  {kind: 'top_users',        icon: '👥', title: 'Utilisateurs les plus actifs', mode: 'metric'},
-  {kind: 'top_clients',      icon: '📱', title: 'Clients les plus utilisés',   mode: 'metric'},
+  {kind: 'top_movies',       icon: 'movie', title: 'Films les plus regardés',     mode: 'metric'},
+  {kind: 'popular_movies',   icon: 'local_movies', title: 'Films les plus populaires',   mode: 'users'},
+  {kind: 'top_series',       icon: 'tv', title: 'Séries les plus regardées',   mode: 'metric'},
+  {kind: 'popular_series',   icon: 'local_fire_department', title: 'Séries les plus populaires',  mode: 'users'},
+  {kind: 'recently_watched', icon: 'history', title: 'Vu récemment',                mode: 'recent'},
+  {kind: 'top_libraries',    icon: 'video_library', title: 'Bibliothèques les plus actives', mode: 'metric'},
+  {kind: 'top_users',        icon: 'group', title: 'Utilisateurs les plus actifs', mode: 'metric'},
+  {kind: 'top_clients',      icon: 'devices', title: 'Clients les plus utilisés',   mode: 'metric'},
 ];
 
 // Icône par type de bibliothèque Jellyfin (collection_type).
 const LIBRARY_ICONS = {
-  movies: '🎬', tvshows: '📺', music: '🎵', musicvideos: '🎤',
-  books: '📚', homevideos: '🎥', photos: '🖼️', boxsets: '🎞️',
-  livetv: '📡', playlists: '🎼',
+  movies: 'movie', tvshows: 'tv', music: 'library_music', musicvideos: 'music_video',
+  books: 'menu_book', homevideos: 'videocam', photos: 'photo_library',
+  boxsets: 'collections_bookmark', livetv: 'live_tv', playlists: 'queue_music',
 };
-function libraryIcon(type) { return LIBRARY_ICONS[(type || '').toLowerCase()] || '🗂️'; }
+function libraryIcon(type) { return icon(LIBRARY_ICONS[(type || '').toLowerCase()] || 'folder'); }
 
 // Blocs basés sur un média (poster + backdrop hero). Les autres (users,
 // clients) gardent le dégradé du thème avec un avatar / une icône.
@@ -298,7 +298,7 @@ function statCard(def, rows, fmt, metric) {
       <div class="stat-veil"></div>
       <div class="stat-inner">
         <div class="stat-head">
-          <h3><span class="stat-ico">${def.icon}</span>${esc(def.title)}</h3>
+          <h3><span class="stat-ico">${icon(def.icon)}</span>${esc(def.title)}</h3>
           <span class="stat-units">${statUnits(def, rows, metric)}</span>
         </div>
         <div class="stat-content">
@@ -366,7 +366,7 @@ function podiumPerson(user, place) {
         <span class="body"></span>
       </div>
       <div class="podium-block">
-        <span class="podium-medal">${['🥇', '🥈', '🥉'][place]}</span>
+        <span class="podium-medal medal-${place + 1}">${icon('military_tech')}</span>
         <span class="podium-num">${place + 1}</span>
       </div>
       <div class="podium-meta">
@@ -383,7 +383,7 @@ function renderPodium(users, fmt) {
   const order = top.length === 1 ? [0]
     : top.length === 2 ? [1, 0] : [1, 0, 2];  // 2e à gauche, 1er au centre
   podiumBox.innerHTML = `
-    <div class="podium-title">🏆 Podium des viewers</div>
+    <div class="podium-title">${icon('emoji_events')} Podium des viewers</div>
     <div class="podium-stage">
       ${order.map(p => podiumPerson(top[p], p)).join('')}
     </div>`;

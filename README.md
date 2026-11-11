@@ -598,7 +598,9 @@ data/interfaces/default/ # templates Jinja2 + static (thème sombre)
 ```
 
 Stack : **FastAPI** + **SQLite** (migrations ordonnées appliquées au démarrage) +
-**Jinja2** + **Chart.js**. Les sessions HTTP vivent côté serveur ; le cookie ne
+**Jinja2** + **Chart.js**, icônes **Material Icons** (Google, licence Apache 2.0,
+comme l'interface Jellyfin) regroupées dans un sprite SVG servi par l'appli.
+Les sessions HTTP vivent côté serveur ; le cookie ne
 contient qu'un token signé (`itsdangerous`), `HttpOnly` + `SameSite=Lax`, et
 `Secure` en HTTPS. Les requêtes qui modifient l'état (POST…) envoyées par un
 navigateur sont refusées si leur origine ne correspond pas à l'hôte servi

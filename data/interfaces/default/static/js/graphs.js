@@ -235,7 +235,7 @@ function showTranscodeCost(d) {
   const el = document.getElementById('transcode-cost');
   if (!el) return;
   el.innerHTML =
-    `⚡ ~${fmtDuration(d.seconds)} de transcodage vidéo` +
+    `${icon('bolt')} ~${fmtDuration(d.seconds)} de transcodage vidéo` +
     `<br>Électricité consommée : <strong>${d.kwh} kWh</strong>` +
     ` · Coût estimé : <strong>${d.cost.toFixed(2)} €</strong>` +
     `<br><span class="micro">base : +${d.watts} W, ${d.eur_per_kwh} €/kWh</span>`;

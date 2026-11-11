@@ -2,6 +2,8 @@ import re
 import unittest
 from pathlib import Path
 
+from jellyfin_stats.web.helpers import LIBRARY_ICONS, MEDIA_ICONS
+
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATES = ROOT / "data" / "interfaces" / "default" / "templates"
 STATIC = ROOT / "data" / "interfaces" / "default" / "static"
@@ -78,6 +80,44 @@ class ReliabilityUIContractTests(unittest.TestCase):
                 self.assertTrue((STATIC / file).is_file(), src)
                 if "/vendor/" not in src:  # versionnés : le cache suit les mises à jour
                     self.assertTrue(src.endswith("?v={{ version }}"), f"{path.name}: {src}")
+
+
+class IconSpriteTests(unittest.TestCase):
+    """Icônes SVG du sprite Material : aucune référence cassée, plus d'émoji."""
+
+    EMOJI = re.compile("[\U0001f300-\U0001faff\u2600-\u27bf\u2b50\u23e9-\u23fa\u2630]")
+
+    @staticmethod
+    def _arguments(source, start):
+        """Texte entre la parenthèse ouvrante (déjà passée) et sa fermante."""
+        depth = 1
+        for i in range(start, len(source)):
+            depth += {"(": 1, ")": -1}.get(source[i], 0)
+            if depth == 0:
+                return source[start:i]
+        return ""
+
+    def _sources(self):
+        files = [*TEMPLATES.glob("*.html"), *(STATIC / "js").glob("*.js")]
+        files += [ROOT / "jellyfin_stats" / "users.py"]
+        return {f.name: f.read_text(encoding="utf-8") for f in files}
+
+    def test_every_referenced_icon_exists_in_the_sprite(self):
+        sprite = (STATIC / "img" / "icons.svg").read_text(encoding="utf-8")
+        symbols = set(re.findall(r'<symbol id="([a-z_]+)"', sprite))
+        used = set(MEDIA_ICONS.values()) | set(LIBRARY_ICONS.values()) | {"play_circle", "folder"}
+        for source in self._sources().values():
+            for call in re.finditer(r"\b(?:icon|setButtonLabel)\(", source):
+                used |= set(re.findall(r"'([a-z_]+)'", self._arguments(source, call.end())))
+            used |= set(re.findall(r"icon: '([a-z_]+)'", source))
+            used |= set(re.findall(r'\("[^"]+", "([a-z_]+)", \w+\)', source))  # users.py
+        js_libraries = re.search(r"LIBRARY_ICONS = \{(.*?)\};", self._sources()["home.js"], re.S)
+        used |= set(re.findall(r": '([a-z_]+)'", js_libraries.group(1)))
+        self.assertEqual(sorted(used - symbols), [])
+
+    def test_no_emoji_left_in_the_interface(self):
+        for name, source in self._sources().items():
+            self.assertEqual(self.EMOJI.findall(source), [], name)
 
 
 if __name__ == "__main__":

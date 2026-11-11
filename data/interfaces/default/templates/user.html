@@ -3,7 +3,7 @@
 {% block content %}
 {% if profile is none %}
 <div class="card">
-  <h1>👤 {{ user.username }}</h1>
+  <h1>{{ icon('person') }} {{ user.username }}</h1>
   <p class="muted">Ce compte local n'est lié à aucun utilisateur Jellyfin :
     aucune statistique de lecture n'est associée. Un admin peut lier ce compte
     dans Réglages.</p>
@@ -55,7 +55,7 @@
     <h3>Tops</h3>
     <ul class="kv">
       {% for t in profile.top_per_kind %}
-      <li><span class="kv-key">{{ t.icon }} {{ t.kind }}</span>
+      <li><span class="kv-key">{{ icon(t.icon) }} {{ t.kind }}</span>
         {% if t.label %}<b class="kv-title" title="{{ t.label }}">{% if t.item_id %}<a href="/media/{{ t.item_id }}">{{ t.label }}</a>{% else %}{{ t.label }}{% endif %}</b>
         {% else %}<b class="muted">—</b>{% endif %}</li>
       {% endfor %}
@@ -63,27 +63,27 @@
   </div>
   {% if profile.wrapped_latest or not profile.wrapped_upcoming %}
   <a class="card card-cta" href="/users/{{ profile.jellyfin_user_id }}/wrapped{% if profile.wrapped_latest %}?year={{ profile.wrapped_latest }}{% endif %}">
-    <h3>✨ Wrapped</h3>
+    <h3>{{ icon('auto_awesome') }} Wrapped</h3>
     <p class="muted">La rétrospective de {{ profile.username or 'l’utilisateur' }}, année par année.</p>
     {% if profile.wrapped_upcoming %}
-    <p class="muted">🎁 Wrapped {{ profile.wrapped_upcoming }} : rendez-vous le {{ profile.wrapped_opening }}.</p>
+    <p class="muted">{{ icon('redeem') }} Wrapped {{ profile.wrapped_upcoming }} : rendez-vous le {{ profile.wrapped_opening }}.</p>
     {% endif %}
     <span class="card-cta-go">Voir le Wrapped{% if profile.wrapped_latest %} {{ profile.wrapped_latest }}{% endif %} →</span>
   </a>
   {% else %}
   <div class="card card-cta">
-    <h3>✨ Wrapped</h3>
+    <h3>{{ icon('auto_awesome') }} Wrapped</h3>
     <p class="muted">La rétrospective de {{ profile.username or 'l’utilisateur' }}, année par année.</p>
-    <p>🎁 Wrapped {{ profile.wrapped_upcoming }} : rendez-vous le <strong>{{ profile.wrapped_opening }}</strong>.</p>
+    <p>{{ icon('redeem') }} Wrapped {{ profile.wrapped_upcoming }} : rendez-vous le <strong>{{ profile.wrapped_opening }}</strong>.</p>
   </div>
   {% endif %}
 </div>
 
 <h2>Habitudes de visionnage <span class="muted">(tout l'historique)</span></h2>
 <div class="charts-grid charts-2col">
-  <div class="card chart-card"><h3>🎭 Genres préférés</h3><canvas id="chart-user-genres"></canvas></div>
-  <div class="card chart-card"><h3>📅 Activité par jour de la semaine</h3><canvas id="chart-user-dow"></canvas></div>
-  <div class="card chart-card chart-wide"><h3>🕑 Activité par heure de la journée</h3><canvas id="chart-user-hour"></canvas></div>
+  <div class="card chart-card"><h3>{{ icon('theater_comedy') }} Genres préférés</h3><canvas id="chart-user-genres"></canvas></div>
+  <div class="card chart-card"><h3>{{ icon('calendar_month') }} Activité par jour de la semaine</h3><canvas id="chart-user-dow"></canvas></div>
+  <div class="card chart-card chart-wide"><h3>{{ icon('schedule') }} Activité par heure de la journée</h3><canvas id="chart-user-hour"></canvas></div>
 </div>
 
 <h2>Lectures récentes</h2>

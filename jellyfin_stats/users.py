@@ -145,9 +145,9 @@ def _top_per_kind(jellyfin_user_id: str) -> list[dict]:
     )
     out = []
     for kind, icon, row in (
-        ("Film", "🎬", film),
-        ("Série", "📺", serie),
-        ("Chanson", "🎵", chanson),
+        ("Film", "movie", film),
+        ("Série", "tv", serie),
+        ("Chanson", "music_note", chanson),
     ):
         out.append(
             {
