@@ -75,13 +75,34 @@ class RateLimiter:
 # --- Mots de passe locaux ---------------------------------------------------
 
 
+# bcrypt ignore tout au-delà de 72 octets ; bcrypt >= 5 refuse même de hacher
+# un mot de passe plus long.
+MAX_PASSWORD_BYTES = 72
+PASSWORD_TOO_LONG = "Mot de passe trop long : 72 octets maximum (un accent compte double)."
+
+
+class PasswordTooLong(ValueError):
+    pass
+
+
+def password_error(password: str) -> str | None:
+    """Message d'erreur si le mot de passe ne peut pas être haché, sinon None."""
+    if len(password.encode()) > MAX_PASSWORD_BYTES:
+        return PASSWORD_TOO_LONG
+    return None
+
+
 def hash_password(password: str) -> str:
+    if password_error(password):
+        raise PasswordTooLong(PASSWORD_TOO_LONG)
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
 def check_password(password: str, password_hash: str) -> bool:
+    # Tronquer comme le faisait bcrypt < 5 : les comptes créés alors avec un
+    # mot de passe plus long restent utilisables.
     try:
-        return bcrypt.checkpw(password.encode(), password_hash.encode())
+        return bcrypt.checkpw(password.encode()[:MAX_PASSWORD_BYTES], password_hash.encode())
     except ValueError:
         return False
 

@@ -392,6 +392,8 @@ def create_app(config: Config) -> FastAPI:
             errors.append("URL Jellyfin et clé API doivent être fournies ensemble.")
         if not admin_username or not admin_password:
             errors.append("Le compte admin local de secours est obligatoire.")
+        elif auth.password_error(admin_password):
+            errors.append(auth.password_error(admin_password))
         if errors:
             return render(
                 request,
@@ -770,6 +772,8 @@ def create_app(config: Config) -> FastAPI:
         username = username.strip()
         if not username or not password:
             return _render_settings(request, user, user_error="Nom et mot de passe obligatoires.")
+        if auth.password_error(password):
+            return _render_settings(request, user, user_error=auth.password_error(password))
         if auth.get_local_user(username):
             return _render_settings(
                 request, user, user_error=f"Le compte « {username} » existe déjà."
@@ -798,10 +802,13 @@ def create_app(config: Config) -> FastAPI:
 
     @app.post("/settings/local-users/{local_id}/password")
     def reset_local_password_route(
+        request: Request,
         local_id: int,
         user: CurrentUser = Depends(require_admin),
         new_password: str = Form(...),
     ):
+        if auth.password_error(new_password):
+            return _render_settings(request, user, user_error=auth.password_error(new_password))
         row = database.query_one("SELECT username FROM local_users WHERE id = ?", (local_id,))
         if row and new_password:
             auth.set_local_password(row["username"], new_password)
@@ -1332,6 +1339,9 @@ def reset_password_cli(username: str) -> int:
     confirm = getpass.getpass("Confirmation : ")
     if not password or password != confirm:
         print("Les mots de passe ne correspondent pas.", file=sys.stderr)
+        return 1
+    if auth.password_error(password):
+        print(auth.password_error(password), file=sys.stderr)
         return 1
     auth.set_local_password(username, password)
     print(f"Mot de passe de « {username} » réinitialisé.")
