@@ -105,6 +105,36 @@ def sync_users(api) -> int:
     return len(users)
 
 
+def _mark_removed_items(conn, library_id: str, inventory_ids) -> None:
+    """Aligne ``removed_at`` sur l'inventaire complet (et validé) d'une
+    bibliothèque : un média absent est marqué disparu, un média revenu est
+    remis en service, même si son ETag n'a pas changé (il n'est alors pas
+    réenrichi). Un média disparu qui réapparaît ailleurs change de
+    bibliothèque."""
+    conn.execute("CREATE TEMP TABLE IF NOT EXISTS sync_inventory (item_id TEXT PRIMARY KEY)")
+    conn.execute("DELETE FROM sync_inventory")
+    conn.executemany(
+        "INSERT OR IGNORE INTO sync_inventory (item_id) VALUES (?)",
+        [(item_id,) for item_id in inventory_ids],
+    )
+    conn.execute(
+        """
+        UPDATE items SET removed_at = NULL, library_id = ?
+        WHERE removed_at IS NOT NULL
+          AND item_id IN (SELECT item_id FROM sync_inventory)
+        """,
+        (library_id,),
+    )
+    conn.execute(
+        """
+        UPDATE items SET removed_at = datetime('now', 'localtime')
+        WHERE library_id = ? AND removed_at IS NULL
+          AND item_id NOT IN (SELECT item_id FROM sync_inventory)
+        """,
+        (library_id,),
+    )
+
+
 def sync_libraries_and_items(
     api, report=None, force_full: bool = False, metrics: dict | None = None
 ) -> int:
@@ -244,6 +274,7 @@ def sync_libraries_and_items(
                     ),
                 )
                 total_changed += changed.rowcount
+            _mark_removed_items(conn, library_id, inventory_etags)
             conn.execute(
                 """
                 INSERT INTO libraries (library_id, name, collection_type, item_count, updated_at)

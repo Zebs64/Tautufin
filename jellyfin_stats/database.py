@@ -220,6 +220,15 @@ MIGRATIONS: list[tuple[int, list[str]]] = [
             "UPDATE items SET source_etag = NULL WHERE type = 'Episode'",
         ],
     ),
+    (
+        10,
+        [
+            # Média disparu de l'inventaire Jellyfin de sa bibliothèque. La
+            # ligne est conservée (l'historique y fait référence) ; seuls les
+            # catalogues l'excluent.
+            "ALTER TABLE items ADD COLUMN removed_at DATETIME",
+        ],
+    ),
 ]
 
 

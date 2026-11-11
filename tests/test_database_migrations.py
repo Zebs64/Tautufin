@@ -96,6 +96,7 @@ class MigrationTests(unittest.TestCase):
                 row.pop("source_date_last_refreshed", None)
                 row.pop("source_etag", None)
                 row.pop("series_id", None)
+                row.pop("removed_at", None)
             for row in snapshot["session_history"]:
                 row.pop("series_id", None)
 

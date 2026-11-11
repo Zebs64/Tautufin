@@ -40,7 +40,7 @@ sont ailleurs :
 | 10 | ✅ v0.3.0 — Persister les sessions de lecture en cours | Robustesse | **Très haute** | M |
 | 11 | ✅ v0.3.0 — Stocker `series_id` dans l'historique | Données/Perf | Haute | M |
 | 12 | Dédoublonnage tolérant entre imports et capture live | Données | Haute | M |
-| 13 | Retirer du catalogue les médias supprimés de Jellyfin | Données | Moyenne | M |
+| 13 | ✅ v0.3.0 — Retirer du catalogue les médias supprimés de Jellyfin | Données | Moyenne | M |
 | 14 | Contrôle d'origine (CSRF) et logout en POST | Sécurité | Moyenne | S |
 | 15 | Notifications sortantes (ntfy, Discord, webhook) | Fonctionnel | Haute | M |
 | 16 | Export CSV de l'historique | Fonctionnel | Moyenne | S |
@@ -139,6 +139,10 @@ la première migration en attente. Dix lignes.
 **Fichiers.** `database.py`, un test qui injecte une migration en échec.
 
 ### 13. Retirer du catalogue les médias supprimés — valeur moyenne, M
+
+**Statut : fait en v0.3.0** (`items.removed_at`, marqué par bibliothèque
+inventoriée avec succès ; environ 470 fantômes sur la base de prod du
+2026-11-11).
 
 **Problème.** `sync_libraries_and_items` (`scheduler.py:108`) insère et met à
 jour, mais ne supprime jamais. Un média retiré de Jellyfin reste dans `items`

@@ -1,4 +1,7 @@
-"""Statistiques de bibliothèques (depuis le cache items + l'historique)."""
+"""Statistiques de bibliothèques (depuis le cache items + l'historique).
+
+Les catalogues et répartitions excluent les médias disparus de Jellyfin
+(``removed_at``) ; les statistiques issues de l'historique les gardent."""
 
 from . import database
 
@@ -37,7 +40,7 @@ def library_detail(library_id: str) -> dict:
         """
         SELECT je.value AS label, COUNT(*) AS count
         FROM items, json_each(items.genres) AS je
-        WHERE library_id = ? AND genres IS NOT NULL
+        WHERE library_id = ? AND genres IS NOT NULL AND removed_at IS NULL
         GROUP BY je.value ORDER BY count DESC LIMIT 15
         """,
         (library_id,),
@@ -45,7 +48,7 @@ def library_detail(library_id: str) -> dict:
     by_year = database.query(
         """
         SELECT year AS label, COUNT(*) AS count FROM items
-        WHERE library_id = ? AND year IS NOT NULL
+        WHERE library_id = ? AND year IS NOT NULL AND removed_at IS NULL
         GROUP BY year ORDER BY year
         """,
         (library_id,),
@@ -53,7 +56,7 @@ def library_detail(library_id: str) -> dict:
     catalog = database.query(
         """
         SELECT item_id, name, type, year FROM items
-        WHERE library_id = ? AND type IN ('Movie', 'Series')
+        WHERE library_id = ? AND type IN ('Movie', 'Series') AND removed_at IS NULL
         ORDER BY name COLLATE NOCASE
         """,
         (library_id,),
@@ -74,6 +77,7 @@ def library_detail(library_id: str) -> dict:
         FROM items i
         LEFT JOIN session_history h ON h.item_id = i.item_id
         WHERE i.library_id = ? AND h.id IS NULL AND i.type IN ('Movie', 'Series')
+          AND i.removed_at IS NULL
         ORDER BY i.added_at DESC LIMIT 10
         """,
         (library_id,),
