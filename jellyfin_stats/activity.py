@@ -17,7 +17,6 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
 
 from . import database
 from .database import now_iso

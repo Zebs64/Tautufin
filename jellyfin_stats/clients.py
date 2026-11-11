@@ -2,7 +2,6 @@
 
 from . import database
 
-
 _METHOD = "LOWER(REPLACE(COALESCE(play_method, ''), ' ', ''))"
 
 

@@ -8,7 +8,6 @@ from unittest.mock import patch
 from jellyfin_stats import database, scheduler
 from jellyfin_stats.jellyfin_api import JellyfinError
 
-
 REFRESH_1 = "2026-08-01T10:00:00.0000000Z"
 REFRESH_2 = "2026-08-02T10:00:00.0000000Z"
 

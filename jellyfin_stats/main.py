@@ -1015,7 +1015,9 @@ def create_app(config: Config) -> FastAPI:
 
         def flat(data):
             series = data["series"][0]["data"] if data["series"] else []
-            return [{"label": c, "value": v} for c, v in zip(data["categories"], series)]
+            return [
+                {"label": c, "value": v} for c, v in zip(data["categories"], series, strict=False)
+            ]
 
         stats = {
             "metric": metric,
@@ -1234,7 +1236,7 @@ def create_app(config: Config) -> FastAPI:
                 return import_streamystats.analyze(path)
             return import_playback.analyze(path)
         except import_playback.ImportError_ as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.post("/api/import/run")
     def api_import_run(payload: dict, user: CurrentUser = Depends(require_admin)):
@@ -1247,7 +1249,7 @@ def create_app(config: Config) -> FastAPI:
         try:
             return module.run_import(path, api, config.minimum_duration, config.minimum_percent)
         except import_playback.ImportError_ as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     # ------------------------------------------------------------------
     # Inférence d'historique depuis le statut « Lu » de Jellyfin (admin)

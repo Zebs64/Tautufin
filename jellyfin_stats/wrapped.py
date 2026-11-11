@@ -43,7 +43,7 @@ def _longest_streak(days: list[str]) -> int:
         return 0
     ordered = sorted(date.fromisoformat(d) for d in days)
     best = run = 1
-    for prev, cur in zip(ordered, ordered[1:]):
+    for prev, cur in zip(ordered, ordered[1:], strict=False):
         if cur - prev == timedelta(days=1):
             run += 1
             best = max(best, run)
@@ -86,7 +86,7 @@ def build(jellyfin_user_id: str, year: int) -> dict:
     )
 
     top_series = database.query(
-        f"""
+        """
         SELECT sh.series_name AS label, COUNT(*) AS plays,
                COALESCE(SUM(sh.play_duration), 0) AS duration,
                (SELECT i.item_id FROM items i

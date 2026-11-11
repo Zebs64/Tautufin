@@ -102,7 +102,7 @@ MIGRATIONS: list[tuple[int, list[str]]] = [
                 client_name      TEXT,
                 device_name      TEXT,
                 ip_address       TEXT,
-                play_method      TEXT,                          -- DirectPlay | DirectStream | Transcode
+                play_method      TEXT,                          -- DirectPlay|DirectStream|Transcode
                 video_resolution TEXT,
                 video_codec      TEXT,
                 audio_codec      TEXT,

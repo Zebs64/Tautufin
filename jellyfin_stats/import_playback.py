@@ -17,7 +17,6 @@ Les filtres de durée minimale (config [Monitoring]) s'appliquent comme pour
 les sessions capturées en direct.
 """
 
-import json
 import logging
 import os
 import sqlite3
@@ -124,7 +123,7 @@ def _load_tsv(path: str) -> tuple[list[dict], int]:
             if len(tokens) != len(TSV_COLUMNS):
                 malformed += 1
                 continue
-            rows.append(dict(zip(TSV_COLUMNS, tokens)))
+            rows.append(dict(zip(TSV_COLUMNS, tokens, strict=True)))
     if not rows and malformed == 0:
         raise ImportError_("Fichier vide — backup Playback Reporting attendu")
     if not rows:
@@ -199,7 +198,8 @@ def run_import(path: str, api, minimum_duration: int, minimum_percent: int) -> d
         )
     }
     library_names = {
-        l["library_id"]: l["name"] for l in database.query("SELECT library_id, name FROM libraries")
+        lib["library_id"]: lib["name"]
+        for lib in database.query("SELECT library_id, name FROM libraries")
     }
 
     report = {
