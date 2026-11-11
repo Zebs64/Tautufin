@@ -73,7 +73,8 @@ Le n° 10 a le plus de valeur malgré son effort moyen.
   réel de la lecture.
 
 Tautulli a le même modèle de polling, mais garde ses sessions actives dans une
-table et les reprend au démarrage.
+table SQLite (`sessions`, `plexpy/__init__.py:614` du clone de référence), qui
+survit donc à un redémarrage.
 
 **Solution.** Une table `active_sessions` (clé = `session_key`) mise à jour à
 chaque polling avec `watched_seconds`, `position_ticks`, `paused` et
@@ -176,6 +177,21 @@ peut plus se connecter : `check_password` attrape l'erreur et renvoie `False`.
 migration des empreintes existantes. Le refus explicite suffit.
 
 **Fichiers.** `auth.py`, `main.py` (formulaires setup et réglages).
+
+### 8. Servir Chart.js localement — valeur moyenne, S
+
+**Problème.** Chart.js est chargé depuis jsDelivr dans quatre templates
+(`graphs.html:76`, `clients.html`, `user.html`, `media.html`), sans attribut
+`integrity`. Une instance sur un réseau local sans accès Internet n'affiche
+aucun graphique, chaque page vue fait une requête vers un tiers, et une
+compromission du CDN exécuterait du code dans l'appli.
+
+**Solution.** Copier `chart.umd.min.js` (version épinglée) dans
+`static/vendor/` et pointer les quatre templates dessus. Garder la version dans
+le nom du fichier pour le cache navigateur.
+
+**Fichiers.** `data/interfaces/default/templates/{graphs,clients,user,media}.html`,
+`data/interfaces/default/static/vendor/`.
 
 ---
 
@@ -355,12 +371,17 @@ Une route `/api/history.csv` qui réutilise `history.get_history` avec les même
 filtres, sans pagination. C'est la seule façon simple de sortir ses données
 autrement qu'avec un backup SQLite.
 
+**Fichiers.** `main.py`, `history.py`, `history.html` (bouton d'export).
+
 ### 17. API en lecture seule par jeton — valeur moyenne, M
 
 Les tableaux de bord d'auto-hébergement (Homepage, Homarr…) ont des widgets
 Tautulli qui interrogent son API. Un jeton d'API admin (`[Auth] api_token`) et
 deux ou trois routes stables (`/api/v1/activity`, `/api/v1/stats`) suffiraient.
 Les routes actuelles sont internes à l'UI et exigent le cookie.
+
+**Fichiers.** `main.py` (ou un routeur dédié, cf. n° 19), `config.py`,
+`auth.py`, README.
 
 ### Ce qui ne me semble pas valoir l'effort
 
@@ -398,6 +419,9 @@ l'ETag qui fait tout le travail incrémental, et il le fait bien.
 supprime la notion de « curseur préservé » de l'UI et des tests. Moins de code,
 moins de concepts à expliquer.
 
+**Fichiers.** `scheduler.py`, `database.py`, `settings.html`,
+`tests/test_sync_*.py`.
+
 ### 19. Découper `main.py` — valeur moyenne, M
 
 `main.py` fait 1356 lignes, dont l'essentiel dans une seule fonction
@@ -407,21 +431,23 @@ facilement. Découper en `APIRouter` par domaine (auth, pages, API graphiques,
 réglages, import, images), avec les dépendances (`config`, `api`, `monitor`)
 injectées via `app.state`, sans changer le comportement.
 
+**Fichiers.** `main.py`, futur dossier `jellyfin_stats/routes/`, tests qui
+appellent `create_app`.
+
 ### 20. JS front — valeur faible, M
 
 - `settings.html` et `import.html` contiennent respectivement 146 et 122
   lignes de JS inline, qui ne bénéficient ni du cache, ni d'une éventuelle CSP,
   ni du helper `fetchJSON` d'`app.js` (`import.html` refait ses `fetch`).
-- Chart.js est chargé depuis jsDelivr dans quatre templates (`graphs.html:76`,
-  `clients.html`, `user.html`, `media.html`), sans attribut `integrity`. Une
-  instance sur un réseau local sans Internet n'a plus de graphiques, et chaque
-  page vue fait une requête tierce. C'est le n° 8 : copier le fichier dans
-  `static/vendor/`, effort S.
+- Chart.js chargé depuis un CDN : voir le n° 8.
 - Aucune organisation en modules : tout est en fonctions globales partagées
   via `app.js`. Ça tient à cette taille (environ 1400 lignes), mais un passage
   aux modules ES natifs (`<script type="module">`, sans outil de build) éviterait
   les dépendances implicites d'ordre de chargement, que
   `test_ui_templates.py` vérifie à la main.
+
+**Fichiers.** `settings.html`, `import.html`, `static/js/*.js`,
+`tests/test_ui_templates.py`.
 - Point positif à garder : l'échappement (`esc()`) est appliqué de façon
   cohérente sur les données venant de Jellyfin et des clients, y compris
   noms d'appareils et titres.
@@ -439,6 +465,9 @@ injectées via `app.state`, sans changer le comportement.
   cas aujourd'hui, mais il faut le noter pour ne jamais lancer uvicorn avec
   `--workers`.
 
+**Fichiers.** `jellyfin_api.py`, `tests/test_ui_templates.py`, `main.py`
+(routes `/branding/*`, setup, import), README.
+
 ### 22. Horodatages locaux naïfs — valeur faible, L
 
 Tout est stocké en heure locale sans fuseau (`now_iso`, `datetime('now',
@@ -449,3 +478,7 @@ s'ordonnent mal et les durées calculées par différence sont fausses. Changer
 conversion à l'affichage, est la bonne correction. C'est une migration de
 données sensible pour un gain réel faible : à faire seulement si l'appli doit
 servir plusieurs fuseaux.
+
+**Fichiers.** `database.py` (`now_iso`, migration), `activity.py`, toutes les
+requêtes utilisant `'localtime'` (`graphs.py`, `clients.py`), imports
+(`import_playback.py` convertit vers `TZ`), JS d'affichage des dates.
