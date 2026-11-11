@@ -37,6 +37,46 @@ function fmtDuration(seconds) {
   return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`;
 }
 
+// Dates lisibles, mêmes règles que le filtre Jinja « dt » (labels.py) :
+// « aujourd'hui 22:31 », « hier 22:31 », « 10 nov. 22:31 », « 10 nov. 2025 22:31 ».
+const MONTHS_SHORT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
+                      'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+
+function parseLocalDate(value) {
+  // Horodatages stockés en heure locale : « AAAA-MM-JJ HH:MM[:SS] » ou date seule.
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/.exec(value || '');
+  return m ? new Date(+m[1], m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0)) : null;
+}
+
+function fmtDay(d, withYear) {
+  const day = d.getDate() === 1 ? '1er' : String(d.getDate());
+  return `${day} ${MONTHS_SHORT[d.getMonth()]}` + (withYear ? ` ${d.getFullYear()}` : '');
+}
+
+function fmtDateTime(value) {
+  const d = parseLocalDate(value);
+  if (!d) return value || '—';
+  const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const day = new Date(d); day.setHours(0, 0, 0, 0);
+  const diff = Math.round((today - day) / 86400000);
+  if (diff === 0) return `aujourd'hui ${time}`;
+  if (diff === 1) return `hier ${time}`;
+  return `${fmtDay(d, d.getFullYear() !== today.getFullYear())} ${time}`;
+}
+
+function fmtDate(value) {
+  const d = parseLocalDate(value);
+  return d ? fmtDay(d, true) : (value || '—');
+}
+
+// Cellule de date : libellé lisible + date exacte en infobulle.
+function dateCell(value) {
+  if (!value) return '—';
+  const exact = esc(String(value).slice(0, 16));
+  return `<time datetime="${exact}" title="${exact}">${esc(fmtDateTime(value))}</time>`;
+}
+
 // Icône par nom de client (même mapping que le filtre Jinja côté serveur).
 const CLIENT_ICON_MAP = [
   [['android tv', 'androidtv', 'apple tv', 'tvos', 'roku', 'tizen',

@@ -148,7 +148,7 @@ function renderRows(rows) {
   }
   tbody.innerHTML = rows.map(r => `
     <tr>
-      <td>${esc((r.started_at || '').slice(0, 16))}</td>
+      <td>${dateCell(r.started_at)}</td>
       ${canView ? `<td><span class="cell-user"><img class="avatar" loading="lazy" alt=""
           src="/image/user/${encodeURIComponent(r.jellyfin_user_id)}"><a
           href="/users/${encodeURIComponent(r.jellyfin_user_id)}">${esc(r.user_name)}</a></span></td>` : ''}

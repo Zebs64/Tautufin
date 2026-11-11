@@ -4,8 +4,9 @@ import re
 from pathlib import Path
 
 from fastapi.templating import Jinja2Templates
+from markupsafe import Markup, escape
 
-from ..labels import collection_label, media_type_label
+from ..labels import collection_label, date_long_label, datetime_label, media_type_label
 
 BASE_DIR = Path(__file__).resolve().parents[2]  # racine du dépôt (jellyfin_stats/web/ -> ..)
 TEMPLATES_DIR = BASE_DIR / "data" / "interfaces" / "default" / "templates"
@@ -193,10 +194,21 @@ def _duration_hm(seconds) -> str:
     return f"{minutes}m"
 
 
+def _datetime_html(value) -> Markup | str:
+    """Date lisible (« hier 22:31 ») avec la date exacte en infobulle."""
+    if not value:
+        return ""
+    exact = escape(str(value)[:16])
+    return Markup(
+        f'<time datetime="{exact}" title="{exact}">{escape(datetime_label(value))}</time>'
+    )
+
+
 def make_templates() -> Jinja2Templates:
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
     templates.env.filters["duration_hm"] = _duration_hm
-    templates.env.filters["dt"] = lambda v: (v or "")[:16]
+    templates.env.filters["dt"] = _datetime_html
+    templates.env.filters["date_long"] = date_long_label
     templates.env.filters["media_icon"] = media_icon
     templates.env.filters["media_type_label"] = media_type_label
     templates.env.filters["collection_label"] = collection_label

@@ -129,7 +129,7 @@
       <td>${fmtDuration(row.duration_seconds)}</td>
       <td>${row.direct_play}</td>
       <td>${row.transcode}</td>
-      <td>${esc((row.last_used || '—').slice(0, 16))}</td>
+      <td>${dateCell(row.last_used)}</td>
     </tr>`).join('');
     state.hidden = true;
     table.hidden = false;

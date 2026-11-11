@@ -55,7 +55,7 @@ btnAnalyze.addEventListener('click', async () => {
     document.getElementById('an-malformed').textContent = r.malformed;
     document.getElementById('an-entries').textContent = r.entries;
     document.getElementById('an-dates').textContent =
-      r.date_min ? `${r.date_min} → ${r.date_max}` : '—';
+      r.date_min ? `${fmtDate(r.date_min)} → ${fmtDate(r.date_max)}` : '—';
     document.getElementById('an-users').innerHTML = r.users.map(u =>
       `<tr><td>${esc(u.username || '(inconnu)')}</td>` +
       `<td><code>${esc(u.user_id)}</code></td><td>${u.entries}</td></tr>`).join('');

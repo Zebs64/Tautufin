@@ -212,7 +212,7 @@
 
   {% if data.busiest_day %}
   <div class="wrapped-fact">
-    Ta plus grosse journée : le <strong>{{ data.busiest_day.day }}</strong>,
+    Ta plus grosse journée : le <strong>{{ data.busiest_day.day | date_long }}</strong>,
     <strong>{{ data.busiest_day.duration | duration_hm }}</strong> de visionnage
     en {{ data.busiest_day.plays }} lecture{{ 's' if data.busiest_day.plays > 1 }}. 🍿
   </div>
