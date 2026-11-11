@@ -34,7 +34,7 @@ sont ailleurs :
 | 4 | ✅ — Filtres de date exploitant les index | Perf | Moyenne | S |
 | 5 | ◐ v0.2.3 — Cache d'images : négatif qui expire (fait), taille bornée (reste) | Robustesse | Moyenne | S |
 | 6 | ✅ v0.2.3 — Mots de passe de plus de 72 octets (bcrypt 5) | Robustesse | Moyenne | S |
-| 7 | Derrière un reverse proxy : IP réelle, cookie `Secure` | Sécurité | Moyenne | S |
+| 7 | ✅ — Derrière un reverse proxy : IP réelle, cookie `Secure` | Sécurité | Moyenne | S |
 | 8 | ✅ v0.2.3 — Servir Chart.js localement | Robustesse | Moyenne | S |
 | 9 | Limiter l'écriture `last_active` à chaque requête | Perf | Faible | S |
 | 10 | ✅ v0.3.0 — Persister les sessions de lecture en cours | Robustesse | **Très haute** | M |
@@ -337,6 +337,10 @@ Le plugin Jellyfin Webhook sait ajouter un en-tête.
 **Fichiers.** `main.py`, `config.py`, README.
 
 ### 7. Derrière un reverse proxy — valeur moyenne, S
+
+**Statut : fait** (`[Web] trusted_proxies` transmis à uvicorn, cookie `Secure`
+déduit du schéma de la requête). Défaut inchangé (`127.0.0.1`) : à renseigner
+derrière Traefik.
 
 **Problème.** Le README propose un déploiement derrière Traefik, mais :
 - le rate limit du login est indexé sur `request.client.host` (`main.py:440`).

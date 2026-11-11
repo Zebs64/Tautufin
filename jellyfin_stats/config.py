@@ -9,7 +9,13 @@ import threading
 logger = logging.getLogger(__name__)
 
 DEFAULTS = {
-    "Web": {"host": "0.0.0.0", "port": "8181"},
+    "Web": {
+        "host": "0.0.0.0",
+        "port": "8181",
+        # Proxys dont les en-têtes X-Forwarded-For / -Proto sont crus (IP ou
+        # réseaux, séparés par des virgules ; « * » = tous). Défaut d'uvicorn.
+        "trusted_proxies": "127.0.0.1",
+    },
     "Jellyfin": {"url": "", "api_key": "", "verify_ssl": "true"},
     "Auth": {
         "session_lifetime": "604800",
@@ -94,6 +100,10 @@ class Config:
             os.replace(tmp, self.path)
 
     # --- Raccourcis typés -------------------------------------------------
+
+    @property
+    def trusted_proxies(self) -> str:
+        return self.get("Web", "trusted_proxies").strip() or "127.0.0.1"
 
     @property
     def jellyfin_url(self) -> str:

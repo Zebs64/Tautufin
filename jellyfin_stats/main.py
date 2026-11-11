@@ -481,6 +481,8 @@ def create_app(config: Config) -> FastAPI:
             max_age=config.session_lifetime,
             httponly=True,
             samesite="lax",
+            # HTTPS direct, ou via un proxy listé dans [Web] trusted_proxies.
+            secure=request.url.scheme == "https",
         )
         logger.info("Login %s réussi : %s (%s)", mode, user.username, user.role)
         return response
@@ -1395,6 +1397,10 @@ def main(argv=None) -> int:
         host=args.host or config.get("Web", "host"),
         port=args.port or config.get_int("Web", "port"),
         log_level="debug" if args.debug else "info",
+        # Derrière un reverse proxy listé ici, l'IP cliente (rate limit du
+        # login) et le schéma HTTPS (cookie Secure) viennent de ses en-têtes.
+        proxy_headers=True,
+        forwarded_allow_ips=config.trusted_proxies,
     )
     return 0
 

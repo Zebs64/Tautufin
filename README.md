@@ -147,6 +147,11 @@ networks:
 
 > Remplacez `tautufin.tondomain.com` par votre domaine réel et adaptez
 > l'entrypoint Traefik si votre configuration n'utilise pas `websecure`.
+>
+> Renseignez aussi `trusted_proxies` dans la section `[Web]` de `config.ini` avec
+> l'IP ou le réseau Docker de Traefik (par exemple `172.18.0.0/16`) : sans cela,
+> le rate limit du login voit l'IP de Traefik pour tout le monde, et le cookie de
+> session n'est pas marqué `Secure`.
 
 </details>
 
@@ -432,7 +437,8 @@ sections :
 | `[Clients]`    | `unknown_as_plex`, `hide_unknown_clients` (lectures importées sans client identifié — ex. historique Plex) |
 | `[Energy]`     | `transcode_watts`, `electricity_price` (base de l'estimation de conso transcodage) |
 | `[UI]`         | `allow_user_library_pages` |
-| `[Web]` / `[Database]` | écoute HTTP, chemin SQLite |
+| `[Web]`        | `host`, `port`, `trusted_proxies` (reverse proxy dont les en-têtes `X-Forwarded-*` sont crus) |
+| `[Database]`   | chemin SQLite |
 
 La plupart de ces réglages sont éditables depuis la page *Réglages*.
 

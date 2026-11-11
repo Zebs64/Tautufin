@@ -6,6 +6,11 @@
 # Adresse et port d'écoute du serveur web.
 host = 0.0.0.0
 port = 8181
+# Reverse proxy (Traefik, Nginx…) dont les en-têtes X-Forwarded-For / -Proto
+# sont crus : IP ou réseaux séparés par des virgules (ex. 172.18.0.0/16), * = tous.
+# Nécessaire pour que le rate limit du login voie l'IP réelle et que le cookie
+# de session soit marqué Secure en HTTPS.
+trusted_proxies = 127.0.0.1
 
 [Jellyfin]
 # URL complète du serveur Jellyfin, ex: http://192.168.1.10:8096
