@@ -26,6 +26,7 @@ from . import (
     database,
     graphs,
     history,
+    image_cache,
     import_playback,
     import_streamystats,
     infer_history,
@@ -301,7 +302,7 @@ def create_app(config: Config) -> FastAPI:
     app.add_middleware(DynamicProxyHeaders, get_trusted_proxies=lambda: config.trusted_proxies)
 
     config_dir = Path(config.path).parent
-    image_cache_dir = config_dir / "cache" / "images"
+    image_cache_dir = image_cache.cache_dir(config)
     branding_dir = config_dir / "branding"
 
     # --- Dépendances d'authentification -----------------------------------
@@ -875,6 +876,12 @@ def create_app(config: Config) -> FastAPI:
     @app.post("/api/settings/verify-db")
     def maintenance_verify(user: CurrentUser = Depends(require_admin)):
         return database.integrity_check()
+
+    @app.post("/api/settings/clear-image-cache")
+    def maintenance_clear_image_cache(user: CurrentUser = Depends(require_admin)):
+        cleared = image_cache.clear(image_cache_dir)
+        logger.info("Cache d'images vidé par %s : %d fichier(s)", user.username, cleared["files"])
+        return cleared
 
     @app.post("/settings/maintenance/reset")
     def maintenance_reset(user: CurrentUser = Depends(require_admin)):

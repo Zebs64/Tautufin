@@ -13,7 +13,7 @@ import re
 import threading
 from datetime import datetime, timedelta, timezone
 
-from . import auth, database
+from . import auth, database, image_cache
 from .activity import TICKS_PER_SECOND, resolution_label
 from .database import now_iso
 from .jellyfin_api import JellyfinError
@@ -554,4 +554,8 @@ class Scheduler:
                     logger.debug("%d sessions HTTP expirées purgées", purged)
             except Exception:
                 logger.exception("Erreur de purge des sessions")
+            try:
+                await asyncio.to_thread(image_cache.trim, image_cache.cache_dir(self.config))
+            except Exception:
+                logger.exception("Erreur de nettoyage du cache d'images")
             await asyncio.sleep(3600)

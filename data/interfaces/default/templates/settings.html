@@ -326,6 +326,15 @@
       <div id="verify-result" class="maint-result"></div>
     </div>
 
+    <div class="card">
+      <h3>Cache d'images</h3>
+      <p class="muted">Affiches et avatars mis en cache depuis Jellyfin, limités à
+        500 Mo (les plus anciens sont supprimés automatiquement). Vider le cache force
+        un nouveau téléchargement des images.</p>
+      <button type="button" class="btn" id="clear-image-cache">Vider le cache d'images</button>
+      <div id="clear-image-cache-result" class="maint-result"></div>
+    </div>
+
     <div class="card card-danger">
       <h3>⚠️ Réinitialiser la base</h3>
       <p class="muted">Vide <strong>tout l'historique de lecture</strong> ainsi que les
@@ -488,6 +497,17 @@ document.getElementById('verify-db').addEventListener('click', async () => {
     ].filter(Boolean);
     out.innerHTML = lines.map(esc).join('<br>');
     out.className = 'maint-result ' + (r.ok ? 'ok' : 'err');
+  } catch (e) { out.textContent = '✗ ' + e.message; out.className = 'maint-result err'; }
+});
+document.getElementById('clear-image-cache').addEventListener('click', async () => {
+  const out = document.getElementById('clear-image-cache-result');
+  out.textContent = 'Nettoyage…';
+  out.className = 'maint-result';
+  try {
+    const r = await postJSON('/api/settings/clear-image-cache', {});
+    const mb = (r.bytes / 1048576).toFixed(1);
+    out.textContent = `✓ ${r.files} fichier(s) supprimé(s), ${mb} Mo libérés`;
+    out.className = 'maint-result ok';
   } catch (e) { out.textContent = '✗ ' + e.message; out.className = 'maint-result err'; }
 });
 </script>

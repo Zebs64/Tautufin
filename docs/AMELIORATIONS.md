@@ -32,7 +32,7 @@ sont ailleurs :
 | 2 | ✅ v0.2.3 — Authentifier `POST /webhook` | Sécurité | Haute | S |
 | 3 | ✅ v0.2.3 — Migrations atomiques | Robustesse | Haute | S |
 | 4 | ✅ v0.3.1 — Filtres de date exploitant les index | Perf | Moyenne | S |
-| 5 | ◐ v0.2.3 — Cache d'images : négatif qui expire (fait), taille bornée (reste) | Robustesse | Moyenne | S |
+| 5 | ✅ v0.2.3 + suite — Cache d'images : négatif qui expire, taille bornée | Robustesse | Moyenne | S |
 | 6 | ✅ v0.2.3 — Mots de passe de plus de 72 octets (bcrypt 5) | Robustesse | Moyenne | S |
 | 7 | ✅ v0.3.1 — Derrière un reverse proxy : IP réelle, cookie `Secure` | Sécurité | Moyenne | S |
 | 8 | ✅ v0.2.3 — Servir Chart.js localement | Robustesse | Moyenne | S |
@@ -169,7 +169,9 @@ catalogues filtrent `removed_at IS NULL`, et l'historique garde le nom.
 
 ### 5. Cache d'images : négatif qui expire, taille bornée — valeur moyenne, S
 
-**Statut : en partie fait en v0.2.3** (le négatif expire après 24 h ; purge par taille et bouton de vidage restent à faire).
+**Statut : fait** (le négatif expire après 24 h depuis la v0.2.3 ; cache borné
+à 500 Mo par la boucle horaire, les plus anciens d'abord, et bouton « Vider le
+cache d'images » dans Maintenance).
 
 **Problème.** `_cached_fetch` (`main.py:829`) écrit un fichier vide quand
 Jellyfin n'a pas d'image (`main.py:839`), et ce cache négatif n'expire jamais.
