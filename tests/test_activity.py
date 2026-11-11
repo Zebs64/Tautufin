@@ -6,8 +6,12 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from jellyfin_stats import database
-from jellyfin_stats.activity import TICKS_PER_SECOND, ActivityMonitor, _wall_iso
+from fastapi.testclient import TestClient
+
+from jellyfin_stats import auth, database
+from jellyfin_stats.activity import TICKS_PER_SECOND, ActivityMonitor, TrackedSession, _wall_iso
+from jellyfin_stats.config import Config
+from jellyfin_stats.main import create_app
 from jellyfin_stats.scheduler import Scheduler
 
 T0 = 1_780_000_000.0
@@ -226,6 +230,58 @@ class ActivityPersistenceTests(unittest.TestCase):
             database.query_one("SELECT series_id, series_name FROM session_history"),
             {"series_id": "series-b", "series_name": "The Office"},
         )
+
+
+class AppLifecycleTests(unittest.TestCase):
+    def test_app_startup_restores_saved_playbacks_into_the_activity_api(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = Config(str(root / "config.ini"))
+            config.set("Database", "path", str(root / "tautufin.db"))
+            config.save()
+            database.init(config.database_path)
+            saved = TrackedSession(
+                key="s1|i1",
+                session_id="s1",
+                jellyfin_user_id="u1",
+                user_name="Alice",
+                item_id="i1",
+                item_type="Movie",
+                item_name="Film",
+                series_id=None,
+                series_name=None,
+                season_number=None,
+                episode_number=None,
+                runtime_seconds=7200,
+                client_name="Jellyfin Web",
+                device_name="PC",
+                ip_address=None,
+                play_method="DirectPlay",
+                video_resolution="1080p",
+                video_codec=None,
+                audio_codec=None,
+                watched_seconds=600.0,
+                last_seen=T0,
+            )
+            database.execute(
+                "INSERT INTO active_sessions (session_key, state, updated_at) VALUES (?, ?, 'x')",
+                (saved.key, saved.to_state()),
+            )
+            admin = auth.CurrentUser("token", "local", "admin", "admin", None)
+            with patch("jellyfin_stats.auth.resolve_session", return_value=admin):
+                with TestClient(create_app(config)) as client:  # lifespan : start/stop
+                    sessions = client.get("/api/activity").json()["sessions"]
+
+            self.assertEqual(
+                [(s["item_name"], s["watched_seconds"]) for s in sessions], [("Film", 600)]
+            )
+            self.assertEqual(
+                [
+                    r["session_key"]
+                    for r in database.query("SELECT session_key FROM active_sessions")
+                ],
+                ["s1|i1"],
+            )
 
 
 if __name__ == "__main__":
