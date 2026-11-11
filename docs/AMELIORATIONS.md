@@ -31,17 +31,17 @@ sont ailleurs :
 | 1 | ✅ v0.2.3 — Révoquer les sessions (suppression, mot de passe, rôle) | Sécurité | Haute | S |
 | 2 | ✅ v0.2.3 — Authentifier `POST /webhook` | Sécurité | Haute | S |
 | 3 | ✅ v0.2.3 — Migrations atomiques | Robustesse | Haute | S |
-| 4 | ✅ — Filtres de date exploitant les index | Perf | Moyenne | S |
+| 4 | ✅ v0.3.1 — Filtres de date exploitant les index | Perf | Moyenne | S |
 | 5 | ◐ v0.2.3 — Cache d'images : négatif qui expire (fait), taille bornée (reste) | Robustesse | Moyenne | S |
 | 6 | ✅ v0.2.3 — Mots de passe de plus de 72 octets (bcrypt 5) | Robustesse | Moyenne | S |
-| 7 | ✅ — Derrière un reverse proxy : IP réelle, cookie `Secure` | Sécurité | Moyenne | S |
+| 7 | ✅ v0.3.1 — Derrière un reverse proxy : IP réelle, cookie `Secure` | Sécurité | Moyenne | S |
 | 8 | ✅ v0.2.3 — Servir Chart.js localement | Robustesse | Moyenne | S |
 | 9 | Limiter l'écriture `last_active` à chaque requête | Perf | Faible | S |
 | 10 | ✅ v0.3.0 — Persister les sessions de lecture en cours | Robustesse | **Très haute** | M |
 | 11 | ✅ v0.3.0 — Stocker `series_id` dans l'historique | Données/Perf | Haute | M |
-| 12 | ✅ — Dédoublonnage tolérant entre imports et capture live | Données | Haute | M |
+| 12 | ✅ v0.3.1 — Dédoublonnage tolérant entre imports et capture live | Données | Haute | M |
 | 13 | ✅ v0.3.0 — Retirer du catalogue les médias supprimés de Jellyfin | Données | Moyenne | M |
-| 14 | ✅ — Contrôle d'origine (CSRF) et logout en POST | Sécurité | Moyenne | S |
+| 14 | ✅ v0.3.1 — Contrôle d'origine (CSRF) et logout en POST | Sécurité | Moyenne | S |
 | 15 | Notifications sortantes (ntfy, Discord, webhook) | Fonctionnel | Haute | M |
 | 16 | Export CSV de l'historique | Fonctionnel | Moyenne | S |
 | 17 | API en lecture seule par jeton (widgets de tableau de bord) | Fonctionnel | Moyenne | M |
@@ -52,8 +52,8 @@ sont ailleurs :
 | 22 | Horodatages locaux naïfs (heure d'été) | Données | Faible | L |
 
 Faits : n° 1, 2, 3, 6 et 8 en v0.2.3 (n° 5 en partie), n° 10, 11 et 13 en
-v0.3.0, n° 4, 7, 12 et 14 ensuite. Prochaine étape conseillée : n° 15
-(notifications).
+v0.3.0, n° 4, 7, 12 et 14 en v0.3.1. Le n° 15 (notifications) est écarté pour
+l'instant : pas de besoin côté utilisateur.
 
 ---
 
@@ -96,7 +96,7 @@ tests sur le cycle arrêt/reprise.
 
 ### 12. Dédoublonnage tolérant entre imports et capture live — valeur haute, M
 
-**Statut : fait, sous une forme restreinte.** Mesure sur la base de prod :
+**Statut : fait en v0.3.1, sous une forme restreinte.** Mesure sur la base de prod :
 aucun doublon import/live, mais 318 paires d'imports à moins de 5 minutes dont
 70 à 85 % de durées différentes, soit des segments d'une même lecture
 (Playback Reporting écrit une ligne par reprise après pause). Une fenêtre
@@ -229,7 +229,7 @@ SQLite d'utiliser les index existants (vérifié avec `EXPLAIN QUERY PLAN`).
 
 ### 4. Filtres de date exploitant les index — valeur moyenne, S
 
-**Statut : fait (prochaine version)**. Résultats identiques sur 70 cas, temps
+**Statut : fait en v0.3.1.** Résultats identiques sur 70 cas, temps
 divisés par 2 à 3 sur une copie de prod multipliée par 50 (~446 000 lectures) :
 historique 64 → 31 ms, graphique annuel 118 → 48 ms, clients 728 → 292 ms,
 Wrapped 301 → 102 ms.
@@ -338,7 +338,7 @@ Le plugin Jellyfin Webhook sait ajouter un en-tête.
 
 ### 7. Derrière un reverse proxy — valeur moyenne, S
 
-**Statut : fait** (`[Web] trusted_proxies` transmis à uvicorn, cookie `Secure`
+**Statut : fait en v0.3.1** (`[Web] trusted_proxies` transmis à uvicorn, cookie `Secure`
 déduit du schéma de la requête). Défaut inchangé (`127.0.0.1`) : à renseigner
 derrière Traefik.
 
@@ -359,7 +359,7 @@ fois les en-têtes du proxy pris en compte.
 
 ### 14. Contrôle d'origine (CSRF) et logout en POST — valeur moyenne, S
 
-**Statut : fait** (middleware sur POST/PUT/PATCH/DELETE : `Origin`, à défaut
+**Statut : fait en v0.3.1** (middleware sur POST/PUT/PATCH/DELETE : `Origin`, à défaut
 `Referer`, comparé à `Host` ou `X-Forwarded-Host` ; `null` refusé ; sans les
 deux en-têtes, requête hors navigateur acceptée ; déconnexion en POST).
 
@@ -401,6 +401,8 @@ graphiques, profils, Wrapped (absent de Tautulli). Ce qui manque et vaut le
 coup :
 
 ### 15. Notifications sortantes — valeur haute, M
+
+**Statut : écarté pour l'instant** (pas de besoin exprimé, novembre 2026).
 
 La fonctionnalité de Tautulli la plus utilisée après l'historique : être
 prévenu d'un début de lecture, d'un transcodage, d'un nouvel utilisateur ou de

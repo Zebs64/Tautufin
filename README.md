@@ -370,6 +370,23 @@ Section *Réglages → Maintenance* (admin) :
   sont conservés** ; les données Jellyfin sont repeuplées à la synchro suivante.
   Action irréversible — exportez un backup d'abord.
 
+### Mise à niveau vers v0.3.1
+
+Sans changement de schéma : l'image `v0.3.1` démarre sur une base v0.3.0, et un
+retour à v0.3.0 reste possible.
+
+- **Derrière un reverse proxy** : renseigner `trusted_proxies` dans `[Web]` (IP
+  ou réseau Docker du proxy, ex. `172.18.0.0/16`). Le rate limit du login voit
+  alors l'IP réelle de chaque client, et le cookie de session est marqué
+  `Secure` en HTTPS. Sans ce réglage, le comportement est celui de la v0.3.0.
+- **Protection CSRF** : un POST venant d'une autre origine est refusé (403). Le
+  proxy doit transmettre l'en-tête `Host` d'origine (Traefik le fait par
+  défaut ; Nginx : `proxy_set_header Host $host;`). La déconnexion passe en POST.
+- **Imports** : une lecture déjà capturée en live (±2 min) n'est plus
+  réimportée depuis Playback Reporting ou Streamystats.
+- **Performances** : les filtres de date (historique, vues par année, Wrapped)
+  utilisent l'index ; 2 à 3 fois plus rapides sur un gros historique.
+
 ### Mise à niveau vers v0.3.0
 
 L'image `v0.3.0` démarre sur une base v0.2.x : le schéma passe en **version 10**
