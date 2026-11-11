@@ -185,8 +185,8 @@ def sync_libraries_and_items(
                          season_number, episode_number, year, genres,
                          runtime_seconds, video_resolution, video_codec,
                          audio_codec, people, added_at, updated_at,
-                         source_etag)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         source_etag, series_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(item_id) DO UPDATE SET
                         library_id = excluded.library_id,
                         name = excluded.name,
@@ -203,7 +203,8 @@ def sync_libraries_and_items(
                         people = excluded.people,
                         added_at = excluded.added_at,
                         updated_at = excluded.updated_at,
-                        source_etag = excluded.source_etag
+                        source_etag = excluded.source_etag,
+                        series_id = excluded.series_id
                     WHERE items.library_id IS NOT excluded.library_id
                        OR items.name IS NOT excluded.name
                        OR items.type IS NOT excluded.type
@@ -219,6 +220,7 @@ def sync_libraries_and_items(
                        OR items.people IS NOT excluded.people
                        OR items.added_at IS NOT excluded.added_at
                        OR items.source_etag IS NOT excluded.source_etag
+                       OR items.series_id IS NOT excluded.series_id
                     """,
                     (
                         item["Id"],
@@ -238,6 +240,7 @@ def sync_libraries_and_items(
                         (item.get("DateCreated") or "").replace("T", " ")[:19] or None,
                         now_iso(),
                         item["Etag"],
+                        item.get("SeriesId"),
                     ),
                 )
                 total_changed += changed.rowcount
@@ -365,6 +368,12 @@ def sync_all(api, report=None, force_full: bool = False) -> dict:
             health["items_enriched"],
             health["items_changed"],
         )
+        try:
+            linked = database.backfill_history_series()
+            if linked:
+                logger.info("%d lecture(s) d'épisode rattachée(s) à leur série", linked)
+        except Exception:
+            logger.exception("Rattachement des lectures à leur série impossible")
         return {
             "users": users,
             "libraries": health["libraries"],

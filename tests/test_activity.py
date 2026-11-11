@@ -210,6 +210,23 @@ class ActivityPersistenceTests(unittest.TestCase):
 
         self.assertEqual(self._active_keys(), ["s1|i1"])
 
+    def test_live_episode_records_its_series_id(self):
+        monitor = ActivityMonitor(self.config)
+        episode = playing(item_id="ep-1")
+        episode["NowPlayingItem"].update(
+            Type="Episode", SeriesId="series-b", SeriesName="The Office"
+        )
+        self.api.sessions = [episode]
+        self._poll(monitor, T0)
+        self._poll(monitor, T0 + 15)
+        self.api.sessions = []
+        self._poll(monitor, T0 + 15 + 90)
+
+        self.assertEqual(
+            database.query_one("SELECT series_id, series_name FROM session_history"),
+            {"series_id": "series-b", "series_name": "The Office"},
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

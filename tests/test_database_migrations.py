@@ -95,6 +95,9 @@ class MigrationTests(unittest.TestCase):
             for row in snapshot["items"]:
                 row.pop("source_date_last_refreshed", None)
                 row.pop("source_etag", None)
+                row.pop("series_id", None)
+            for row in snapshot["session_history"]:
+                row.pop("series_id", None)
 
         self.assertEqual(
             database.query_one("SELECT version FROM schema_version"),

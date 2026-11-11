@@ -208,6 +208,18 @@ MIGRATIONS: list[tuple[int, list[str]]] = [
             """,
         ],
     ),
+    (
+        9,
+        [
+            # Série d'un épisode par identifiant, et non plus par nom (deux
+            # séries peuvent porter le même nom).
+            "ALTER TABLE items ADD COLUMN series_id TEXT",
+            "ALTER TABLE session_history ADD COLUMN series_id TEXT",
+            # La synchro saute les ETag inchangés : forcer un réenrichissement
+            # des épisodes pour remplir items.series_id au prochain cycle.
+            "UPDATE items SET source_etag = NULL WHERE type = 'Episode'",
+        ],
+    ),
 ]
 
 
@@ -417,6 +429,23 @@ def integrity_check() -> dict:
         "counts": counts,
         "size_bytes": size,
     }
+
+
+def backfill_history_series() -> int:
+    """Renseigne ``session_history.series_id`` depuis le catalogue pour les
+    épisodes qui ne l'ont pas encore (lectures antérieures à la v0.3.0,
+    imports). Idempotent ; renvoie le nombre de lignes complétées."""
+    return execute(
+        """
+        UPDATE session_history
+        SET series_id = (
+            SELECT i.series_id FROM items i WHERE i.item_id = session_history.item_id
+        )
+        WHERE series_id IS NULL
+          AND item_type = 'Episode'
+          AND item_id IN (SELECT item_id FROM items WHERE series_id IS NOT NULL)
+        """
+    )
 
 
 def reset_data() -> dict:

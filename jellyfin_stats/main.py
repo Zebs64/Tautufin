@@ -897,13 +897,16 @@ def create_app(config: Config) -> FastAPI:
             # Épisode sans image propre : tenter le poster de sa série.
             series = database.query_one(
                 """
-                SELECT s.item_id AS id FROM items e
-                JOIN items s ON s.type = 'Series' AND s.name = e.series_name
-                WHERE e.item_id = ? LIMIT 1
+                SELECT COALESCE(
+                    e.series_id,
+                    (SELECT s.item_id FROM items s
+                     WHERE s.type = 'Series' AND s.name = e.series_name LIMIT 1)
+                ) AS id
+                FROM items e WHERE e.item_id = ?
                 """,
                 (item_id,),
             )
-            if series:
+            if series and series["id"]:
                 data = _cached_fetch(
                     f"item_{series['id']}_{w}", lambda: api.get_image(series["id"], max_width=w)
                 )

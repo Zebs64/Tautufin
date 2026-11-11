@@ -38,7 +38,7 @@ sont ailleurs :
 | 8 | ✅ v0.2.3 — Servir Chart.js localement | Robustesse | Moyenne | S |
 | 9 | Limiter l'écriture `last_active` à chaque requête | Perf | Faible | S |
 | 10 | ✅ v0.3.0 — Persister les sessions de lecture en cours | Robustesse | **Très haute** | M |
-| 11 | Stocker `series_id` dans l'historique | Données/Perf | Haute | M |
+| 11 | ✅ v0.3.0 — Stocker `series_id` dans l'historique | Données/Perf | Haute | M |
 | 12 | Dédoublonnage tolérant entre imports et capture live | Données | Haute | M |
 | 13 | Retirer du catalogue les médias supprimés de Jellyfin | Données | Moyenne | M |
 | 14 | Contrôle d'origine (CSRF) et logout en POST | Sécurité | Moyenne | S |
@@ -229,6 +229,10 @@ de l'historique. Le format texte `AAAA-MM-JJ HH:MM:SS` se compare correctement.
 **Fichiers.** `history.py`, `graphs.py`, `clients.py`, `wrapped.py`.
 
 ### 11. Stocker `series_id` dans l'historique — valeur haute, M
+
+**Statut : fait en v0.3.0** (`items.series_id` rempli par la synchro, épisodes
+réenrichis une fois, rattachement de l'historique après chaque synchro ; repli
+par nom pour les lectures dont le média a disparu).
 
 **Problème.** La vignette de chaque ligne d'historique cherche la série par son
 **nom** (`history.py:78`), via une sous-requête corrélée qui parcourt toute la

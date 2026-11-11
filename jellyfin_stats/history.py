@@ -72,8 +72,10 @@ def get_history(
                sh.percent_complete, sh.client_name, sh.device_name,
                sh.ip_address, sh.play_method, sh.video_resolution, sh.source,
                -- Vignette : pour un épisode, le poster de la série plutôt que
-               -- l'image de l'épisode ; repli sur le média lui-même.
+               -- l'image de l'épisode (par identifiant, sinon par nom pour les
+               -- lectures pas encore rattachées) ; repli sur le média.
                COALESCE(
+                   sh.series_id,
                    (SELECT i.item_id FROM items i
                     WHERE i.type = 'Series' AND i.name = sh.series_name LIMIT 1),
                    sh.item_id) AS image_id

@@ -413,12 +413,12 @@ class ActivityMonitor:
                 """
                 INSERT OR IGNORE INTO session_history
                     (session_key, source, jellyfin_user_id, user_name, item_id,
-                     item_type, item_name, series_name, season_number, episode_number,
-                     library_id, library_name, started_at, stopped_at, play_duration,
-                     runtime_seconds, percent_complete, client_name, device_name,
-                     ip_address, play_method, video_resolution, video_codec,
-                     audio_codec, genres)
-                VALUES (?, 'live', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                     item_type, item_name, series_id, series_name, season_number,
+                     episode_number, library_id, library_name, started_at, stopped_at,
+                     play_duration, runtime_seconds, percent_complete, client_name,
+                     device_name, ip_address, play_method, video_resolution,
+                     video_codec, audio_codec, genres)
+                VALUES (?, 'live', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                         ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
@@ -428,6 +428,7 @@ class ActivityMonitor:
                     tracked.item_id,
                     tracked.item_type,
                     tracked.item_name,
+                    tracked.series_id,
                     tracked.series_name,
                     tracked.season_number,
                     tracked.episode_number,

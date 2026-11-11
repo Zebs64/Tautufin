@@ -69,6 +69,22 @@ class NegativeImageCacheTests(unittest.TestCase):
         self.assertEqual(calls, 0)
         self.assertEqual(response.content, PNG)
 
+    def test_episode_without_image_uses_its_series_by_id(self):
+        series_id = "fedcba9876543210fedcba9876543210"
+        database.execute(
+            "INSERT INTO items (item_id, type, name, series_name, series_id) VALUES "
+            "(?, 'Episode', 'Pilot', 'The Office', ?)",
+            (ITEM_ID, series_id),
+        )
+
+        def fake_image(item_id, **kwargs):
+            return (PNG, "image/png") if item_id == series_id else None
+
+        with patch("jellyfin_stats.jellyfin_api.JellyfinAPI.get_image", side_effect=fake_image):
+            response = self.client.get(f"/image/item/{ITEM_ID}")
+
+        self.assertEqual(response.content, PNG)
+
 
 if __name__ == "__main__":
     unittest.main()

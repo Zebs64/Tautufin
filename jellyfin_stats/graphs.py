@@ -399,8 +399,8 @@ def recently_watched(days=None, user_id=None, limit: int = 10) -> list[dict]:
     where, params = _base_where(days, user_id)
     rows = database.query(
         f"""
-        SELECT item_type, item_name, series_name, season_number, episode_number,
-               item_id, started_at AS last_watch, user_name
+        SELECT item_type, item_name, series_id, series_name, season_number,
+               episode_number, item_id, started_at AS last_watch, user_name
         FROM session_history
         WHERE {where} AND item_type IN ('Movie', 'Episode')
         ORDER BY started_at DESC LIMIT 300
@@ -427,9 +427,13 @@ def recently_watched(days=None, user_id=None, limit: int = 10) -> list[dict]:
                 "_series": r["series_name"] if is_episode else None,
             }
         )
+        if is_episode and r["series_id"]:
+            out[-1]["image_id"] = r["series_id"]
+            out[-1]["_series"] = None
         if len(out) >= limit:
             break
-    # Résout le poster de la série pour les épisodes (un seul lookup par série).
+    # Épisodes pas encore rattachés à leur série : poster retrouvé par le nom
+    # (un seul lookup par série).
     for o in out:
         series = o.pop("_series")
         if not series:
