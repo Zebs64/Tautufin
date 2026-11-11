@@ -12,6 +12,7 @@ Toutes les fonctions retournent ``{"categories": [...], "series":
 from datetime import date, timedelta
 
 from . import database
+from .labels import play_method_label
 
 WEEKDAYS_FR = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
 
@@ -184,14 +185,19 @@ def by_client(
 
 
 def by_play_method(days=30, metric: str = "plays", user_id=None, year=None) -> dict:
-    return _grouped(
+    # Méthode absente : NULL (capture) ou chaîne vide (imports) -> « Inconnu ».
+    data = _grouped(
         days,
         metric,
         user_id,
-        "COALESCE(play_method, 'Inconnu')",
+        "COALESCE(NULLIF(play_method, ''), 'Inconnu')",
         "Par méthode de lecture",
         year=year,
     )
+    data["categories"] = [
+        "Inconnu" if c == "Inconnu" else play_method_label(c) for c in data["categories"]
+    ]
+    return data
 
 
 def transcode_seconds(days=30, user_id=None, year=None) -> int:

@@ -153,7 +153,7 @@ function renderRows(rows) {
           src="/image/user/${encodeURIComponent(r.jellyfin_user_id)}"><a
           href="/users/${encodeURIComponent(r.jellyfin_user_id)}">${esc(r.user_name)}</a></span></td>` : ''}
       <td>${mediaCell(r)}</td>
-      <td>${esc(r.item_type || '—')}</td>
+      <td>${esc(r.item_type_label || r.item_type || '—')}</td>
       <td>${fmtDuration(r.play_duration)}</td>
       <td>${r.percent_complete != null ? Math.round(r.percent_complete) + '%' : '—'}</td>
       <td>${clientCell(r)}</td>

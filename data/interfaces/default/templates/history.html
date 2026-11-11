@@ -20,7 +20,7 @@
   <label>Type
     <select name="media_type">
       <option value="">Tous</option>
-      {% for t in media_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+      {% for t in media_types %}<option value="{{ t }}">{{ t | media_type_label }}</option>{% endfor %}
     </select>
   </label>
   <label>Bibliothèque

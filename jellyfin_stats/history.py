@@ -6,6 +6,7 @@ paramètre client.
 """
 
 from . import database
+from .labels import media_type_label
 
 # Tri whitelisté : clé exposée à l'API → colonne SQL.
 SORT_COLUMNS = {
@@ -102,6 +103,8 @@ def get_history(
         """,
         params + [page_size, (page - 1) * page_size],
     )
+    for row in rows:
+        row["item_type_label"] = media_type_label(row["item_type"])
     return {"total": total, "page": page, "page_size": page_size, "rows": rows}
 
 

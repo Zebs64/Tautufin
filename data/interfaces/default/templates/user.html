@@ -38,7 +38,7 @@
     <h3>Par type de média</h3>
     <ul class="kv">
       {% for t in profile.by_type %}
-      <li><span>{{ t.item_type | media_icon }} {{ t.item_type }}</span>
+      <li><span>{{ t.item_type | media_icon }} {{ t.item_type | media_type_label }}</span>
           <b>{{ t.plays }} ({{ t.duration | duration_hm }})</b></li>
       {% else %}<li class="muted">Aucune donnée</li>{% endfor %}
     </ul>

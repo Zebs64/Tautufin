@@ -7,7 +7,7 @@
     <div class="detail-icon">{{ library.collection_type | library_icon }}</div>
     <div class="detail-hero-body">
       <h1>{{ library.name }}</h1>
-      <p class="detail-meta">{{ library.collection_type or 'bibliothèque' }}</p>
+      <p class="detail-meta">{{ library.collection_type | collection_label }}</p>
       <div class="kpi-row">
         <div class="kpi"><span class="kpi-val">{{ library.item_count }}</span>
           <span class="kpi-lab">Éléments</span></div>

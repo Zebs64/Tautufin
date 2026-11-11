@@ -5,6 +5,8 @@ from pathlib import Path
 
 from fastapi.templating import Jinja2Templates
 
+from ..labels import collection_label, media_type_label
+
 BASE_DIR = Path(__file__).resolve().parents[2]  # racine du dépôt (jellyfin_stats/web/ -> ..)
 TEMPLATES_DIR = BASE_DIR / "data" / "interfaces" / "default" / "templates"
 STATIC_DIR = BASE_DIR / "data" / "interfaces" / "default" / "static"
@@ -196,6 +198,8 @@ def make_templates() -> Jinja2Templates:
     templates.env.filters["duration_hm"] = _duration_hm
     templates.env.filters["dt"] = lambda v: (v or "")[:16]
     templates.env.filters["media_icon"] = media_icon
+    templates.env.filters["media_type_label"] = media_type_label
+    templates.env.filters["collection_label"] = collection_label
     templates.env.filters["library_icon"] = library_icon
     templates.env.filters["client_icon"] = client_icon
     templates.env.filters["client_logo"] = client_logo

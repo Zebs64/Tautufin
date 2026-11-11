@@ -15,7 +15,7 @@
         {{ m.name }}
       </h1>
       <p class="detail-meta">
-        {{ m.type | media_icon }} {{ m.type }}{% if m.year %} · {{ m.year }}{% endif %}
+        {{ m.type | media_icon }} {{ m.type | media_type_label }}{% if m.year %} · {{ m.year }}{% endif %}
         {% if m.library_name %} · <a href="/libraries/{{ m.library_id }}">{{ m.library_name }}</a>{% endif %}
         {% if m.runtime_seconds %} · {{ m.runtime_seconds | duration_hm }}{% endif %}
         {% if m.video_resolution %} · {{ m.video_resolution }}{% endif %}
