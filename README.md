@@ -482,7 +482,13 @@ data/interfaces/default/ # templates Jinja2 + static (thème sombre)
 
 Stack : **FastAPI** + **SQLite** (migrations ordonnées appliquées au démarrage) +
 **Jinja2** + **Chart.js**. Les sessions HTTP vivent côté serveur ; le cookie ne
-contient qu'un token signé (`itsdangerous`), `HttpOnly` + `SameSite=Lax`.
+contient qu'un token signé (`itsdangerous`), `HttpOnly` + `SameSite=Lax`, et
+`Secure` en HTTPS. Les requêtes qui modifient l'état (POST…) envoyées par un
+navigateur sont refusées si leur origine ne correspond pas à l'hôte servi
+(protection CSRF, y compris depuis un autre sous-domaine). Derrière un reverse
+proxy, celui-ci doit donc transmettre l'en-tête `Host` d'origine (Traefik le
+fait par défaut ; avec Nginx : `proxy_set_header Host $host;` ou
+`X-Forwarded-Host`).
 
 ### Endpoints Jellyfin utilisés
 

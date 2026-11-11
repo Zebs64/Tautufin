@@ -38,7 +38,9 @@
       {% else %}👤{% endif %}
       {{ user.username }}{% if user.is_admin %} <span class="badge badge-admin">admin</span>{% endif %}
     </a>
-    <a href="/logout">Déconnexion</a>
+    <form method="post" action="/logout" class="nav-logout">
+      <button type="submit">Déconnexion</button>
+    </form>
   </div>
 </nav>
 {% endif %}

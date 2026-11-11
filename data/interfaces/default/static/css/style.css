@@ -67,6 +67,13 @@ code {
 }
 .nav-links a:hover { color: var(--text); background: var(--bg-input-alpha); text-decoration: none; }
 .nav-links a.active { color: #fff; background: var(--accent-alpha); }
+/* Déconnexion : formulaire POST (protection CSRF) présenté comme un lien. */
+.nav-logout { margin: 0; }
+.nav-logout button {
+  font: inherit; color: var(--text-muted); background: none; border: 0; cursor: pointer;
+  padding: 8px 14px; margin: 8px 0; border-radius: 3em; transition: background .2s, color .2s;
+}
+.nav-logout button:hover { color: var(--text); background: var(--bg-input-alpha); }
 .nav-spacer { flex: 1; }
 .nav-user { color: var(--text) !important; display: inline-flex; align-items: center; gap: 8px; }
 .nav-user .avatar { width: 26px; height: 26px; }
@@ -76,7 +83,8 @@ code {
   .nav-toggle-label { display: block; margin-left: auto; padding: 12px; cursor: pointer; font-size: 1.3em; }
   .nav-links { display: none; flex-direction: column; align-items: stretch; width: 100%; padding-bottom: 10px; }
   .nav-toggle:checked ~ .nav-links { display: flex; }
-  .nav-links a { margin: 2px 0; }
+  .nav-links a, .nav-logout button { margin: 2px 0; }
+  .nav-logout button { width: 100%; text-align: left; }
 }
 
 /* --- Layout ---------------------------------------------------------------- */

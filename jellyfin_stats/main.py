@@ -11,6 +11,7 @@ import threading
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import urlparse
 
 import uvicorn
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
@@ -164,6 +165,8 @@ def client_logo(client_name: str) -> str:
     return f"/static/img/clients/{client_slug(client_name)}.svg"
 
 
+# Méthodes qui modifient l'état : soumises au contrôle d'origine (CSRF).
+UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 # Durée de vie d'une absence d'image mise en cache (fichier vide).
 NEGATIVE_IMAGE_CACHE_SECONDS = 24 * 3600
 # Identifiants Jellyfin (GUID avec ou sans tirets) — borne aussi les noms de
@@ -266,6 +269,31 @@ def create_app(config: Config) -> FastAPI:
         openapi_url=None,
     )
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+    @app.middleware("http")
+    async def reject_cross_origin_writes(request: Request, call_next):
+        """Protection CSRF : une requête qui modifie l'état et vient d'un
+        navigateur (en-tête Origin, à défaut Referer) doit viser le même hôte.
+        SameSite=Lax ne couvre pas les autres sous-domaines du même site,
+        courants en auto-hébergement. Sans Origin ni Referer (curl, plugin
+        Webhook), la requête n'émane pas d'un navigateur et passe."""
+        if request.method in UNSAFE_METHODS:
+            source = request.headers.get("origin") or request.headers.get("referer")
+            if source is not None:
+                allowed = {
+                    request.headers.get("host", ""),
+                    request.headers.get("x-forwarded-host", ""),
+                } - {""}
+                if source == "null" or urlparse(source).netloc not in allowed:
+                    logger.warning(
+                        "Requête %s %s refusée : origine %r, hôte %r",
+                        request.method,
+                        request.url.path,
+                        source,
+                        sorted(allowed),
+                    )
+                    return JSONResponse({"detail": "Origine de la requête refusée"}, 403)
+        return await call_next(request)
 
     config_dir = Path(config.path).parent
     image_cache_dir = config_dir / "cache" / "images"
@@ -487,7 +515,7 @@ def create_app(config: Config) -> FastAPI:
         logger.info("Login %s réussi : %s (%s)", mode, user.username, user.role)
         return response
 
-    @app.get("/logout")
+    @app.post("/logout")
     def logout(request: Request):
         user = get_user(request)
         if user:

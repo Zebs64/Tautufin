@@ -41,7 +41,7 @@ sont ailleurs :
 | 11 | ✅ v0.3.0 — Stocker `series_id` dans l'historique | Données/Perf | Haute | M |
 | 12 | ✅ — Dédoublonnage tolérant entre imports et capture live | Données | Haute | M |
 | 13 | ✅ v0.3.0 — Retirer du catalogue les médias supprimés de Jellyfin | Données | Moyenne | M |
-| 14 | Contrôle d'origine (CSRF) et logout en POST | Sécurité | Moyenne | S |
+| 14 | ✅ — Contrôle d'origine (CSRF) et logout en POST | Sécurité | Moyenne | S |
 | 15 | Notifications sortantes (ntfy, Discord, webhook) | Fonctionnel | Haute | M |
 | 16 | Export CSV de l'historique | Fonctionnel | Moyenne | S |
 | 17 | API en lecture seule par jeton (widgets de tableau de bord) | Fonctionnel | Moyenne | M |
@@ -52,8 +52,8 @@ sont ailleurs :
 | 22 | Horodatages locaux naïfs (heure d'été) | Données | Faible | L |
 
 Faits : n° 1, 2, 3, 6 et 8 en v0.2.3 (n° 5 en partie), n° 10, 11 et 13 en
-v0.3.0, n° 4 et 12 ensuite. Prochaines étapes conseillées : n° 15
-(notifications), 7 (reverse proxy) et 14 (contrôle d'origine).
+v0.3.0, n° 4, 7, 12 et 14 ensuite. Prochaine étape conseillée : n° 15
+(notifications).
 
 ---
 
@@ -358,6 +358,10 @@ fois les en-têtes du proxy pris en compte.
 **Fichiers.** `main.py`, `config.py`, README.
 
 ### 14. Contrôle d'origine (CSRF) et logout en POST — valeur moyenne, S
+
+**Statut : fait** (middleware sur POST/PUT/PATCH/DELETE : `Origin`, à défaut
+`Referer`, comparé à `Host` ou `X-Forwarded-Host` ; `null` refusé ; sans les
+deux en-têtes, requête hors navigateur acceptée ; déconnexion en POST).
 
 **Problème.** `SameSite=Lax` bloque l'envoi du cookie sur un POST venant d'un
 **autre site**, mais pas d'un autre sous-domaine du même site. Or c'est le cas
