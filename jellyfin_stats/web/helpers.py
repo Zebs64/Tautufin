@@ -1,6 +1,7 @@
 """Constantes et utilitaires partagés par les routes (icônes, MIME, CSV, templates)."""
 
 import re
+import zlib
 from pathlib import Path
 
 from fastapi.templating import Jinja2Templates
@@ -165,6 +166,36 @@ BRANDING_HEADERS = {
     "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; img-src data:",
     "X-Content-Type-Options": "nosniff",
 }
+
+
+# Avatar par défaut : initiale sur une pastille de couleur stable par
+# utilisateur (teintes lisibles sur le thème sombre, texte blanc).
+AVATAR_COLORS = (
+    "#775bf4",
+    "#0b8fc4",
+    "#9b4fb5",
+    "#2e8f5e",
+    "#c2721a",
+    "#c8474e",
+    "#3f6fd0",
+    "#b23f73",
+    "#0f8a7f",
+    "#7a6a2e",
+)
+
+
+def initial_avatar_svg(name: str | None, key: str) -> str:
+    """SVG rond avec la première lettre (ou chiffre) de ``name`` ; la couleur
+    dépend de ``key`` (identifiant), pas du nom, pour rester stable."""
+    initial = next((c for c in (name or "") if c.isalnum()), "?").upper()
+    color = AVATAR_COLORS[zlib.crc32(key.encode()) % len(AVATAR_COLORS)]
+    return (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">'
+        f'<circle cx="50" cy="50" r="50" fill="{color}"/>'
+        '<text x="50" y="50" dy=".35em" text-anchor="middle" fill="#fff"'
+        ' font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif"'
+        f' font-size="46" font-weight="600">{escape(initial)}</text></svg>'
+    )
 
 
 def _sniff_mime(data: bytes) -> str:

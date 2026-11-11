@@ -18,6 +18,7 @@ from .helpers import (
     NEGATIVE_IMAGE_CACHE_SECONDS,
     STATIC_DIR,
     _sniff_mime,
+    initial_avatar_svg,
 )
 
 
@@ -105,4 +106,15 @@ def register(app: FastAPI, context) -> None:
         data = None
         if JELLYFIN_ID_RE.match(user_id):
             data = _cached_fetch(f"user_{user_id}", lambda: api.get_user_image(user_id))
+        if data is None:
+            # Pas d'avatar Jellyfin : initiale de l'utilisateur s'il est connu.
+            known = database.query_one(
+                "SELECT username FROM users WHERE jellyfin_user_id = ?", (user_id,)
+            )
+            if known:
+                return Response(
+                    initial_avatar_svg(known["username"], user_id),
+                    media_type="image/svg+xml",
+                    headers=IMAGE_CACHE_HEADERS,
+                )
         return _image_response(data, "avatar-placeholder.svg")

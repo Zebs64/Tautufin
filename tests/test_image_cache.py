@@ -46,6 +46,20 @@ class NegativeImageCacheTests(unittest.TestCase):
             response = self.client.get(f"/image/item/{ITEM_ID}?fallback={ITEM_ID}")
         return response, get_image.call_count
 
+    def test_user_without_avatar_gets_a_stable_initial(self):
+        database.execute(
+            "INSERT INTO users (jellyfin_user_id, username) VALUES (?, ' émilie')", (ITEM_ID,)
+        )
+        with patch("jellyfin_stats.jellyfin_api.JellyfinAPI.get_user_image", return_value=None):
+            first = self.client.get(f"/image/user/{ITEM_ID}")
+            again = self.client.get(f"/image/user/{ITEM_ID}")
+            unknown = self.client.get("/image/user/fedcba9876543210fedcba9876543210")
+
+        self.assertEqual(first.headers["content-type"], "image/svg+xml")
+        self.assertIn(">É</text>", first.text)
+        self.assertEqual(first.text, again.text)  # même couleur à chaque fois
+        self.assertNotIn("<text", unknown.text)  # utilisateur inconnu : silhouette
+
     def test_missing_image_is_cached_then_refetched_once_expired(self):
         first, calls = self._get(None)
         self.assertEqual(calls, 1)

@@ -17,8 +17,7 @@ from .labels import media_type_label
 ESTIMATE_HINTS = {
     "infer": "Lecture estimée : reconstituée depuis le statut « Lu » de Jellyfin."
     " Date et durée sont approximatives.",
-    "import": "Lecture estimée : reconstituée par Streamystats."
-    " Date et durée sont approximatives.",
+    "import": "Lecture estimée : reconstituée par Streamystats. Date et durée sont approximatives.",
 }
 
 # Tri whitelisté : clé exposée à l'API → colonne SQL (export, par segment).
