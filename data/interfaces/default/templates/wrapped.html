@@ -2,7 +2,28 @@
 {% block title %}Wrapped {{ selected_year or '' }} — Tautufin{% endblock %}
 {% block content %}
 
-{% if not years %}
+{% if show_upcoming %}
+<div class="wrapped">
+  <div class="wrapped-hero">
+    <div class="wrapped-hero-top">
+      <a class="btn btn-sm wrapped-back" href="/users/{{ jellyfin_user_id }}">← Profil</a>
+      {% if years %}
+      <form method="get" class="wrapped-year-form">
+        <select name="year" onchange="this.form.submit()" class="wrapped-year">
+          <option value="" selected disabled>Années précédentes</option>
+          {% for y in years %}<option value="{{ y }}">Année {{ y }}</option>{% endfor %}
+        </select>
+      </form>
+      {% endif %}
+    </div>
+    <p class="wrapped-eyebrow">Rétrospective</p>
+    <h1>{{ upcoming_year }}</h1>
+    <p class="wrapped-sub">🎁 Le Wrapped {{ upcoming_year }} de <strong>{{ username or jellyfin_user_id }}</strong>
+      sera disponible le <strong>{{ opening_label }}</strong>. Patience !</p>
+  </div>
+</div>
+
+{% elif not years %}
 <div class="page-head">
   <h1>✨ Wrapped</h1>
   <a class="btn btn-sm" href="/users/{{ jellyfin_user_id }}">← Profil</a>

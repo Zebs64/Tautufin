@@ -127,8 +127,14 @@ def register(app: FastAPI, context) -> None:
             raise HTTPException(
                 status_code=403, detail="Vous ne pouvez consulter que votre propre profil."
             )
-        years = wrapped_mod.user_years(jellyfin_user_id)
-        selected = year if year in years else (years[0] if years else None)
+        years = wrapped_mod.available_years(jellyfin_user_id)
+        upcoming = wrapped_mod.upcoming_year(jellyfin_user_id)
+        # Année demandée pas encore ouverte (ou rien d'autre à montrer) :
+        # écran « rendez-vous » au lieu des chiffres.
+        show_upcoming = upcoming is not None and (year == upcoming or not years)
+        selected = (
+            None if show_upcoming else (year if year in years else (years[0] if years else None))
+        )
         data = wrapped_mod.build(jellyfin_user_id, selected) if selected else None
         if (
             data
@@ -147,6 +153,9 @@ def register(app: FastAPI, context) -> None:
             years=years,
             selected_year=selected,
             data=data,
+            upcoming_year=upcoming,
+            show_upcoming=show_upcoming,
+            opening_label=wrapped_mod.opening_label(upcoming) if upcoming else None,
         )
 
     @app.get("/profile")

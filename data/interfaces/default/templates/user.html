@@ -61,11 +61,22 @@
       {% endfor %}
     </ul>
   </div>
-  <a class="card card-cta" href="/users/{{ profile.jellyfin_user_id }}/wrapped">
+  {% if profile.wrapped_latest or not profile.wrapped_upcoming %}
+  <a class="card card-cta" href="/users/{{ profile.jellyfin_user_id }}/wrapped{% if profile.wrapped_latest %}?year={{ profile.wrapped_latest }}{% endif %}">
     <h3>✨ Wrapped</h3>
     <p class="muted">La rétrospective de {{ profile.username or 'l’utilisateur' }}, année par année.</p>
-    <span class="card-cta-go">Voir le Wrapped →</span>
+    {% if profile.wrapped_upcoming %}
+    <p class="muted">🎁 Wrapped {{ profile.wrapped_upcoming }} : rendez-vous le {{ profile.wrapped_opening }}.</p>
+    {% endif %}
+    <span class="card-cta-go">Voir le Wrapped{% if profile.wrapped_latest %} {{ profile.wrapped_latest }}{% endif %} →</span>
   </a>
+  {% else %}
+  <div class="card card-cta">
+    <h3>✨ Wrapped</h3>
+    <p class="muted">La rétrospective de {{ profile.username or 'l’utilisateur' }}, année par année.</p>
+    <p>🎁 Wrapped {{ profile.wrapped_upcoming }} : rendez-vous le <strong>{{ profile.wrapped_opening }}</strong>.</p>
+  </div>
+  {% endif %}
 </div>
 
 <h2>Habitudes de visionnage <span class="muted">(tout l'historique)</span></h2>

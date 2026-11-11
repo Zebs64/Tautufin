@@ -27,6 +27,38 @@ MONTHS_FR = [
 ]
 
 
+def _today() -> date:
+    """Date du jour (heure locale du serveur, variable TZ) ; isolée pour les tests."""
+    return date.today()
+
+
+def opening_date(year: int) -> date:
+    """Le Wrapped d'une année s'ouvre le 31 décembre de cette année : avant,
+    il gâcherait la surprise (les lectures du 31 s'y ajoutent ensuite)."""
+    return date(year, 12, 31)
+
+
+def opening_label(year: int) -> str:
+    d = opening_date(year)
+    return f"{d.day} {MONTHS_FR[d.month - 1].lower()}"
+
+
+def is_open(year: int) -> bool:
+    return _today() >= opening_date(year)
+
+
+def available_years(jellyfin_user_id: str) -> list[int]:
+    """Années de l'historique dont le Wrapped est ouvert, la plus récente d'abord."""
+    return [y for y in user_years(jellyfin_user_id) if is_open(y)]
+
+
+def upcoming_year(jellyfin_user_id: str) -> int | None:
+    """Année en cours si l'utilisateur y a des lectures et que son Wrapped
+    n'est pas encore ouvert, sinon None."""
+    year = _today().year
+    return year if year in user_years(jellyfin_user_id) and not is_open(year) else None
+
+
 def user_years(jellyfin_user_id: str) -> list[int]:
     """Années civiles présentes dans l'historique de cet utilisateur."""
     rows = database.query(

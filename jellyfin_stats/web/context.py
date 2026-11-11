@@ -15,6 +15,7 @@ from .. import (
     image_cache,
 )
 from .. import users as users_mod
+from .. import wrapped as wrapped_mod
 from ..activity import ActivityMonitor
 from ..auth import CurrentUser, RateLimiter
 from ..config import Config
@@ -43,6 +44,12 @@ def make_context(config: Config) -> SimpleNamespace:
         """Profil utilisateur, avec relabel des clients inconnus en « Plex »
         si l'option est activée (la page utilisateur les conserve toujours)."""
         profile = users_mod.user_overview(jellyfin_user_id)
+        # Carte « Wrapped » : dernière année ouverte + rendez-vous de l'année en cours.
+        available = wrapped_mod.available_years(jellyfin_user_id)
+        profile["wrapped_latest"] = available[0] if available else None
+        upcoming = wrapped_mod.upcoming_year(jellyfin_user_id)
+        profile["wrapped_upcoming"] = upcoming
+        profile["wrapped_opening"] = wrapped_mod.opening_label(upcoming) if upcoming else None
         if config.unknown_as_plex:
             for row in profile.get("top_clients", []):
                 if row["client"] == "Inconnu":
