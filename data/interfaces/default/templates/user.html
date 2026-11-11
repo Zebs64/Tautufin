@@ -107,8 +107,8 @@
 {% block scripts %}
 {% if profile %}
 <script src="/static/vendor/chart-4.4.3.umd.min.js"></script>
-<script src="/static/js/app.js"></script>
-<script src="/static/js/chart-state.js"></script>
-<script src="/static/js/user.js" data-user-id="{{ profile.jellyfin_user_id }}"></script>
+<script src="/static/js/app.js?v={{ version }}"></script>
+<script src="/static/js/chart-state.js?v={{ version }}"></script>
+<script src="/static/js/user.js?v={{ version }}" data-user-id="{{ profile.jellyfin_user_id }}"></script>
 {% endif %}
 {% endblock %}

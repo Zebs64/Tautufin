@@ -74,7 +74,10 @@ class ReliabilityUIContractTests(unittest.TestCase):
             source = path.read_text(encoding="utf-8")
             for src in re.findall(r'<script[^>]+src="([^"]+)"', source):
                 self.assertTrue(src.startswith("/static/"), f"{path.name}: {src}")
-                self.assertTrue((STATIC / src.removeprefix("/static/")).is_file(), src)
+                file = src.removeprefix("/static/").split("?")[0]
+                self.assertTrue((STATIC / file).is_file(), src)
+                if "/vendor/" not in src:  # versionnés : le cache suit les mises à jour
+                    self.assertTrue(src.endswith("?v={{ version }}"), f"{path.name}: {src}")
 
 
 if __name__ == "__main__":

@@ -99,7 +99,7 @@
 {% endblock %}
 {% block scripts %}
 <script src="/static/vendor/chart-4.4.3.umd.min.js"></script>
-<script src="/static/js/app.js"></script>
+<script src="/static/js/app.js?v={{ version }}"></script>
 <script>
 const TIMELINE = {{ media.timeline | tojson }};
 areaTimeline('chart-timeline', TIMELINE.labels, TIMELINE.data);

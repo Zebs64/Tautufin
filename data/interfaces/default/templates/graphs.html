@@ -74,7 +74,7 @@
 {% endblock %}
 {% block scripts %}
 <script src="/static/vendor/chart-4.4.3.umd.min.js"></script>
-<script src="/static/js/app.js"></script>
-<script src="/static/js/chart-state.js"></script>
-<script src="/static/js/graphs.js"></script>
+<script src="/static/js/app.js?v={{ version }}"></script>
+<script src="/static/js/chart-state.js?v={{ version }}"></script>
+<script src="/static/js/graphs.js?v={{ version }}"></script>
 {% endblock %}
