@@ -48,7 +48,7 @@ sont ailleurs :
 | 18 | ✅ — Simplifier le curseur de synchronisation | Dette | Moyenne | S |
 | 19 | ✅ — Découper `main.py` en routeurs | Dette | Moyenne | M |
 | 20 | ✅ — Sortir le JS inline des templates | Dette | Faible | M |
-| 21 | Divers (code mort, tests de chaînes, SVG, setup) | Dette | Faible | S |
+| 21 | ✅ — Divers (code mort, tests de chaînes, SVG, setup) | Dette | Faible | S |
 | 22 | Horodatages locaux naïfs (heure d'été) | Données | Faible | L |
 
 Faits : n° 1, 2, 3, 6 et 8 en v0.2.3 (n° 5 en partie), n° 10, 11 et 13 en
@@ -532,6 +532,14 @@ taille.
 
 ### 21. Divers — valeur faible, S
 
+**Statut : fait** (`get_user` retiré ; CSP sur `/branding/*` ; setup ouvert et
+processus unique documentés dans le README). Laissés tels quels, en
+connaissance de cause : les tests de chaînes de `test_ui_templates.py` (filet
+utile, à remplacer seulement si une page casse sans qu'ils le voient),
+l'avertissement de dépréciation de `fastapi.testclient` (à suivre lors d'une
+montée de version) et la restriction des chemins d'import (fonction réservée
+aux admins).
+
 - `JellyfinAPI.get_user` (`jellyfin_api.py:113`) n'est appelé nulle part.
 - `tests/test_ui_templates.py` vérifie des chaînes dans les templates (ordre
   de cartes, libellés). Ces tests cassent à chaque reformulation sans prouver
@@ -547,6 +555,10 @@ taille.
 (routes `/branding/*`, setup, import), README.
 
 ### 22. Horodatages locaux naïfs — valeur faible, L
+
+**Statut : non fait, volontairement.** Migration de données sensible pour un
+gain faible tant que l'appli sert un seul fuseau ; à reconsidérer seulement si
+ce besoin apparaît.
 
 Tout est stocké en heure locale sans fuseau (`now_iso`, `datetime('now',
 'localtime')`) et dépend de la variable `TZ` du conteneur. À chaque passage à

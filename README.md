@@ -196,6 +196,9 @@ Au premier accès, un **assistant de configuration** s'affiche :
 Une première synchronisation (utilisateurs, bibliothèques, médias) démarre alors
 en arrière-plan, puis se répète périodiquement.
 
+> Tant que l'assistant n'est pas terminé, toute personne qui joint Tautufin peut
+> créer le compte admin : terminez-le avant d'exposer l'application.
+
 ---
 
 ## Visite guidée
@@ -536,6 +539,10 @@ navigateur sont refusées si leur origine ne correspond pas à l'hôte servi
 proxy, celui-ci doit donc transmettre l'en-tête `Host` d'origine (Traefik le
 fait par défaut ; avec Nginx : `proxy_set_header Host $host;` ou
 `X-Forwarded-Host`).
+
+Tautufin tourne dans **un seul processus** : l'activité en cours et la limite de
+tentatives de connexion vivent en mémoire. Ne pas lancer uvicorn avec plusieurs
+workers.
 
 ### Endpoints Jellyfin utilisés
 
