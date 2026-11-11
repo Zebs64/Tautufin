@@ -545,11 +545,13 @@ th.sorted-desc::after { content: " ▼"; color: var(--accent); }
 }
 
 /* Historique : visionnage en plusieurs fois et ses parties dépliées. */
-.viewing-toggle {
+.viewing-toggle, .viewing-parts {
   display: inline-block; margin-left: 8px; padding: 1px 9px; border-radius: 3em;
   font: inherit; font-size: .78em; color: var(--text-muted); cursor: pointer;
   background: var(--bg-input-alpha); border: 1px solid var(--border-light);
+  white-space: nowrap;
 }
+.viewing-parts { cursor: default; }
 .viewing-toggle::after { content: " ▸"; }
 .viewing-toggle[aria-expanded="true"] { color: var(--text); border-color: var(--accent); }
 .viewing-toggle[aria-expanded="true"]::after { content: " ▾"; }

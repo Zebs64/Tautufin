@@ -7,7 +7,7 @@ cohérent avec l'isolation de la page historique)."""
 import json
 from datetime import date, timedelta
 
-from . import database
+from . import database, history
 
 
 def _meta(item_id: str) -> dict | None:
@@ -166,15 +166,11 @@ def media_overview(item_id: str, user_id: str | None = None) -> dict | None:
         """,
         params,
     )
-    recent = database.query(
-        f"""
-        SELECT started_at, jellyfin_user_id, user_name, play_duration,
-               percent_complete, client_name, device_name
-        FROM session_history WHERE {where}
-        ORDER BY started_at DESC LIMIT 25
-        """,
-        params,
-    )
+    recent = history.get_history(
+        user_id=user_id,
+        page_size=25,
+        **({"series_name": meta["name"]} if meta["type"] == "Series" else {"item_id": item_id}),
+    )["rows"]
     timeline = _timeline(where, params)
 
     try:

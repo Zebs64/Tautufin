@@ -1,6 +1,6 @@
 """Statistiques par utilisateur."""
 
-from . import database
+from . import database, history
 
 
 def list_users_with_stats() -> list[dict]:
@@ -92,22 +92,7 @@ def user_overview(jellyfin_user_id: str) -> dict:
         """,
         (jellyfin_user_id,),
     )
-    recent = database.query(
-        """
-        SELECT sh.started_at, sh.item_id, sh.item_type, sh.item_name,
-               sh.series_name, sh.season_number, sh.episode_number,
-               sh.play_duration, sh.percent_complete, sh.client_name,
-               sh.device_name,
-               COALESCE(
-                   sh.series_id,
-                   (SELECT i.item_id FROM items i
-                    WHERE i.type = 'Series' AND i.name = sh.series_name LIMIT 1),
-                   sh.item_id) AS image_id
-        FROM session_history sh WHERE sh.jellyfin_user_id = ?
-        ORDER BY sh.started_at DESC LIMIT 10
-        """,
-        (jellyfin_user_id,),
-    )
+    recent = history.get_history(user_id=jellyfin_user_id, page_size=10)["rows"]
     return {
         "username": get_username(jellyfin_user_id),
         "jellyfin_user_id": jellyfin_user_id,

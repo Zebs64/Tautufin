@@ -11,6 +11,7 @@ from jellyfin_stats.main import create_app
 
 ADMIN = auth.CurrentUser("t", "local", "admin", "admin", None)
 BOB = auth.CurrentUser("t", "jellyfin", "bob", "user", "u2")
+FILM, DOC = "f" * 32, "d" * 32  # identifiants au format Jellyfin
 
 
 class GroupedHistoryTests(unittest.TestCase):
@@ -25,14 +26,14 @@ class GroupedHistoryTests(unittest.TestCase):
         database.init(config.database_path)
         rows = [
             # u1 : film vu en trois fois (le dernier segment sur un autre client).
-            ("u1", "film", "live", "2026-11-01 20:00:00", "2026-11-01 20:30:00", 1800, 30.0, "TV"),
-            ("u1", "film", "live", "2026-11-01 21:00:00", "2026-11-01 21:50:00", 3000, 80.0, "TV"),
-            ("u1", "film", "live", "2026-11-02 18:00:00", "2026-11-02 18:20:00", 1200, 99.0, "Web"),
+            ("u1", FILM, "live", "2026-11-01 20:00:00", "2026-11-01 20:30:00", 1800, 30.0, "TV"),
+            ("u1", FILM, "live", "2026-11-01 21:00:00", "2026-11-01 21:50:00", 3000, 80.0, "TV"),
+            ("u1", FILM, "live", "2026-11-02 18:00:00", "2026-11-02 18:20:00", 1200, 99.0, "Web"),
             # u1 : film importé en deux parties (progression = part cumulée).
-            ("u1", "doc", "import", "2026-11-04 20:00:00", None, 2400, 40.0, "Web"),
-            ("u1", "doc", "import", "2026-11-05 20:00:00", None, 4200, 70.0, "Web"),
+            ("u1", DOC, "import", "2026-11-04 20:00:00", None, 2400, 40.0, "Web"),
+            ("u1", DOC, "import", "2026-11-05 20:00:00", None, 4200, 70.0, "Web"),
             # u2 : visionnage d'une traite.
-            ("u2", "film", "live", "2026-11-03 20:00:00", "2026-11-03 21:40:00", 6000, 98.0, "TV"),
+            ("u2", FILM, "live", "2026-11-03 20:00:00", "2026-11-03 21:40:00", 6000, 98.0, "TV"),
         ]
         for user_id, item, source, start, stop, duration, percent, client in rows:
             database.execute(
@@ -70,7 +71,7 @@ class GroupedHistoryTests(unittest.TestCase):
 
         self.assertEqual(data["total"], 3)
         rows = {(r["jellyfin_user_id"], r["item_id"]): r for r in data["rows"]}
-        film = rows[("u1", "film")]
+        film = rows[("u1", FILM)]
         self.assertEqual(
             (film["started_at"], film["segments"], film["play_duration"]),
             ("2026-11-01 20:00:00", 3, 6000),
@@ -78,9 +79,9 @@ class GroupedHistoryTests(unittest.TestCase):
         self.assertEqual(film["percent_complete"], 99.0)  # position finale
         self.assertEqual(film["client_name"], "TV")  # client du premier segment
         self.assertEqual(film["stopped_at"], "2026-11-02 18:20:00")
-        doc = rows[("u1", "doc")]
+        doc = rows[("u1", DOC)]
         self.assertEqual((doc["segments"], doc["percent_complete"]), (2, 100.0))
-        self.assertEqual(rows[("u2", "film")]["segments"], 1)
+        self.assertEqual(rows[("u2", FILM)]["segments"], 1)
 
     def test_sorting_by_total_duration_and_date_filter_on_first_segment(self):
         by_duration = self._get(ADMIN, "/api/history?sort=duration&order=desc").json()["rows"]
@@ -93,7 +94,7 @@ class GroupedHistoryTests(unittest.TestCase):
         film_id = next(
             r["id"]
             for r in self._get(ADMIN, "/api/history").json()["rows"]
-            if r["jellyfin_user_id"] == "u1" and r["item_id"] == "film"
+            if r["jellyfin_user_id"] == "u1" and r["item_id"] == FILM
         )
 
         segments = self._get(ADMIN, f"/api/history/viewings/{film_id}/segments").json()
@@ -108,6 +109,16 @@ class GroupedHistoryTests(unittest.TestCase):
 
         self.assertEqual([(r["jellyfin_user_id"], r["segments"]) for r in rows], [("u2", 1)])
         self.assertNotIn("ip_address", rows[0])
+
+    def test_recent_lists_on_profile_and_media_pages_are_grouped(self):
+        profile = self._get(ADMIN, "/users/u1").text
+        film = self._get(ADMIN, f"/media/{FILM}").text
+
+        self.assertEqual(profile.count("en 3 fois"), 1)
+        self.assertEqual(profile.count("en 2 fois"), 1)
+        self.assertEqual(film.count("en 3 fois"), 1)
+        recent = film.split("récentes</h2>")[1]
+        self.assertEqual(recent.count('href="/users/'), 2)  # une ligne par visionnage
 
     def test_csv_export_stays_per_segment(self):
         csv_text = self._get(ADMIN, "/api/history.csv").text

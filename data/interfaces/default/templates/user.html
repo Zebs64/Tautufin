@@ -99,7 +99,8 @@
           <span class="cell-media">
             {% if h.image_id or h.item_id %}<img class="thumb" loading="lazy" alt=""
                  src="/image/item/{{ h.image_id or h.item_id }}?w=120">{% endif %}
-            <span>{% if h.item_id %}<a href="/media/{{ h.item_id }}">{{ title }}</a>{% else %}{{ title }}{% endif %}</span>
+            <span>{% if h.item_id %}<a href="/media/{{ h.item_id }}">{{ title }}</a>{% else %}{{ title }}{% endif %}
+              {%- if h.segments > 1 %}<span class="viewing-parts">en {{ h.segments }} fois</span>{% endif %}</span>
           </span>
         </td>
         <td>{{ h.play_duration | duration_hm }}</td>

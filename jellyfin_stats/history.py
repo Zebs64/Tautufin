@@ -50,6 +50,8 @@ def _filters(
     date_to: str | None = None,
     search: str | None = None,
     alias: str = "",
+    item_id: str | None = None,
+    series_name: str | None = None,
 ) -> tuple[str, list]:
     """Clause WHERE commune à la liste paginée et à l'export CSV."""
     p = f"{alias}." if alias else ""
@@ -74,6 +76,13 @@ def _filters(
     if search:
         where.append(f"({p}item_name LIKE ? OR {p}series_name LIKE ?)")
         params.extend([f"%{search}%", f"%{search}%"])
+    # Fiche média (pas exposés à l'API de l'historique).
+    if item_id:
+        where.append(f"{p}item_id = ?")
+        params.append(item_id)
+    if series_name:
+        where.append(f"{p}item_type = 'Episode' AND {p}series_name = ?")
+        params.append(series_name)
     return " AND ".join(where), params
 
 
@@ -104,9 +113,19 @@ def get_history(
     order: str = "desc",
     page: int = 1,
     page_size: int = 25,
+    item_id: str | None = None,
+    series_name: str | None = None,
 ) -> dict:
     where_sql, params = _filters(
-        user_id, media_type, library_id, date_from, date_to, search, alias="f"
+        user_id,
+        media_type,
+        library_id,
+        date_from,
+        date_to,
+        search,
+        alias="f",
+        item_id=item_id,
+        series_name=series_name,
     )
     page = max(1, page)
     page_size = min(max(1, page_size), PAGE_SIZE_MAX)
