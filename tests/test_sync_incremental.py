@@ -9,6 +9,15 @@ from unittest.mock import patch
 from jellyfin_stats import database, scheduler
 
 
+def mark_previous_success(at):
+    """Une synchronisation a déjà réussi : la suivante sera incrémentale."""
+    database.set_sync_health({"status": "success", "last_success_at": at})
+
+
+def last_success():
+    return database.get_sync_health()["last_success_at"]
+
+
 class FakeSyncAPI:
     def __init__(self, items=None, fail=False):
         self.items = items or []
@@ -54,7 +63,7 @@ class IncrementalSyncTests(unittest.TestCase):
         scheduler._sync_set(running=False, error=None)
         self.tmp.cleanup()
 
-    def test_missing_cursor_runs_full_and_success_stores_start_bound(self):
+    def test_first_sync_runs_full_and_records_its_success(self):
         api = FakeSyncAPI()
         started = datetime(2026, 7, 30, 11, 0, tzinfo=timezone.utc)
 
@@ -63,10 +72,10 @@ class IncrementalSyncTests(unittest.TestCase):
 
         self.assertEqual(api.inventory_calls, ["lib-1"])
         self.assertEqual(database.get_sync_health()["mode"], "full")
-        self.assertEqual(database.get_sync_cursor(), "2026-07-30T11:00:00Z")
+        self.assertEqual(last_success(), "2026-07-30T11:00:00Z")
 
-    def test_existing_cursor_runs_incremental_inventory(self):
-        database.set_sync_cursor("2026-07-30T10:00:00Z")
+    def test_sync_after_a_success_runs_incremental(self):
+        mark_previous_success("2026-07-30T10:00:00Z")
         api = FakeSyncAPI()
         started = datetime(2026, 7, 30, 11, 0, tzinfo=timezone.utc)
 
@@ -75,23 +84,10 @@ class IncrementalSyncTests(unittest.TestCase):
 
         self.assertEqual(api.inventory_calls, ["lib-1"])
         self.assertEqual(database.get_sync_health()["mode"], "incremental")
-        self.assertEqual(database.get_sync_cursor(), "2026-07-30T11:00:00Z")
+        self.assertEqual(last_success(), "2026-07-30T11:00:00Z")
 
-    def test_invalid_cursor_falls_back_to_full(self):
-        database.set_sync_cursor("not-a-date")
-        api = FakeSyncAPI()
-
-        with patch(
-            "jellyfin_stats.scheduler._utc_now",
-            return_value=datetime(2026, 7, 30, 11, 0, tzinfo=timezone.utc),
-        ):
-            scheduler.sync_all(api)
-
-        self.assertEqual(api.inventory_calls, ["lib-1"])
-        self.assertEqual(database.get_sync_health()["mode"], "full")
-
-    def test_forced_full_omits_cursor_and_refreshes_it(self):
-        database.set_sync_cursor("2026-07-30T10:00:00Z")
+    def test_forced_full_ignores_previous_success_and_refreshes_it(self):
+        mark_previous_success("2026-07-30T10:00:00Z")
         api = FakeSyncAPI()
 
         with patch(
@@ -102,10 +98,10 @@ class IncrementalSyncTests(unittest.TestCase):
 
         self.assertEqual(api.inventory_calls, ["lib-1"])
         self.assertEqual(database.get_sync_health()["mode"], "full")
-        self.assertEqual(database.get_sync_cursor(), "2026-07-30T12:00:00Z")
+        self.assertEqual(last_success(), "2026-07-30T12:00:00Z")
 
-    def test_partial_failure_preserves_previous_cursor(self):
-        database.set_sync_cursor("2026-07-30T10:00:00Z")
+    def test_partial_failure_preserves_previous_success_at(self):
+        mark_previous_success("2026-07-30T10:00:00Z")
         api = FakeSyncAPI(fail=True)
 
         with patch(
@@ -115,7 +111,7 @@ class IncrementalSyncTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "Jellyfin failure"):
                 scheduler.sync_all(api)
 
-        self.assertEqual(database.get_sync_cursor(), "2026-07-30T10:00:00Z")
+        self.assertEqual(last_success(), "2026-07-30T10:00:00Z")
 
     def test_overlap_replay_keeps_identical_media_timestamp(self):
         item = {

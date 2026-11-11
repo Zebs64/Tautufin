@@ -20,7 +20,6 @@ class ReliabilityUIContractTests(unittest.TestCase):
         self.assertLess(health, unknown)
         self.assertLess(unknown, energy)
         self.assertIn('id="sync-health"', source)
-        self.assertIn("Curseur préservé", source)
         self.assertIn("Médias inspectés", source)
         self.assertIn("Médias enrichis", source)
 

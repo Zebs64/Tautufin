@@ -334,8 +334,11 @@ def execute(sql: str, params=()) -> int:
 
 # --- État de synchronisation -----------------------------------------------
 
-_SYNC_CURSOR_KEY = "items_cursor_utc"
 _SYNC_HEALTH_KEY = "sync_health"
+# Clé des versions <= 0.3.2, qui en déduisaient le mode de synchronisation.
+# Elle n'est plus écrite ni lue ; seule la réinitialisation l'efface, pour qu'un
+# retour à une ancienne version reparte d'une synchro complète après un reset.
+_LEGACY_SYNC_CURSOR_KEY = "items_cursor_utc"
 
 
 def _upsert_sync_state(conn, key: str, value: str) -> None:
@@ -366,22 +369,7 @@ def empty_sync_health() -> dict:
         "items_enriched": 0,
         "items_changed": 0,
         "error": None,
-        "cursor_preserved": False,
     }
-
-
-def get_sync_cursor() -> str | None:
-    row = query_one("SELECT value FROM sync_state WHERE key = ?", (_SYNC_CURSOR_KEY,))
-    return row["value"] if row else None
-
-
-def set_sync_cursor(value: str) -> None:
-    with db() as conn:
-        _upsert_sync_state(conn, _SYNC_CURSOR_KEY, value)
-
-
-def clear_sync_cursor() -> None:
-    execute("DELETE FROM sync_state WHERE key = ?", (_SYNC_CURSOR_KEY,))
 
 
 def get_sync_health() -> dict:
@@ -405,16 +393,6 @@ def set_sync_health(value: dict) -> None:
     health.update(value)
     serialized = json.dumps(health, ensure_ascii=False, separators=(",", ":"))
     with db() as conn:
-        _upsert_sync_state(conn, _SYNC_HEALTH_KEY, serialized)
-
-
-def finalize_sync_success(cursor: str, health: dict) -> None:
-    """Valide atomiquement le curseur et la santé d'une synchronisation réussie."""
-    normalized = empty_sync_health()
-    normalized.update(health)
-    serialized = json.dumps(normalized, ensure_ascii=False, separators=(",", ":"))
-    with db() as conn:
-        _upsert_sync_state(conn, _SYNC_CURSOR_KEY, cursor)
         _upsert_sync_state(conn, _SYNC_HEALTH_KEY, serialized)
 
 
@@ -501,7 +479,7 @@ def reset_data() -> dict:
             deleted[table] = conn.execute(f"DELETE FROM {table}").rowcount
         conn.execute(
             "DELETE FROM sync_state WHERE key IN (?, ?)",
-            (_SYNC_CURSOR_KEY, _SYNC_HEALTH_KEY),
+            (_LEGACY_SYNC_CURSOR_KEY, _SYNC_HEALTH_KEY),
         )
     # VACUUM doit s'exécuter hors transaction.
     conn = sqlite3.connect(_db_path, timeout=30)

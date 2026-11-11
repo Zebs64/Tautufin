@@ -45,7 +45,7 @@ sont ailleurs :
 | 15 | ✗ écarté — Notifications sortantes (ntfy, Discord, webhook) | Fonctionnel | Haute | M |
 | 16 | ✅ v0.3.2 — Export CSV de l'historique | Fonctionnel | Moyenne | S |
 | 17 | ✗ écarté — API en lecture seule par jeton (widgets de tableau de bord) | Fonctionnel | Moyenne | M |
-| 18 | Simplifier le curseur de synchronisation | Dette | Moyenne | S |
+| 18 | ✅ — Simplifier le curseur de synchronisation | Dette | Moyenne | S |
 | 19 | Découper `main.py` en routeurs | Dette | Moyenne | M |
 | 20 | Sortir le JS inline des templates | Dette | Faible | M |
 | 21 | Divers (code mort, tests de chaînes, SVG, setup) | Dette | Faible | S |
@@ -459,6 +459,11 @@ Les routes actuelles sont internes à l'UI et exigent le cookie.
 ## Dette technique
 
 ### 18. Simplifier le curseur de synchronisation — valeur moyenne, S
+
+**Statut : fait.** Le mode se déduit de `last_success_at` ; curseur, contrôle
+de validité et « Curseur préservé » supprimés. L'ancienne clé reste en base
+(seule la réinitialisation l'efface) pour qu'un retour à v0.3.2 reste
+incrémental.
 
 **Constat franc.** La synchro stocke un curseur horodaté (`items_cursor_utc`),
 le préserve en cas d'échec, le restaure par rollback, expose

@@ -452,7 +452,7 @@ Le schéma SQLite passe en **version 7** par ajout d'un ETag source nullable sur
 médias existants. Le premier cycle réenrichit donc le catalogue une fois, puis les
 cycles automatiques inspectent l'inventaire léger et n'enrichissent que les médias
 nouveaux ou dont l'ETag Jellyfin a changé. Un inventaire ou une réponse enrichie
-sans ETag cohérent échoue explicitement sans avancer le curseur. La synchronisation
+sans ETag cohérent échoue explicitement sans être validé. La synchronisation
 manuelle reste exhaustive. Un rollback applicatif vers v0.2.1 ou v0.2.0 reste
 possible : ces versions ignorent la colonne v7, et la colonne v6 est conservée.
 

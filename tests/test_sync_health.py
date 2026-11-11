@@ -8,6 +8,15 @@ from unittest.mock import patch
 from jellyfin_stats import database, scheduler
 
 
+def mark_previous_success(at):
+    """Une synchronisation a déjà réussi : la suivante sera incrémentale."""
+    database.set_sync_health({"status": "success", "last_success_at": at})
+
+
+def last_success():
+    return database.get_sync_health()["last_success_at"]
+
+
 class FakeHealthAPI:
     def __init__(self, *, fail=False):
         self.fail = fail
@@ -105,12 +114,11 @@ class SyncHealthTests(unittest.TestCase):
                 "items_enriched": 2,
                 "items_changed": 2,
                 "error": None,
-                "cursor_preserved": False,
             },
         )
 
-    def test_incremental_success_uses_cursor_and_counts_unchanged_media(self):
-        database.set_sync_cursor("2026-07-31T09:00:00Z")
+    def test_incremental_success_after_previous_success_counts_unchanged_media(self):
+        mark_previous_success("2026-07-31T09:00:00Z")
         api = FakeHealthAPI()
         start = datetime(2026, 7, 31, 10, 0, tzinfo=timezone.utc)
 
@@ -132,9 +140,9 @@ class SyncHealthTests(unittest.TestCase):
         self.assertEqual(health["items_inspected"], 2)
         self.assertEqual(health["items_enriched"], 0)
         self.assertEqual(health["items_changed"], 0)
-        self.assertEqual(database.get_sync_cursor(), "2026-07-31T11:00:00Z")
+        self.assertEqual(last_success(), "2026-07-31T11:00:00Z")
 
-    def test_failure_preserves_last_success_and_cursor_and_sanitizes_error(self):
+    def test_failure_preserves_last_success_and_sanitizes_error(self):
         api = FakeHealthAPI()
         success_start = datetime(2026, 7, 31, 10, 0, tzinfo=timezone.utc)
         success_end = datetime(2026, 7, 31, 10, 0, 1, tzinfo=timezone.utc)
@@ -144,7 +152,7 @@ class SyncHealthTests(unittest.TestCase):
         ):
             scheduler.sync_all(api, force_full=True)
 
-        previous_cursor = database.get_sync_cursor()
+        previous_success_at = last_success()
         previous_success = database.get_sync_health()["last_success_at"]
         failed_api = FakeHealthAPI(fail=True)
         failure_start = datetime(2026, 7, 31, 11, 0, tzinfo=timezone.utc)
@@ -159,23 +167,15 @@ class SyncHealthTests(unittest.TestCase):
         health = database.get_sync_health()
         self.assertEqual(health["status"], "error")
         self.assertEqual(health["last_success_at"], previous_success)
-        self.assertEqual(database.get_sync_cursor(), previous_cursor)
-        self.assertTrue(health["cursor_preserved"])
+        self.assertEqual(last_success(), previous_success_at)
         self.assertLessEqual(len(health["error"]), 240)
         self.assertNotIn("super-secret", health["error"])
         self.assertNotIn("other-secret", health["error"])
         self.assertNotIn("jellyfin.private", health["error"])
 
-    def test_final_health_failure_rolls_back_cursor_and_preserves_previous_success(self):
-        previous_cursor = "2026-07-31T09:00:00Z"
-        previous_success = "2026-07-31T09:00:01Z"
-        database.set_sync_cursor(previous_cursor)
-        database.set_sync_health(
-            {
-                "status": "success",
-                "last_success_at": previous_success,
-            }
-        )
+    def test_final_health_failure_preserves_previous_success(self):
+        previous_success_at = "2026-07-31T09:00:00Z"
+        mark_previous_success(previous_success_at)
         database.execute(
             """
             CREATE TRIGGER fail_final_success_health
@@ -195,15 +195,13 @@ class SyncHealthTests(unittest.TestCase):
                 scheduler.sync_all(FakeHealthAPI(), force_full=False)
 
         health = database.get_sync_health()
-        self.assertEqual(database.get_sync_cursor(), previous_cursor)
-        self.assertEqual(health["last_success_at"], previous_success)
+        self.assertEqual(health["last_success_at"], previous_success_at)
         self.assertEqual(health["status"], "error")
         self.assertEqual(health["phase"], "error")
-        self.assertTrue(health["cursor_preserved"])
         self.assertIn("injected final health failure", health["error"])
 
     def test_health_survives_reinitialization_and_reset_clears_only_sync_keys(self):
-        database.set_sync_cursor("2026-07-31T10:00:00Z")
+        mark_previous_success("2026-07-31T10:00:00Z")
         database.set_sync_health({"status": "success", "last_success_at": "saved"})
         database.execute("INSERT INTO sync_state (key, value) VALUES ('protected-key', 'keep')")
 
@@ -212,7 +210,7 @@ class SyncHealthTests(unittest.TestCase):
 
         database.reset_data()
 
-        self.assertIsNone(database.get_sync_cursor())
+        self.assertIsNone(last_success())
         self.assertEqual(database.get_sync_health(), database.empty_sync_health())
         self.assertEqual(
             database.query_one("SELECT value FROM sync_state WHERE key = 'protected-key'"),

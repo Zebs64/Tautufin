@@ -8,6 +8,16 @@ from unittest.mock import patch
 from jellyfin_stats import database, scheduler
 from jellyfin_stats.jellyfin_api import JellyfinError
 
+
+def mark_previous_success(at):
+    """Une synchronisation a déjà réussi : la suivante sera incrémentale."""
+    database.set_sync_health({"status": "success", "last_success_at": at})
+
+
+def last_success():
+    return database.get_sync_health()["last_success_at"]
+
+
 REFRESH_1 = "2026-08-01T10:00:00.0000000Z"
 REFRESH_2 = "2026-08-02T10:00:00.0000000Z"
 
@@ -85,7 +95,7 @@ class TwoPassSyncTests(unittest.TestCase):
         inventory = [{"Id": f"item-{index}", "Etag": REFRESH_1} for index in range(200)]
         for item in inventory:
             self._seed_item(item["Id"], REFRESH_1)
-        database.set_sync_cursor("2026-08-02T10:00:00Z")
+        mark_previous_success("2026-08-02T10:00:00Z")
         api = FakeTwoPassAPI(inventory)
 
         result = self._run(api)
@@ -108,7 +118,7 @@ class TwoPassSyncTests(unittest.TestCase):
             inventory,
             [rich_item("changed", REFRESH_2, name="Nouveau")],
         )
-        database.set_sync_cursor("2026-08-02T10:00:00Z")
+        mark_previous_success("2026-08-02T10:00:00Z")
 
         result = self._run(api)
 
@@ -150,12 +160,10 @@ class TwoPassSyncTests(unittest.TestCase):
         self.assertEqual(api.rich_calls, [["one", "two"]])
         self.assertEqual(result["items_enriched"], 2)
 
-    def test_network_failure_preserves_marker_cursor_and_previous_success(self):
+    def test_network_failure_preserves_marker_and_previous_success(self):
         self._seed_item("changed", REFRESH_1, name="Ancien")
-        previous_cursor = "2026-08-02T10:00:00Z"
-        previous_success = "2026-08-02T10:00:01Z"
-        database.set_sync_cursor(previous_cursor)
-        database.set_sync_health({"status": "success", "last_success_at": previous_success})
+        previous_success_at = "2026-08-02T10:00:00Z"
+        mark_previous_success(previous_success_at)
         api = FakeTwoPassAPI(
             [{"Id": "changed", "Etag": REFRESH_2}],
             fail_rich=True,
@@ -167,14 +175,13 @@ class TwoPassSyncTests(unittest.TestCase):
         row = database.query_one("SELECT name, source_etag FROM items WHERE item_id = 'changed'")
         health = database.get_sync_health()
         self.assertEqual(row, {"name": "Ancien", "source_etag": REFRESH_1})
-        self.assertEqual(database.get_sync_cursor(), previous_cursor)
-        self.assertEqual(health["last_success_at"], previous_success)
-        self.assertTrue(health["cursor_preserved"])
+        self.assertEqual(health["last_success_at"], previous_success_at)
+        self.assertEqual(health["status"], "error")
 
     def test_sqlite_failure_rolls_back_rich_data_and_marker(self):
         self._seed_item("changed", REFRESH_1, name="Ancien")
-        previous_cursor = "2026-08-02T10:00:00Z"
-        database.set_sync_cursor(previous_cursor)
+        previous_success_at = "2026-08-02T10:00:00Z"
+        mark_previous_success(previous_success_at)
         database.execute(
             """
             CREATE TRIGGER fail_marker_update
@@ -197,18 +204,18 @@ class TwoPassSyncTests(unittest.TestCase):
             database.query_one("SELECT name, source_etag FROM items WHERE item_id = 'changed'"),
             {"name": "Ancien", "source_etag": REFRESH_1},
         )
-        self.assertEqual(database.get_sync_cursor(), previous_cursor)
+        self.assertEqual(last_success(), previous_success_at)
 
-    def test_missing_rich_response_does_not_validate_cursor_or_marker(self):
-        previous_cursor = "2026-08-02T10:00:00Z"
-        database.set_sync_cursor(previous_cursor)
+    def test_missing_rich_response_does_not_validate_sync_or_marker(self):
+        previous_success_at = "2026-08-02T10:00:00Z"
+        mark_previous_success(previous_success_at)
         api = FakeTwoPassAPI([{"Id": "missing", "Etag": REFRESH_1}])
 
         with self.assertRaisesRegex(Exception, "missing"):
             self._run(api)
 
         self.assertIsNone(database.query_one("SELECT item_id FROM items WHERE item_id = 'missing'"))
-        self.assertEqual(database.get_sync_cursor(), previous_cursor)
+        self.assertEqual(last_success(), previous_success_at)
 
 
 ETAG_1 = "2f44d6c1e79b4c63b1c7"
@@ -289,7 +296,7 @@ class EtagSyncRegressionTests(unittest.TestCase):
                 """,
                 [(item["Id"], item["Id"], ETAG_1) for item in inventory],
             )
-        database.set_sync_cursor("2026-08-02T10:00:00Z")
+        mark_previous_success("2026-08-02T10:00:00Z")
         api = Jellyfin101111API(inventory)
 
         result = self._run(api)
@@ -307,7 +314,7 @@ class EtagSyncRegressionTests(unittest.TestCase):
             [{"Id": "same", "Etag": ETAG_1}, {"Id": "changed", "Etag": ETAG_2}],
             [etag_rich_item("changed", ETAG_2, name="Nouveau")],
         )
-        database.set_sync_cursor("2026-08-02T10:00:00Z")
+        mark_previous_success("2026-08-02T10:00:00Z")
 
         result = self._run(api)
 
@@ -338,28 +345,28 @@ class EtagSyncRegressionTests(unittest.TestCase):
             ],
         )
 
-    def test_inventory_without_etag_fails_before_enrichment_and_preserves_cursor(self):
-        previous_cursor = "2026-08-02T10:00:00Z"
-        database.set_sync_cursor(previous_cursor)
+    def test_inventory_without_etag_fails_before_enrichment_and_preserves_previous_success(self):
+        previous_success_at = "2026-08-02T10:00:00Z"
+        mark_previous_success(previous_success_at)
         api = Jellyfin101111API([{"Id": "invalid"}])
 
         with self.assertRaisesRegex(JellyfinError, "ETag média absent"):
             self._run(api)
 
         self.assertEqual(api.rich_calls, [])
-        self.assertEqual(database.get_sync_cursor(), previous_cursor)
+        self.assertEqual(last_success(), previous_success_at)
         self.assertEqual(database.get_sync_health()["items_enriched"], 0)
 
-    def test_inventory_without_id_fails_before_enrichment_and_preserves_cursor(self):
-        previous_cursor = "2026-08-02T10:00:00Z"
-        database.set_sync_cursor(previous_cursor)
+    def test_inventory_without_id_fails_before_enrichment_and_preserves_previous_success(self):
+        previous_success_at = "2026-08-02T10:00:00Z"
+        mark_previous_success(previous_success_at)
         api = Jellyfin101111API([{"Etag": ETAG_1}])
 
         with self.assertRaisesRegex(JellyfinError, "identifiant média absent"):
             self._run(api)
 
         self.assertEqual(api.rich_calls, [])
-        self.assertEqual(database.get_sync_cursor(), previous_cursor)
+        self.assertEqual(last_success(), previous_success_at)
 
     def test_rich_item_without_etag_is_atomic(self):
         self._assert_invalid_rich_response(etag_rich_item("changed", None), "ETag.*absent")
@@ -369,8 +376,8 @@ class EtagSyncRegressionTests(unittest.TestCase):
 
     def _assert_invalid_rich_response(self, rich, error_pattern):
         self._seed_item("changed", ETAG_1, name="Ancien")
-        previous_cursor = "2026-08-02T10:00:00Z"
-        database.set_sync_cursor(previous_cursor)
+        previous_success_at = "2026-08-02T10:00:00Z"
+        mark_previous_success(previous_success_at)
         api = Jellyfin101111API(
             [{"Id": "changed", "Etag": ETAG_2}],
             [rich],
@@ -383,7 +390,7 @@ class EtagSyncRegressionTests(unittest.TestCase):
             database.query_one("SELECT name, source_etag FROM items WHERE item_id = 'changed'"),
             {"name": "Ancien", "source_etag": ETAG_1},
         )
-        self.assertEqual(database.get_sync_cursor(), previous_cursor)
+        self.assertEqual(last_success(), previous_success_at)
 
     def test_manual_full_sync_enriches_all_items(self):
         self._seed_item("one", ETAG_1)

@@ -81,7 +81,6 @@
         </dl>
         <div class="sync-health-error" id="sync-health-error" hidden>
           <span id="sync-health-error-message"></span>
-          <strong id="sync-health-cursor">Curseur préservé</strong>
           <button type="button" class="btn btn-sm" id="sync-health-retry">Actualiser</button>
         </div>
       </div>
@@ -406,7 +405,6 @@ function renderSyncHealth(health, progress) {
   const error = document.getElementById('sync-health-error');
   error.hidden = status !== 'error';
   document.getElementById('sync-health-error-message').textContent = health.error || '';
-  document.getElementById('sync-health-cursor').hidden = !health.cursor_preserved;
 }
 
 function renderSyncHealthLoadError(error) {
@@ -418,7 +416,6 @@ function renderSyncHealthLoadError(error) {
   box.hidden = false;
   document.getElementById('sync-health-error-message').textContent =
     'Impossible de charger l’état de la synchronisation.';
-  document.getElementById('sync-health-cursor').hidden = true;
 }
 
 function renderSync(s) {

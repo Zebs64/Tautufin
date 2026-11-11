@@ -7,6 +7,11 @@ from unittest.mock import patch
 from jellyfin_stats import database
 
 
+def _legacy_cursor():
+    row = database.query_one("SELECT value FROM sync_state WHERE key = 'items_cursor_utc'")
+    return row["value"] if row else None
+
+
 class MigrationTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -59,14 +64,14 @@ class MigrationTests(unittest.TestCase):
         conn.commit()
         conn.close()
 
-    def test_new_database_reaches_schema_v7_without_cursor(self):
+    def test_new_database_reaches_latest_schema_without_sync_history(self):
         database.init(self.db_path)
 
         self.assertEqual(
             database.query_one("SELECT version FROM schema_version"),
             {"version": database.MIGRATIONS[-1][0]},
         )
-        self.assertIsNone(database.get_sync_cursor())
+        self.assertIsNone(database.get_sync_health()["last_success_at"])
         self.assertEqual(database.integrity_check()["integrity"], ["ok"])
         self.assertEqual(database.integrity_check()["foreign_key_violations"], 0)
 
@@ -106,16 +111,21 @@ class MigrationTests(unittest.TestCase):
         )
         self.assertEqual(after_upgrade, before)
         self.assertEqual(after_second_init, before)
-        self.assertIsNone(database.get_sync_cursor())
+        self.assertIsNone(database.get_sync_health()["last_success_at"])
         self.assertTrue(database.integrity_check()["ok"])
 
-    def test_reset_data_clears_sync_cursor(self):
+    def test_reset_data_clears_sync_state_including_legacy_cursor(self):
         database.init(self.db_path)
-        database.set_sync_cursor("2026-07-30T10:00:00Z")
+        database.set_sync_health({"status": "success", "last_success_at": "2026-07-30T10:00:00Z"})
+        database.execute(
+            "INSERT INTO sync_state (key, value) VALUES (?, ?)",
+            ("items_cursor_utc", "2026-07-30T10:00:00Z"),
+        )
 
         database.reset_data()
 
-        self.assertIsNone(database.get_sync_cursor())
+        self.assertIsNone(database.get_sync_health()["last_success_at"])
+        self.assertEqual(database.query("SELECT key FROM sync_state"), [])
 
 
 class DatabaseV6MigrationTests(unittest.TestCase):
@@ -161,7 +171,8 @@ class DatabaseV6MigrationTests(unittest.TestCase):
             database.query_one("SELECT name, source_etag FROM items WHERE item_id = 'item-1'"),
             {"name": "Film conservé", "source_etag": None},
         )
-        self.assertEqual(database.get_sync_cursor(), "2026-08-01T10:00:00Z")
+        # Clé des versions <= 0.3.2 conservée : un retour arrière reste incrémental.
+        self.assertEqual(_legacy_cursor(), "2026-08-01T10:00:00Z")
         self.assertTrue(database.integrity_check()["ok"])
 
 
@@ -224,7 +235,8 @@ class DatabaseV7MigrationTests(unittest.TestCase):
                 "source_etag": None,
             },
         )
-        self.assertEqual(database.get_sync_cursor(), "2026-08-01T10:00:00Z")
+        # Clé des versions <= 0.3.2 conservée : un retour arrière reste incrémental.
+        self.assertEqual(_legacy_cursor(), "2026-08-01T10:00:00Z")
         self.assertEqual(database.get_sync_health()["items_enriched"], 12)
         self.assertTrue(database.integrity_check()["ok"])
 

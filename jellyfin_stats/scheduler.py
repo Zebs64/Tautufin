@@ -11,7 +11,7 @@ import json
 import logging
 import re
 import threading
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from . import auth, database, image_cache
 from .activity import TICKS_PER_SECOND, resolution_label
@@ -25,7 +25,6 @@ logger = logging.getLogger(__name__)
 # plafond par média pour ne pas gonfler la base avec la figuration.
 _PEOPLE_TYPES = {"Actor", "Director", "Writer", "GuestStar"}
 _PEOPLE_MAX = 25
-_SYNC_OVERLAP = timedelta(minutes=5)
 _SYNC_ERROR_MAX = 240
 
 
@@ -35,20 +34,6 @@ def _utc_now() -> datetime:
 
 def _format_utc(value: datetime) -> str:
     return value.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-
-
-def _incremental_start(cursor: str | None) -> str | None:
-    if not cursor:
-        return None
-    try:
-        parsed = datetime.fromisoformat(cursor.replace("Z", "+00:00"))
-    except ValueError:
-        logger.warning("Curseur de synchronisation invalide, full sync requise")
-        return None
-    if parsed.tzinfo is None or parsed.utcoffset() != timedelta(0):
-        logger.warning("Curseur de synchronisation non UTC, full sync requise")
-        return None
-    return _format_utc(parsed - _SYNC_OVERLAP)
 
 
 def _sanitize_sync_error(exc: Exception) -> str:
@@ -316,11 +301,12 @@ def sync_libraries_and_items(
 
 def sync_all(api, report=None, force_full: bool = False) -> dict:
     started_at = _utc_now()
-    cursor = database.get_sync_cursor()
-    incremental_start = None if force_full else _incremental_start(cursor)
-    mode = "incremental" if incremental_start else "full"
     started_text = _format_utc(started_at)
     health = database.get_sync_health()
+    # Mode : complet (tous les médias réenrichis) si demandé ou si aucune
+    # synchronisation n'a encore réussi ; sinon incrémental (seuls les ETag
+    # nouveaux ou changés sont enrichis). L'inventaire, lui, est toujours complet.
+    mode = "full" if force_full or not health.get("last_success_at") else "incremental"
     health.update(
         status="running",
         mode=mode,
@@ -336,7 +322,6 @@ def sync_all(api, report=None, force_full: bool = False) -> dict:
         items_enriched=0,
         items_changed=0,
         error=None,
-        cursor_preserved=False,
     )
     database.set_sync_health(health)
 
@@ -387,9 +372,8 @@ def sync_all(api, report=None, force_full: bool = False) -> dict:
             items_enriched=metrics.get("items_enriched", 0),
             items_changed=metrics.get("items_changed", 0),
             error=None,
-            cursor_preserved=False,
         )
-        database.finalize_sync_success(started_text, health)
+        database.set_sync_health(health)
         logger.info(
             "Synchronisation Jellyfin : %d utilisateurs, %d bibliothèques, "
             "%d médias inspectés, %d enrichis, %d insérés/modifiés",
@@ -416,14 +400,12 @@ def sync_all(api, report=None, force_full: bool = False) -> dict:
     except Exception as exc:
         finished_at = _utc_now()
         health = database.get_sync_health()
-        cursor_preserved = database.get_sync_cursor() == cursor
         health.update(
             status="error",
             phase="error",
             finished_at=_format_utc(finished_at),
             duration_seconds=round((finished_at - started_at).total_seconds(), 3),
             error=_sanitize_sync_error(exc),
-            cursor_preserved=cursor_preserved,
         )
         database.set_sync_health(health)
         logger.exception("Synchronisation Jellyfin échouée")
