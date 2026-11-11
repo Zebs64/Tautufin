@@ -154,6 +154,14 @@ BRANDING_EXTS = {".png", ".jpg", ".jpeg", ".svg", ".webp", ".ico", ".gif"}
 BRANDING_MAX_BYTES = 2 * 1024 * 1024
 IMPORT_UPLOAD_MAX_BYTES = 512 * 1024 * 1024  # backups .tsv/.db volumineux
 IMAGE_CACHE_HEADERS = {"Cache-Control": "public, max-age=86400"}
+# Logo et favicon téléversés par un admin : un SVG ouvert directement dans le
+# navigateur s'exécuterait sur l'origine de l'appli. La CSP interdit tout
+# script (styles inline et images data: autorisés pour le rendu du SVG).
+BRANDING_HEADERS = {
+    **IMAGE_CACHE_HEADERS,
+    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; img-src data:",
+    "X-Content-Type-Options": "nosniff",
+}
 
 
 def _sniff_mime(data: bytes) -> str:

@@ -11,8 +11,8 @@ from fastapi.responses import (
 from ..auth import CurrentUser
 from .helpers import (
     BRANDING_EXTS,
+    BRANDING_HEADERS,
     BRANDING_MAX_BYTES,
-    IMAGE_CACHE_HEADERS,
     STATIC_DIR,
 )
 
@@ -32,13 +32,13 @@ def register(app: FastAPI, context) -> None:
         f = _branding_file("logo")
         if not f:
             raise HTTPException(status_code=404, detail="Pas de logo personnalisé")
-        return FileResponse(f, headers=IMAGE_CACHE_HEADERS)
+        return FileResponse(f, headers=BRANDING_HEADERS)
 
     @app.get("/branding/favicon")
     @app.get("/favicon.ico")
     def branding_favicon():
         f = _branding_file("favicon") or STATIC_DIR / "img" / "favicon.svg"
-        return FileResponse(f, headers=IMAGE_CACHE_HEADERS)
+        return FileResponse(f, headers=BRANDING_HEADERS)
 
     def _save_branding(name: str, upload: UploadFile) -> str | None:
         """Enregistre logo/favicon ; retourne un message d'erreur ou None."""
