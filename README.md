@@ -246,7 +246,9 @@ posters cliquables et logo du client.
 Une rétrospective annuelle façon « Spotify Wrapped », par utilisateur et par
 année : temps total, tops films/séries en posters, genres, saisonnalité, jour et
 créneau favoris, plus longue série de jours consécutifs, **comparaison avec
-l'année précédente** et **% de complétion moyen**.
+l'année précédente** et **% de complétion moyen**. Pour garder la surprise, le
+Wrapped de l'année en cours ne s'ouvre que le **31 décembre** ; d'ici là, le
+profil donne rendez-vous et mène à l'année précédente.
 
 ![Wrapped](docs/screenshots/wrapped.png)
 
@@ -377,6 +379,20 @@ Section *Réglages → Maintenance* (admin) :
   bibliothèques, utilisateurs Jellyfin). **Les comptes locaux et votre session
   sont conservés** ; les données Jellyfin sont repeuplées à la synchro suivante.
   Action irréversible — exportez un backup d'abord.
+
+### Mise à niveau vers v0.3.4
+
+Le schéma passe en **version 11** par une correction de données : exportez un
+backup avant la mise à jour par précaution. Un retour à v0.3.3 reste possible.
+
+- **Imports Streamystats** : une partie des sessions réelles avaient une durée de
+  média égale au temps vu et s'affichaient « 100 % ». La durée est reprise du
+  catalogue et le % recalculé (« — » si le média est inconnu) ; les visionnages
+  estimés par Streamystats ne changent pas. Les imports futurs sont corrigés.
+- **Wrapped** de l'année en cours disponible à partir du **31 décembre**.
+- **Affichage** : libellés en français (types de média, bibliothèques, méthodes de
+  lecture), dates lisibles (« hier 22:31 », date exacte en infobulle), durées sur
+  une seule ligne, titre complet en infobulle sur les titres tronqués.
 
 ### Mise à niveau vers v0.3.3
 
