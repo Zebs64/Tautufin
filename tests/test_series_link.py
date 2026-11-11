@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
-from jellyfin_stats import database, graphs, history, scheduler
+from jellyfin_stats import database, graphs, history, scheduler, users, wrapped
 
 ETAG = "etag-1"
 
@@ -119,6 +119,26 @@ class SeriesLinkTests(unittest.TestCase):
 
         self.assertEqual(history.get_history()["rows"][0]["image_id"], "series-a")
         self.assertEqual(graphs.recently_watched()[0]["image_id"], "series-a")
+
+    def test_profile_home_and_wrapped_prefer_series_id_over_an_ambiguous_name(self):
+        database.execute(
+            "INSERT INTO items (item_id, type, name) VALUES "
+            "('series-a', 'Series', 'The Office'), ('series-b', 'Series', 'The Office')"
+        )
+        database.execute("INSERT INTO users (jellyfin_user_id, username) VALUES ('u1', 'Alice')")
+        self._play("ep-1", "The Office", series_id="series-b")
+
+        recent = users.user_overview("u1")["recent"][0]
+        top_serie = next(t for t in users._top_per_kind("u1") if t["kind"] == "Série")
+        top = graphs.top_media(days=None, kind="series")[0]
+        popular = graphs.popular_media(days=None, kind="series")[0]
+        top_wrapped = wrapped.build("u1", 2026)["top_series"][0]
+
+        self.assertEqual(recent["image_id"], "series-b")
+        self.assertEqual(top_serie["item_id"], "series-b")
+        self.assertEqual((top["image_id"], top["target_id"]), ("series-b", "series-b"))
+        self.assertEqual((popular["image_id"], popular["target_id"]), ("series-b", "series-b"))
+        self.assertEqual(top_wrapped["item_id"], "series-b")
 
 
 if __name__ == "__main__":

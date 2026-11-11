@@ -372,7 +372,8 @@ L'image `v0.3.0` démarre sur une base v0.2.x : le schéma passe en **version 10
   en deux ou perdues. L'heure de fin enregistrée est la dernière présence dans
   le polling.
 - **Séries** : les lectures d'épisodes sont rattachées à leur série par
-  identifiant (bonne affiche même si deux séries portent le même nom). Le
+  identifiant, qui sert désormais aux affiches et aux liens (les classements
+  par série regroupent encore par nom). Le
   **premier cycle de synchronisation réenrichit une fois tous les épisodes** et
   dure donc plus longtemps que d'habitude.
 - **Médias supprimés de Jellyfin** : ils disparaissent des catalogues, des

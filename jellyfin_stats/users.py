@@ -98,6 +98,7 @@ def user_overview(jellyfin_user_id: str) -> dict:
                sh.play_duration, sh.percent_complete, sh.client_name,
                sh.device_name,
                COALESCE(
+                   sh.series_id,
                    (SELECT i.item_id FROM items i
                     WHERE i.type = 'Series' AND i.name = sh.series_name LIMIT 1),
                    sh.item_id) AS image_id
@@ -134,8 +135,11 @@ def _top_per_kind(jellyfin_user_id: str) -> list[dict]:
     serie = database.query_one(
         """
         SELECT sh.series_name AS label, COALESCE(SUM(sh.play_duration), 0) AS duration,
-               (SELECT i.item_id FROM items i
-                WHERE i.type = 'Series' AND i.name = sh.series_name LIMIT 1) AS item_id
+               COALESCE(
+                   MAX(sh.series_id),
+                   (SELECT i.item_id FROM items i
+                    WHERE i.type = 'Series' AND i.name = sh.series_name LIMIT 1)
+               ) AS item_id
         FROM session_history sh
         WHERE sh.jellyfin_user_id = ? AND sh.item_type = 'Episode'
           AND sh.series_name IS NOT NULL

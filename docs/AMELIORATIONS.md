@@ -237,7 +237,10 @@ de l'historique. Le format texte `AAAA-MM-JJ HH:MM:SS` se compare correctement.
 
 **Statut : fait en v0.3.0** (`items.series_id` rempli par la synchro, épisodes
 réenrichis une fois, rattachement de l'historique après chaque synchro ; repli
-par nom pour les lectures dont le média a disparu).
+par nom pour les lectures dont le média a disparu). Reste : les tops par série
+(`graphs.top_media`, `popular_media`, profil, Wrapped) regroupent encore par
+`series_name`, donc fusionneraient deux séries homonymes ; ils prennent
+toutefois l'affiche et le lien par identifiant.
 
 **Problème.** La vignette de chaque ligne d'historique cherche la série par son
 **nom** (`history.py:78`), via une sous-requête corrélée qui parcourt toute la

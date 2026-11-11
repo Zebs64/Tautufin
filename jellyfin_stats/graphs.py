@@ -314,11 +314,15 @@ def top_media(
         rows = database.query(
             f"""
             SELECT sh.series_name AS label, {_metric_sql(metric)} AS value,
-                   (SELECT i.item_id FROM items i
-                    WHERE i.type = 'Series' AND i.name = sh.series_name LIMIT 1
+                   COALESCE(
+                       MAX(sh.series_id),
+                       (SELECT i.item_id FROM items i
+                        WHERE i.type = 'Series' AND i.name = sh.series_name LIMIT 1)
                    ) AS image_id,
-                   (SELECT i.item_id FROM items i
-                    WHERE i.type = 'Series' AND i.name = sh.series_name LIMIT 1
+                   COALESCE(
+                       MAX(sh.series_id),
+                       (SELECT i.item_id FROM items i
+                        WHERE i.type = 'Series' AND i.name = sh.series_name LIMIT 1)
                    ) AS target_id,
                    MAX(sh.item_id) AS fallback_id
             FROM session_history sh
@@ -357,11 +361,15 @@ def popular_media(
             f"""
             SELECT sh.series_name AS label,
                    COUNT(DISTINCT sh.jellyfin_user_id) AS value,
-                   (SELECT i.item_id FROM items i
-                    WHERE i.type = 'Series' AND i.name = sh.series_name LIMIT 1
+                   COALESCE(
+                       MAX(sh.series_id),
+                       (SELECT i.item_id FROM items i
+                        WHERE i.type = 'Series' AND i.name = sh.series_name LIMIT 1)
                    ) AS image_id,
-                   (SELECT i.item_id FROM items i
-                    WHERE i.type = 'Series' AND i.name = sh.series_name LIMIT 1
+                   COALESCE(
+                       MAX(sh.series_id),
+                       (SELECT i.item_id FROM items i
+                        WHERE i.type = 'Series' AND i.name = sh.series_name LIMIT 1)
                    ) AS target_id,
                    MAX(sh.item_id) AS fallback_id
             FROM session_history sh
