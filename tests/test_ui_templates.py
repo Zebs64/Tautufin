@@ -1,3 +1,4 @@
+import re
 import unittest
 from pathlib import Path
 
@@ -69,6 +70,13 @@ class ReliabilityUIContractTests(unittest.TestCase):
             "Réglages",
             (TEMPLATES / "base.html").read_text(encoding="utf-8"),
         )
+
+    def test_templates_load_scripts_from_the_app_only(self):
+        for path in TEMPLATES.glob("*.html"):
+            source = path.read_text(encoding="utf-8")
+            for src in re.findall(r'<script[^>]+src="([^"]+)"', source):
+                self.assertTrue(src.startswith("/static/"), f"{path.name}: {src}")
+                self.assertTrue((STATIC / src.removeprefix("/static/")).is_file(), src)
 
 
 if __name__ == "__main__":
