@@ -195,7 +195,16 @@
         <label class="check"><input type="checkbox" name="allow_user_library_pages"
           {{ 'checked' if config.allow_user_library_pages }}>
           Autoriser les non-admins à consulter les pages Bibliothèques</label>
+        <label>Reverse proxy de confiance
+          <input type="text" name="trusted_proxies" value="{{ config.trusted_proxies }}"
+                 placeholder="127.0.0.1" spellcheck="false" autocomplete="off">
+          <span class="muted">IP ou réseaux séparés par des virgules (ex. 172.18.0.0/16 pour
+            Traefik dans Docker), « * » pour tous. Ses en-têtes X-Forwarded-* donnent l'IP réelle
+            des clients (limite de tentatives de connexion) et le HTTPS (cookie sécurisé).
+            Pris en compte immédiatement.</span>
+        </label>
       </div>
+      {% if access_error %}<div class="alert alert-error">{{ access_error }}</div>{% endif %}
       <div class="actions"><button type="submit" class="btn btn-primary">Enregistrer l'accès</button></div>
     </div>
   </form>

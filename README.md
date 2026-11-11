@@ -148,8 +148,10 @@ networks:
 > Remplacez `tautufin.tondomain.com` par votre domaine réel et adaptez
 > l'entrypoint Traefik si votre configuration n'utilise pas `websecure`.
 >
-> Renseignez aussi `trusted_proxies` dans la section `[Web]` de `config.ini` avec
-> l'IP ou le réseau Docker de Traefik (par exemple `172.18.0.0/16`) : sans cela,
+> Renseignez aussi le **reverse proxy de confiance** (*Réglages → Accès &
+> utilisateurs*, ou `trusted_proxies` dans la section `[Web]` de `config.ini`)
+> avec l'IP ou le réseau Docker de Traefik (par exemple `172.18.0.0/16`) ; le
+> réglage est pris en compte sans redémarrage. Sans cela,
 > le rate limit du login voit l'IP de Traefik pour tout le monde, et le cookie de
 > session n'est pas marqué `Secure`.
 

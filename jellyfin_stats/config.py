@@ -6,6 +6,8 @@ import os
 import secrets
 import threading
 
+from .proxy import DEFAULT_TRUSTED_PROXIES, normalize_trusted_proxies
+
 logger = logging.getLogger(__name__)
 
 DEFAULTS = {
@@ -56,6 +58,7 @@ class Config:
     def __init__(self, path: str):
         self.path = os.path.abspath(path)
         self._lock = threading.Lock()
+        self._warned_trusted_proxies = None
         self._parser = configparser.ConfigParser()
         if os.path.exists(self.path):
             self._parser.read(self.path, encoding="utf-8")
@@ -103,7 +106,17 @@ class Config:
 
     @property
     def trusted_proxies(self) -> str:
-        return self.get("Web", "trusted_proxies").strip() or "127.0.0.1"
+        """Liste normalisée ; une valeur invalide (config.ini édité à la main)
+        retombe sur le défaut plutôt que d'être acceptée en silence. Lue à
+        chaque requête : l'avertissement n'est émis qu'une fois par valeur."""
+        raw = self.get("Web", "trusted_proxies")
+        try:
+            return normalize_trusted_proxies(raw)
+        except ValueError as exc:
+            if raw != self._warned_trusted_proxies:
+                logger.warning("[Web] trusted_proxies ignoré : %s", exc)
+                self._warned_trusted_proxies = raw
+            return DEFAULT_TRUSTED_PROXIES
 
     @property
     def jellyfin_url(self) -> str:

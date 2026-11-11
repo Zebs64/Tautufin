@@ -38,6 +38,7 @@ from .activity import ActivityMonitor
 from .auth import CurrentUser, RateLimiter
 from .config import Config
 from .jellyfin_api import JellyfinAPI, JellyfinError
+from .proxy import DynamicProxyHeaders, normalize_trusted_proxies
 from .scheduler import Scheduler, get_sync_status, start_sync, sync_all
 
 logger = logging.getLogger(__name__)
@@ -294,6 +295,10 @@ def create_app(config: Config) -> FastAPI:
                     )
                     return JSONResponse({"detail": "Origine de la requête refusée"}, 403)
         return await call_next(request)
+
+    # En dernier = le plus externe : IP cliente et schéma HTTPS corrigés avant
+    # tout le reste. Liste de confiance relue à chaud (Réglages).
+    app.add_middleware(DynamicProxyHeaders, get_trusted_proxies=lambda: config.trusted_proxies)
 
     config_dir = Path(config.path).parent
     image_cache_dir = config_dir / "cache" / "images"
@@ -758,8 +763,15 @@ def create_app(config: Config) -> FastAPI:
         jellyfin_auth_enabled: str = Form(None),
         local_auth_enabled: str = Form(None),
         allow_user_library_pages: str = Form(None),
+        trusted_proxies: str = Form(""),
     ):
-        """Bloc « Accès » : authentification, sessions, droits d'interface."""
+        """Bloc « Accès » : authentification, sessions, droits d'interface,
+        reverse proxy."""
+        try:
+            trusted_proxies = normalize_trusted_proxies(trusted_proxies)
+        except ValueError as exc:
+            return _render_settings(request, user, access_error=str(exc))
+        config.set("Web", "trusted_proxies", trusted_proxies)
         config.set("Auth", "session_lifetime", max(300, session_lifetime))
         config.set("Auth", "jellyfin_auth_enabled", bool(jellyfin_auth_enabled))
         config.set("Auth", "local_auth_enabled", bool(local_auth_enabled))
@@ -1425,10 +1437,9 @@ def main(argv=None) -> int:
         host=args.host or config.get("Web", "host"),
         port=args.port or config.get_int("Web", "port"),
         log_level="debug" if args.debug else "info",
-        # Derrière un reverse proxy listé ici, l'IP cliente (rate limit du
-        # login) et le schéma HTTPS (cookie Secure) viennent de ses en-têtes.
-        proxy_headers=True,
-        forwarded_allow_ips=config.trusted_proxies,
+        # Les en-têtes X-Forwarded-* sont traités par l'appli elle-même
+        # (DynamicProxyHeaders), selon [Web] trusted_proxies modifiable à chaud.
+        proxy_headers=False,
     )
     return 0
 
