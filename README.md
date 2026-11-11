@@ -38,8 +38,9 @@ utilisateurs, auto-hébergé.
 - 📱 **Diagnostic Clients** : KPIs, classement triable, méthodes de lecture,
   résolutions/codecs et constats déterministes sur les transcodages
 - 📜 **Historique** filtrable (utilisateur, type, bibliothèque, période),
-  recherchable, triable et paginé — filtres partageables dans l'URL, reset,
-  total explicite, poster et logo du client
+  recherchable, triable et paginé — une ligne par visionnage (un film repris
+  après une pause compte une fois, parties dépliables), séparateurs par jour,
+  filtres partageables dans l'URL, poster et logo du client
 - 👤 **Profils par utilisateur** : KPIs, clients préférés, top film/série/chanson
   (par temps de visionnage), habitudes (jour, heure), lectures récentes
 - ✨ **Wrapped** : rétrospective annuelle par utilisateur (tops, genres,
@@ -266,9 +267,21 @@ Tableau filtrable (utilisateur, type, bibliothèque, dates, recherche), triable 
 paginé. Les filtres sont reflétés dans l'URL, restaurés avec précédent/suivant,
 affichés sous forme de chips supprimables et réinitialisables. Le total et les
 erreurs sont explicites. Poster du média (poster de la **série** pour un épisode),
-logo du client et — pour les admins — adresse IP. Le bouton **Exporter en CSV**
-télécharge les lectures correspondant aux filtres et au tri en cours (format
-compatible Excel : point-virgule, UTF-8).
+logo du client et — pour les admins — adresse IP. Trié par date, le tableau
+est découpé par jour (« Aujourd'hui », « Hier », « Lundi 9 novembre »). Le bouton
+**Exporter en CSV** télécharge les lectures correspondant aux filtres et au tri
+en cours, segment par segment (format compatible Excel : point-virgule, UTF-8).
+
+**Visionnages.** Un film mis en pause puis repris, ou fini le lendemain, produit
+plusieurs segments. Tautufin les regroupe en un seul visionnage quand le segment
+suivant (même utilisateur, même média) commence moins de 24 h après la fin du
+précédent et que le média n'était pas terminé (moins de 90 %). Un visionnage
+compte pour **une lecture** partout (statistiques, tops, profils, Wrapped), daté
+de son premier segment ; le temps vu reste compté au moment réel de chaque
+segment. Dans l'historique, il occupe une ligne avec la durée totale et le % final,
+et le bouton « en N fois » déplie ses parties. Les lectures **estimées**
+(inférées depuis le statut « Lu », ou reconstituées par Streamystats) portent un
+badge « estimée » et ne sont jamais regroupées.
 
 ![Historique](docs/screenshots/historique.png)
 
@@ -362,7 +375,7 @@ Pour les visionnages antérieurs à Tautufin (ou survenus pendant un arrêt), la
 page *Import* peut aussi reconstituer une lecture par média marqué « Lu » dans
 Jellyfin (date = dernière lecture, durée = durée du média). Ni le client, ni le
 transcodage, ni les visionnages multiples ne sont récupérables. Ces sessions
-sont marquées comme inférées, ne doublent pas une lecture déjà enregistrée à
+portent le badge « estimée », ne doublent pas une lecture déjà enregistrée à
 ±24 h, et peuvent être purgées depuis la même page.
 
 ---
@@ -379,6 +392,27 @@ Section *Réglages → Maintenance* (admin) :
   bibliothèques, utilisateurs Jellyfin). **Les comptes locaux et votre session
   sont conservés** ; les données Jellyfin sont repeuplées à la synchro suivante.
   Action irréversible — exportez un backup d'abord.
+
+### Mise à niveau vers v0.4.0
+
+Le schéma passe en **version 12** : une colonne `viewing_id`, donnée dérivée
+calculée au premier démarrage (quelques secondes sur un gros historique). Les
+lignes d'historique ne sont pas modifiées ; exportez tout de même un backup par
+précaution. Un retour à v0.3.4 reste possible : la colonne y est ignorée, et elle
+est complétée au retour en v0.4.0.
+
+- **Visionnages** : un film ou un épisode vu en plusieurs fois compte pour une
+  seule lecture. Les **nombres de lectures baissent** donc un peu (−5 % environ
+  sur une base réelle) ; les durées ne changent pas. L'historique affiche une
+  ligne par visionnage, parties dépliables ; l'export CSV reste par segment.
+- **Badge « estimée »** sur les lectures inférées et sur celles reconstituées par
+  Streamystats (il remplace le badge « inféré »).
+- **Graphiques** : infobulles en français (« 2 h 15 », « 12 lectures »), axe des
+  dates allégé, courbes moins lissées.
+- **Interface** : initiale de l'utilisateur quand il n'a pas d'avatar Jellyfin,
+  accueil qui s'adapte au nombre de lectures et rappelle la dernière quand rien
+  ne joue, cartes de bibliothèques alignées, historique découpé par jour, mise en
+  page revue sur téléphone.
 
 ### Mise à niveau vers v0.3.4
 
@@ -549,6 +583,7 @@ jellyfin_stats/
 ├── jellyfin_api.py      # wrapper API Jellyfin
 ├── activity.py          # suivi des sessions + seuils de durée minimale
 ├── history.py           # historique (filtres, tri, pagination)
+├── viewings.py          # regroupement des segments en visionnages
 ├── clients.py           # diagnostic historique clients/transcodages
 ├── graphs.py            # agrégations pour Chart.js
 ├── users.py             # profils & gestion des utilisateurs
