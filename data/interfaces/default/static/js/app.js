@@ -108,6 +108,11 @@ function icon(name, cls) {
          `<use href="/static/img/icons.svg?v=${encodeURIComponent(ASSET_VERSION)}#${name}"></use></svg>`;
 }
 
+// Calendriers d'activité qui défilent (téléphone) : afficher les semaines récentes.
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.heatmap-scroll').forEach(el => { el.scrollLeft = el.scrollWidth; });
+});
+
 // Message de résultat (réglages, import) : icône succès/erreur + texte échappé.
 function showStatus(el, ok, text, baseClass) {
   el.innerHTML = `${icon(ok ? 'check_circle' : 'error')} ${esc(text)}`;

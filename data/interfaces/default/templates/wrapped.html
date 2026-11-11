@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_calendar.html" import activity_calendar %}
 {% block title %}Wrapped {{ selected_year or '' }} — Tautufin{% endblock %}
 {% block content %}
 
@@ -195,6 +196,16 @@
       {% endfor %}
     </div>
   </section>
+
+  <!-- Calendrier -->
+  {% if data.calendar %}
+  <section class="wrapped-section reveal">
+    <h2>{{ icon('event_available') }} Ton année jour par jour</h2>
+    <div class="card calendar-card">
+      {{ activity_calendar(data.calendar, "Activité jour par jour en " ~ selected_year) }}
+    </div>
+  </section>
+  {% endif %}
 
   <!-- Habitudes -->
   <div class="wrapped-cards reveal">

@@ -1,6 +1,9 @@
 """Statistiques par utilisateur."""
 
+from datetime import date, timedelta
+
 from . import database, history
+from .labels import MONTHS_SHORT
 
 
 def list_users_with_stats() -> list[dict]:
@@ -159,3 +162,57 @@ def _top_per_kind(jellyfin_user_id: str) -> list[dict]:
             }
         )
     return out
+
+
+def daily_calendar(jellyfin_user_id: str, start: date, end: date) -> dict:
+    """Calendrier d'activité façon GitHub, du lundi précédant ``start`` à
+    ``end`` inclus : une colonne par semaine, une case par jour, avec le temps
+    vu (au moment réel), les lectures (datées de leur premier segment) et un
+    niveau 0–4 relatif aux jours actifs de la période (quartiles)."""
+    rows = database.query(
+        f"""
+        SELECT date(started_at) AS day, COALESCE(SUM(play_duration), 0) AS duration,
+               {database.plays_sql()} AS plays
+        FROM session_history
+        WHERE jellyfin_user_id = ? AND started_at >= ? AND started_at < ?
+        GROUP BY day
+        """,
+        (jellyfin_user_id, start.isoformat(), (end + timedelta(days=1)).isoformat()),
+    )
+    by_day = {r["day"]: r for r in rows}
+    active = sorted(r["duration"] for r in rows if r["duration"] > 0)
+    cuts = [active[(len(active) - 1) * q // 4] for q in (1, 2, 3)] if active else []
+
+    def level(duration: int) -> int:
+        if duration <= 0:
+            return 0
+        return 1 + sum(duration > cut for cut in cuts)
+
+    first = start - timedelta(days=start.weekday())  # lundi
+    weeks, months, day = [], [], first
+    while day <= end:
+        week = []
+        for _ in range(7):
+            if start <= day <= end:
+                r = by_day.get(day.isoformat())
+                duration, plays = (r["duration"], r["plays"]) if r else (0, 0)
+                week.append(
+                    {
+                        "date": day.isoformat(),
+                        "duration": duration,
+                        "plays": plays,
+                        "level": level(duration),
+                    }
+                )
+                if day.day == 1 or (day == start and day.day <= 10):
+                    months.append({"week": len(weeks), "label": MONTHS_SHORT[day.month - 1]})
+            else:
+                week.append(None)
+            day += timedelta(days=1)
+        weeks.append(week)
+    return {
+        "weeks": weeks,
+        "months": months,
+        "active_days": len(active),
+        "total_duration": sum(active),
+    }

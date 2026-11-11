@@ -8,7 +8,7 @@ jours consécutifs et profil de visionnage. Tout est dérivé de
 
 from datetime import date, timedelta
 
-from . import database, history
+from . import database, history, users
 
 WEEKDAYS_FR = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
 MONTHS_FR = [
@@ -247,7 +247,10 @@ def build(jellyfin_user_id: str, year: int) -> dict:
     )
     avg_percent = round(final) if final is not None else None
 
+    calendar = users.daily_calendar(uid, date(year, 1, 1), min(date(year, 12, 31), _today()))
+
     return {
+        "calendar": calendar,
         "year": year,
         "empty": False,
         "totals": totals,

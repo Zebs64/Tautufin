@@ -214,10 +214,20 @@ def _datetime_html(value) -> Markup | str:
     )
 
 
+def _duration_long(seconds) -> str:
+    """Durée lisible pour infobulles : « 2 h 15 », « 3 h », « 45 min »."""
+    seconds = int(seconds or 0)
+    hours, minutes = seconds // 3600, seconds % 3600 // 60
+    if not hours:
+        return f"{minutes}\u00a0min"
+    return f"{hours}\u00a0h\u00a0{minutes:02d}" if minutes else f"{hours}\u00a0h"
+
+
 def make_templates() -> Jinja2Templates:
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
     templates.env.filters["duration_hm"] = _duration_hm
     templates.env.filters["dt"] = _datetime_html
+    templates.env.filters["duration_long"] = _duration_long
     templates.env.filters["date_long"] = date_long_label
     templates.env.filters["media_icon"] = media_icon
     templates.env.filters["media_type_label"] = media_type_label

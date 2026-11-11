@@ -2,6 +2,7 @@
 moniteur d'activité, scheduler), dépendances d'authentification et helpers
 de rendu. Construit une fois par application dans ``create_app``."""
 
+from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -50,6 +51,10 @@ def make_context(config: Config) -> SimpleNamespace:
         upcoming = wrapped_mod.upcoming_year(jellyfin_user_id)
         profile["wrapped_upcoming"] = upcoming
         profile["wrapped_opening"] = wrapped_mod.opening_label(upcoming) if upcoming else None
+        today = wrapped_mod._today()
+        profile["calendar"] = users_mod.daily_calendar(
+            jellyfin_user_id, today - timedelta(days=364), today
+        )
         if config.unknown_as_plex:
             for row in profile.get("top_clients", []):
                 if row["client"] == "Inconnu":

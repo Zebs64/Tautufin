@@ -1,0 +1,25 @@
+{# Calendrier d'activité façon GitHub (données : users.daily_calendar). #}
+{% macro activity_calendar(cal, caption) %}
+<div class="heatmap-scroll">
+  <figure class="heatmap" style="--weeks: {{ cal.weeks | length }}" aria-label="{{ caption }}">
+    <div class="heatmap-months" aria-hidden="true">
+      {% for m in cal.months %}<span style="grid-column: {{ m.week + 1 }}">{{ m.label }}</span>{% endfor %}
+    </div>
+    <div class="heatmap-days" aria-hidden="true">
+      <span></span><span>lun.</span><span></span><span>mer.</span><span></span><span>ven.</span><span></span>
+    </div>
+    <div class="heatmap-grid">
+      {% for week in cal.weeks %}{% for d in week %}
+      {% if d %}<span class="hm-cell hm-{{ d.level }}" title="{{ d.date | date_long }} : {% if d.duration %}{{ d.duration | duration_long }}{% if d.plays %}, {{ d.plays }} lecture{{ 's' if d.plays > 1 }}{% endif %}{% else %}aucune lecture{% endif %}"></span>
+      {%- else %}<span class="hm-cell hm-pad"></span>{% endif %}
+      {% endfor %}{% endfor %}
+    </div>
+  </figure>
+</div>
+<div class="heatmap-foot">
+  <span class="muted">{{ cal.active_days }} jour{{ 's' if cal.active_days > 1 }} actif{{ 's' if cal.active_days > 1 }}
+    · {{ cal.total_duration | duration_long }}</span>
+  <span class="heatmap-legend" aria-hidden="true">Moins
+    {% for l in range(5) %}<span class="hm-cell hm-{{ l }}"></span>{% endfor %} Plus</span>
+</div>
+{% endmacro %}

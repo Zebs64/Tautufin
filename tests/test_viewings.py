@@ -1,6 +1,6 @@
 import tempfile
 import unittest
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -314,6 +314,21 @@ class ViewingCountsTests(unittest.TestCase):
         self.assertNotIn("Phone", summary["charts"]["usage"]["categories"])
         phone = next(r for r in summary["clients"] if r["client"] == "Phone")
         self.assertEqual((phone["plays"], phone["duration_seconds"]), (0, 600))
+
+    def test_activity_calendar_weeks_start_on_monday_with_relative_levels(self):
+        cal = users.daily_calendar("u1", date(2025, 3, 1), date(2025, 3, 7))
+
+        first, second = cal["weeks"]
+        self.assertEqual(first[:5], [None] * 5)  # lundi 24 → vendredi 28 février
+        saturday, sunday = first[5], first[6]
+        self.assertEqual(
+            (saturday["date"], saturday["duration"], saturday["plays"]), ("2025-03-01", 5400, 1)
+        )
+        self.assertEqual((sunday["duration"], sunday["plays"]), (600, 0))  # suite du film
+        self.assertEqual([d["level"] for d in (saturday, sunday, second[2])], [4, 1, 2])
+        self.assertEqual(second[5:], [None, None])  # après la fin de période
+        self.assertEqual((cal["active_days"], cal["total_duration"]), (3, 8400))
+        self.assertEqual(cal["months"], [{"week": 0, "label": "mars"}])
 
     def test_durations_stay_per_segment_at_their_real_moment(self):
         self.assertEqual(self._total(graphs.by_user(days=None, metric="duration")), 8400)
