@@ -2,8 +2,8 @@
 
 Analyse du code de la v0.2.2 (`jellyfin_stats/`, `data/interfaces/default/`),
 novembre 2026. Rien n'est implémenté ici. Chaque constat renvoie à l'endroit du
-code où il a été vérifié ; les numéros de ligne sont ceux du code formaté par
-ruff.
+code où il a été vérifié ; les numéros de ligne sont ceux de la v0.2.2
+formatée par ruff (ils ont pu bouger depuis).
 
 Effort : **S** = moins d'une demi-journée, **M** = 1 à 3 jours, **L** = plus.
 
@@ -19,7 +19,8 @@ sont ailleurs :
    plus coûteux pour un outil dont le seul travail est d'enregistrer des
    lectures.
 2. **Les sessions HTTP ne sont jamais révoquées** quand un compte local est
-   supprimé ou que son mot de passe change, et le rôle est figé au login.
+   supprimé ou que son mot de passe change, et le rôle est figé au login. *Corrigé
+   en v0.2.3.*
 3. **La machinerie du « curseur » de synchronisation protège une valeur qui ne
    sert presque à rien** (détail en dette technique).
 
@@ -27,14 +28,14 @@ sont ailleurs :
 
 | # | Proposition | Domaine | Valeur | Effort |
 |---|---|---|---|---|
-| 1 | Révoquer les sessions (suppression, mot de passe, rôle) | Sécurité | Haute | S |
-| 2 | Authentifier `POST /webhook` | Sécurité | Haute | S |
-| 3 | Migrations atomiques | Robustesse | Haute | S |
+| 1 | ✅ v0.2.3 — Révoquer les sessions (suppression, mot de passe, rôle) | Sécurité | Haute | S |
+| 2 | ✅ v0.2.3 — Authentifier `POST /webhook` | Sécurité | Haute | S |
+| 3 | ✅ v0.2.3 — Migrations atomiques | Robustesse | Haute | S |
 | 4 | Filtres de date exploitant les index | Perf | Moyenne | S |
-| 5 | Cache d'images : négatif qui expire, taille bornée | Robustesse | Moyenne | S |
-| 6 | Mots de passe de plus de 72 octets (bcrypt 5) | Robustesse | Moyenne | S |
+| 5 | ◐ v0.2.3 — Cache d'images : négatif qui expire (fait), taille bornée (reste) | Robustesse | Moyenne | S |
+| 6 | ✅ v0.2.3 — Mots de passe de plus de 72 octets (bcrypt 5) | Robustesse | Moyenne | S |
 | 7 | Derrière un reverse proxy : IP réelle, cookie `Secure` | Sécurité | Moyenne | S |
-| 8 | Servir Chart.js localement | Robustesse | Moyenne | S |
+| 8 | ✅ v0.2.3 — Servir Chart.js localement | Robustesse | Moyenne | S |
 | 9 | Limiter l'écriture `last_active` à chaque requête | Perf | Faible | S |
 | 10 | Persister les sessions de lecture en cours | Robustesse | **Très haute** | M |
 | 11 | Stocker `series_id` dans l'historique | Données/Perf | Haute | M |
@@ -50,8 +51,8 @@ sont ailleurs :
 | 21 | Divers (code mort, tests de chaînes, SVG, setup) | Dette | Faible | S |
 | 22 | Horodatages locaux naïfs (heure d'été) | Données | Faible | L |
 
-L'ordre de lecture conseillé : 10, 1, 2, 3, puis le reste du haut du tableau.
-Le n° 10 a le plus de valeur malgré son effort moyen.
+Les n° 1, 2, 3, 6 et 8 sont faits en v0.2.3, le n° 5 en partie. Prochaine
+étape conseillée : le n° 10, qui a le plus de valeur malgré son effort moyen.
 
 ---
 
@@ -116,6 +117,8 @@ possible avec `infer_history.py`.
 
 ### 3. Migrations atomiques — valeur haute, S
 
+**Statut : fait en v0.2.3** (transaction explicite par migration ; la sauvegarde automatique avant migration reste à faire).
+
 **Problème.** `database.init` (`database.py:205`) applique les instructions d'une
 migration dans le contexte `db()`, qui suppose une transaction. Mais le module
 `sqlite3` n'ouvre pas de transaction implicite avant un `CREATE` ou un `ALTER`.
@@ -149,6 +152,8 @@ catalogues filtrent `removed_at IS NULL`, et l'historique garde le nom.
 
 ### 5. Cache d'images : négatif qui expire, taille bornée — valeur moyenne, S
 
+**Statut : en partie fait en v0.2.3** (le négatif expire après 24 h ; purge par taille et bouton de vidage restent à faire).
+
 **Problème.** `_cached_fetch` (`main.py:829`) écrit un fichier vide quand
 Jellyfin n'a pas d'image (`main.py:839`), et ce cache négatif n'expire jamais.
 Un film ajouté avant que Jellyfin ait récupéré son affiche garde le placeholder
@@ -165,6 +170,8 @@ d'images » dans Maintenance.
 
 ### 6. Mots de passe de plus de 72 octets — valeur moyenne, S
 
+**Statut : fait en v0.2.3** (refus explicite, vérification tronquée à 72 octets pour les anciens comptes).
+
 **Problème.** `requirements.txt` n'avait pas de borne haute, donc l'image Docker
 embarque bcrypt 5. Or bcrypt 5 lève `ValueError` au-delà de 72 octets, au lieu
 de tronquer en silence. `hash_password` (`auth.py:78`) ne gère pas ce cas :
@@ -179,6 +186,8 @@ migration des empreintes existantes. Le refus explicite suffit.
 **Fichiers.** `auth.py`, `main.py` (formulaires setup et réglages).
 
 ### 8. Servir Chart.js localement — valeur moyenne, S
+
+**Statut : fait en v0.2.3.**
 
 **Problème.** Chart.js est chargé depuis jsDelivr dans quatre templates
 (`graphs.html:76`, `clients.html`, `user.html`, `media.html`), sans attribut
@@ -259,6 +268,8 @@ base. Les trous :
 
 ### 1. Révoquer les sessions — valeur haute, S
 
+**Statut : fait en v0.2.3** (y compris le garde-fou sur le dernier admin local).
+
 **Problème.**
 - `delete_local_user` (`auth.py:113`) supprime le compte mais pas ses lignes
   `http_sessions`, et `resolve_session` ne vérifie pas que le compte local
@@ -278,6 +289,8 @@ suppression du dernier admin local.
 **Fichiers.** `auth.py`, `main.py`, tests.
 
 ### 2. Authentifier `POST /webhook` — valeur haute, S
+
+**Statut : fait en v0.2.3** (en-tête `X-Tautufin-Token` ou `?token=`).
 
 **Problème.** `POST /webhook` (`main.py:1279`) n'a aucune authentification. Il
 ne permet pas d'injecter de l'historique, mais n'importe qui pouvant joindre

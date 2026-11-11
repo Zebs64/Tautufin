@@ -360,6 +360,26 @@ Section *Réglages → Maintenance* (admin) :
   sont conservés** ; les données Jellyfin sont repeuplées à la synchro suivante.
   Action irréversible — exportez un backup d'abord.
 
+### Mise à niveau vers v0.2.3
+
+Version corrective, sans changement de schéma : l'image `v0.2.3` démarre sur une
+base v0.2.2, et un retour à v0.2.2 reste possible.
+
+- **Webhook** : `POST /webhook` exige désormais `webhook_token` (section
+  `[Monitoring]`) et renvoie 404 sans lui. Si le plugin Jellyfin Webhook est
+  configuré, ajouter le jeton (voir [Webhook Jellyfin](#webhook-jellyfin-optionnel)).
+  Sans webhook, rien ne change : le polling suffit.
+- **Sessions** : supprimer un compte local ou changer son mot de passe ferme ses
+  sessions ouvertes. Le rôle (admin ou non) est relu à chaque requête, et le
+  dernier compte admin local ne peut plus être supprimé.
+- **Mots de passe** : plus de 72 octets est refusé avec un message clair au lieu
+  d'une erreur 500. Les comptes créés avant avec une phrase plus longue restent
+  utilisables.
+- **Migrations** : chaque migration de schéma est atomique.
+- **Images** : une affiche absente est réinterrogée au bout de 24 h au lieu de
+  rester en placeholder.
+- **Chart.js** est servi par l'appli : plus aucune requête vers un CDN.
+
 ### Mise à niveau vers v0.2.2
 
 L'image `v0.2.2` démarre directement sur une configuration et une base v0.2.1.
