@@ -8,7 +8,7 @@ services:
       # « localtime » et la conversion des imports horodatés en UTC.
       - TZ=Europe/Paris
     ports:
-      - "${DEVSANDBOX_PORT:-8181}:8181"
+      - "8181:8181"
     volumes:
       # Configuration + base SQLite persistées ici.
       - ./config:/config
