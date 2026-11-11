@@ -211,5 +211,28 @@ class ClientRouteTests(unittest.TestCase):
         self.assertIn('href="/clients" class="active"', page.text)
 
 
+class ClientsPageTests(unittest.TestCase):
+    def test_clients_route_navigation_and_static_assets_are_served(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = Config(str(root / "config.ini"))
+            config.set("Database", "path", str(root / "tautufin.db"))
+            config.save()
+            database.init(config.database_path)
+            app = create_app(config)
+            client = TestClient(app)
+            user = auth.CurrentUser("token", "local", "Admin", "admin", None)
+            with patch("jellyfin_stats.auth.resolve_session", return_value=user):
+                page = client.get("/clients")
+                script = client.get("/static/js/clients.js")
+
+        self.assertEqual(page.status_code, 200)
+        self.assertIn('href="/clients"', page.text)
+        self.assertIn("chart-state.js", page.text)
+        self.assertLess(page.text.index("chart-state.js"), page.text.index("clients.js"))
+        self.assertEqual(script.status_code, 200)
+        self.assertIn("ChartState.load", script.text)
+
+
 if __name__ == "__main__":
     unittest.main()

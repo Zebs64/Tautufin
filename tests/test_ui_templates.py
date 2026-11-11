@@ -59,6 +59,18 @@ class ReliabilityUIContractTests(unittest.TestCase):
         self.assertIn("Réessayer", script)
         self.assertIn("tbody.innerHTML", script)
 
+    def test_visible_templates_use_reglages_not_settings(self):
+        occurrences = []
+        for path in TEMPLATES.glob("*.html"):
+            if "Settings" in path.read_text(encoding="utf-8"):
+                occurrences.append(path.name)
+
+        self.assertEqual(occurrences, [])
+        self.assertIn(
+            "Réglages",
+            (TEMPLATES / "base.html").read_text(encoding="utf-8"),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
