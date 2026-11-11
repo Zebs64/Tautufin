@@ -44,11 +44,13 @@ def get_history(
     if library_id:
         where.append("library_id = ?")
         params.append(library_id)
+    # Bornes appliquées à la colonne nue (et non à date(started_at)) pour que
+    # SQLite utilise l'index sur started_at.
     if date_from:
-        where.append("date(started_at) >= date(?)")
+        where.append("started_at >= date(?)")
         params.append(date_from)
     if date_to:
-        where.append("date(started_at) <= date(?)")
+        where.append("started_at < date(?, '+1 day')")
         params.append(date_to)
     if search:
         where.append("(item_name LIKE ? OR series_name LIKE ?)")

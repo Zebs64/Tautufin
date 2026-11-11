@@ -31,7 +31,7 @@ sont ailleurs :
 | 1 | ✅ v0.2.3 — Révoquer les sessions (suppression, mot de passe, rôle) | Sécurité | Haute | S |
 | 2 | ✅ v0.2.3 — Authentifier `POST /webhook` | Sécurité | Haute | S |
 | 3 | ✅ v0.2.3 — Migrations atomiques | Robustesse | Haute | S |
-| 4 | Filtres de date exploitant les index | Perf | Moyenne | S |
+| 4 | ✅ — Filtres de date exploitant les index | Perf | Moyenne | S |
 | 5 | ◐ v0.2.3 — Cache d'images : négatif qui expire (fait), taille bornée (reste) | Robustesse | Moyenne | S |
 | 6 | ✅ v0.2.3 — Mots de passe de plus de 72 octets (bcrypt 5) | Robustesse | Moyenne | S |
 | 7 | Derrière un reverse proxy : IP réelle, cookie `Secure` | Sécurité | Moyenne | S |
@@ -52,8 +52,8 @@ sont ailleurs :
 | 22 | Horodatages locaux naïfs (heure d'été) | Données | Faible | L |
 
 Faits : n° 1, 2, 3, 6 et 8 en v0.2.3 (n° 5 en partie), n° 10, 11 et 13 en
-v0.3.0. Prochaines étapes conseillées : n° 4 (filtres de date), 12
-(dédoublonnage des imports) et 15 (notifications).
+v0.3.0, n° 4 ensuite. Prochaines étapes conseillées : n° 12 (dédoublonnage
+des imports) et 15 (notifications).
 
 ---
 
@@ -219,6 +219,11 @@ de médias. Rien n'est dramatique à cette échelle, mais trois motifs empêchen
 SQLite d'utiliser les index existants (vérifié avec `EXPLAIN QUERY PLAN`).
 
 ### 4. Filtres de date exploitant les index — valeur moyenne, S
+
+**Statut : fait (prochaine version)**. Résultats identiques sur 70 cas, temps
+divisés par 2 à 3 sur une copie de prod multipliée par 50 (~446 000 lectures) :
+historique 64 → 31 ms, graphique annuel 118 → 48 ms, clients 728 → 292 ms,
+Wrapped 301 → 102 ms.
 
 **Problème.**
 - `history.py:48` filtre `date(started_at) >= date(?)` : envelopper la colonne

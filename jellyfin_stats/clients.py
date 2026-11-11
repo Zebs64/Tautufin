@@ -8,8 +8,8 @@ _METHOD = "LOWER(REPLACE(COALESCE(play_method, ''), ' ', ''))"
 def _where(days, user_id: str | None, year: int | None = None) -> tuple[str, list]:
     where, params = ["1=1"], []
     if year:
-        where.append("strftime('%Y', started_at) = ?")
-        params.append(f"{int(year):04d}")
+        where.append("started_at >= ? AND started_at < ?")
+        params.extend(database.year_bounds(year))
     elif days:
         where.append("started_at >= datetime('now', 'localtime', ?)")
         params.append(f"-{int(days)} days")

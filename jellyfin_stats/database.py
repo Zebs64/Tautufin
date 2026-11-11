@@ -232,6 +232,14 @@ MIGRATIONS: list[tuple[int, list[str]]] = [
 ]
 
 
+def year_bounds(year: int) -> tuple[str, str]:
+    """Bornes [1er janvier, 1er janvier suivant) d'une année civile, au format
+    texte de ``started_at``. Comparer la colonne nue à ces bornes permet à
+    SQLite d'utiliser ses index, contrairement à ``strftime('%Y', ...)``."""
+    y = int(year)
+    return f"{y:04d}-01-01", f"{y + 1:04d}-01-01"
+
+
 def now_iso() -> str:
     """Horodatage au format compris par les fonctions de date SQLite."""
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")

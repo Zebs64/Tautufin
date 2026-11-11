@@ -54,9 +54,9 @@ def _longest_streak(days: list[str]) -> int:
 
 def build(jellyfin_user_id: str, year: int) -> dict:
     """Toutes les sections du Wrapped pour (utilisateur, année)."""
-    uid, y = jellyfin_user_id, f"{int(year):04d}"
-    base = "jellyfin_user_id = ? AND strftime('%Y', started_at) = ?"
-    p = (uid, y)
+    uid = jellyfin_user_id
+    base = "jellyfin_user_id = ? AND started_at >= ? AND started_at < ?"
+    p = (uid, *database.year_bounds(year))
 
     totals = database.query_one(
         f"""
@@ -95,7 +95,7 @@ def build(jellyfin_user_id: str, year: int) -> dict:
                     WHERE i.type = 'Series' AND i.name = sh.series_name LIMIT 1)
                ) AS item_id
         FROM session_history sh
-        WHERE sh.jellyfin_user_id = ? AND strftime('%Y', sh.started_at) = ?
+        WHERE sh.jellyfin_user_id = ? AND sh.started_at >= ? AND sh.started_at < ?
           AND sh.item_type = 'Episode' AND sh.series_name IS NOT NULL
         GROUP BY sh.series_name ORDER BY duration DESC LIMIT 5
         """,
@@ -186,8 +186,8 @@ def build(jellyfin_user_id: str, year: int) -> dict:
     prev = database.query_one(
         "SELECT COUNT(*) AS plays, COALESCE(SUM(play_duration), 0) AS duration"
         " FROM session_history WHERE jellyfin_user_id = ?"
-        " AND strftime('%Y', started_at) = ?",
-        (uid, f"{year - 1:04d}"),
+        " AND started_at >= ? AND started_at < ?",
+        (uid, *database.year_bounds(year - 1)),
     )
     comparison = None
     if prev and prev["plays"]:
