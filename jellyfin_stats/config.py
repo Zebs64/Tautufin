@@ -23,6 +23,9 @@ DEFAULTS = {
         "poll_interval": "15",
         "sync_interval": "3600",
         "session_grace": "90",
+        # Jeton exigé par POST /webhook (plugin Jellyfin Webhook). Vide =
+        # webhook désactivé (le polling reste la source de vérité).
+        "webhook_token": "",
     },
     "Clients": {
         # Historique importé sans client (ex. backup Plex synchronisé) :
@@ -145,6 +148,10 @@ class Config:
         """Délai (s) d'absence du polling avant de finaliser une session, pour
         ne pas fragmenter une lecture continue sur un trou transitoire."""
         return max(0, self.get_int("Monitoring", "session_grace"))
+
+    @property
+    def webhook_token(self) -> str:
+        return self.get("Monitoring", "webhook_token").strip()
 
     @property
     def unknown_as_plex(self) -> bool:

@@ -382,13 +382,25 @@ sections :
 |----------------|---------------|
 | `[Jellyfin]`   | `url`, `api_key`, `verify_ssl` |
 | `[Auth]`       | `session_lifetime` (défaut 7 j), `jellyfin_auth_enabled`, `local_auth_enabled`, `secret_key` (auto-généré) |
-| `[Monitoring]` | `minimum_duration` (s), `minimum_percent` (% — **condition OR** avec la durée, comme Tautulli), `poll_interval`, `sync_interval`, `session_grace` |
+| `[Monitoring]` | `minimum_duration` (s), `minimum_percent` (% — **condition OR** avec la durée, comme Tautulli), `poll_interval`, `sync_interval`, `session_grace`, `webhook_token` |
 | `[Clients]`    | `unknown_as_plex`, `hide_unknown_clients` (lectures importées sans client identifié — ex. historique Plex) |
 | `[Energy]`     | `transcode_watts`, `electricity_price` (base de l'estimation de conso transcodage) |
 | `[UI]`         | `allow_user_library_pages` |
 | `[Web]` / `[Database]` | écoute HTTP, chemin SQLite |
 
 La plupart de ces réglages sont éditables depuis la page *Réglages*.
+
+### Webhook Jellyfin (optionnel)
+
+Le polling de `/Sessions` suffit. Le plugin
+[Webhook](https://github.com/jellyfin/jellyfin-plugin-webhook) permet en plus de
+prendre en compte pauses et arrêts sans attendre le cycle suivant. L'endpoint
+`POST /webhook` n'est actif que si `webhook_token` est renseigné dans
+`[Monitoring]`. Dans le plugin, créer une destination *Generic* vers
+`http://<tautufin>:8181/webhook`, avec l'en-tête `X-Tautufin-Token: <jeton>`, les
+événements *Playback Start / Progress / Stop*, et un modèle JSON contenant au
+minimum `NotificationType`, `UserId`, `ItemId` et `IsPaused`. Le paramètre
+`?token=<jeton>` est aussi accepté, mais il apparaît dans les logs d'accès.
 
 ---
 

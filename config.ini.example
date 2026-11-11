@@ -49,6 +49,10 @@ sync_interval = 3600
 # du polling, pour ne pas la fragmenter. 0 = finalisation immédiate.
 session_grace = 90
 
+# Jeton du webhook (plugin Jellyfin Webhook, optionnel). Vide = webhook désactivé.
+# Générer par exemple avec : python -c "import secrets; print(secrets.token_urlsafe(32))"
+webhook_token =
+
 [Clients]
 # Lectures sans client identifié (ex. historique Plex synchronisé dans Jellyfin) :
 # les afficher comme « Plex » plutôt que « Inconnu »...
