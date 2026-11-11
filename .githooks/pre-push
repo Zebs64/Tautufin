@@ -1,0 +1,45 @@
+#!/bin/sh
+# Refuse un push si des motifs privés apparaissent dans les fichiers suivis,
+# les auteurs/committers ou les messages des commits envoyés.
+#
+# Les motifs (regex étendues, insensibles à la casse) ne sont jamais versionnés :
+# ils vivent dans la config locale du dépôt.
+#   git config --local core.hooksPath .githooks
+#   git config --local --add leakguard.pattern 'exemple\.com'
+# Contournement ponctuel (à éviter) : git push --no-verify
+
+patterns=$(git config --get-all leakguard.pattern)
+if [ -z "$patterns" ]; then
+    echo "pre-push: aucun leakguard.pattern configuré, vérification ignorée" >&2
+    exit 0
+fi
+
+pattern_file=$(mktemp)
+trap 'rm -f "$pattern_file"' EXIT
+printf '%s\n' "$patterns" > "$pattern_file"
+
+remote="$1"
+zero=0000000000000000000000000000000000000000
+status=0
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    [ "$local_sha" = "$zero" ] && continue   # suppression de ref
+
+    # Fichiers suivis dans l'arbre poussé (binaires ignorés).
+    if git grep -I -n -i -E -f "$pattern_file" "$local_sha" -- . >&2; then
+        echo "pre-push: motif privé dans les fichiers de $local_ref" >&2
+        status=1
+    fi
+
+    # Métadonnées des commits que le distant n'a pas encore.
+    leaks=$(git log --format='%h %an <%ae> / %cn <%ce>%n%B' \
+        "$local_sha" --not --remotes="$remote" |
+        grep -i -E -f "$pattern_file")
+    if [ -n "$leaks" ]; then
+        printf '%s\n' "$leaks" >&2
+        echo "pre-push: motif privé dans l'identité ou le message d'un commit de $local_ref" >&2
+        status=1
+    fi
+done
+
+exit $status
