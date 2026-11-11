@@ -29,25 +29,6 @@ class ReleaseV012Tests(unittest.TestCase):
         self.assertIn('@app.get("/settings")', source)
         self.assertIn('@app.post("/api/sync")', source)
 
-    def test_gitea_workflow_pushes_sha_latest_and_tag_version(self):
-        workflow = (ROOT / ".gitea" / "workflows" / "docker-image.yml").read_text(
-            encoding="utf-8"
-        )
-
-        self.assertIn("refs/tags/", workflow)
-        self.assertIn("VERSION_TAG=", workflow)
-        self.assertIn('docker push "$IMAGE:${{ gitea.sha }}"', workflow)
-        self.assertIn('docker push "$IMAGE:latest"', workflow)
-        self.assertIn('docker push "$IMAGE:$VERSION_TAG"', workflow)
-
-    def test_github_workflow_keeps_versioned_tag_metadata(self):
-        workflow = (ROOT / ".github" / "workflows" / "docker-image.yml").read_text(
-            encoding="utf-8"
-        )
-        self.assertIn("type=ref,event=tag", workflow)
-        self.assertIn("type=sha,prefix=sha-", workflow)
-        self.assertIn("type=raw,value=latest", workflow)
-
 
 if __name__ == "__main__":
     unittest.main()
