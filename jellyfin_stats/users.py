@@ -7,10 +7,10 @@ def list_users_with_stats() -> list[dict]:
     """Utilisateurs Jellyfin + agrégats pour la page Utilisateurs. Les
     utilisateurs masqués sont exclus (invisibles partout)."""
     return database.query(
-        """
+        f"""
         SELECT u.jellyfin_user_id, u.username, u.is_admin, u.is_active,
                u.last_activity,
-               COUNT(h.id) AS total_plays,
+               {database.plays_sql("h")} AS total_plays,
                COALESCE(SUM(h.play_duration), 0) AS total_duration,
                MAX(h.started_at) AS last_played
         FROM users u
@@ -26,10 +26,10 @@ def list_users_for_admin() -> list[dict]:
     """Tous les utilisateurs Jellyfin (masqués inclus) avec leurs droits, pour
     le bloc de gestion des réglages."""
     return database.query(
-        """
+        f"""
         SELECT u.jellyfin_user_id, u.username, u.is_admin, u.is_active,
                u.hidden, u.access_blocked, u.can_view_all,
-               COUNT(h.id) AS total_plays, MAX(h.started_at) AS last_played
+               {database.plays_sql("h")} AS total_plays, MAX(h.started_at) AS last_played
         FROM users u
         LEFT JOIN session_history h ON h.jellyfin_user_id = u.jellyfin_user_id
         GROUP BY u.jellyfin_user_id
@@ -65,8 +65,8 @@ def get_username(jellyfin_user_id: str) -> str | None:
 def user_overview(jellyfin_user_id: str) -> dict:
     """Stats agrégées d'un utilisateur (page profil / détail admin)."""
     totals = database.query_one(
-        """
-        SELECT COUNT(*) AS total_plays,
+        f"""
+        SELECT {database.plays_sql()} AS total_plays,
                COALESCE(SUM(play_duration), 0) AS total_duration,
                MIN(started_at) AS first_played,
                MAX(started_at) AS last_played
@@ -75,8 +75,8 @@ def user_overview(jellyfin_user_id: str) -> dict:
         (jellyfin_user_id,),
     )
     by_type = database.query(
-        """
-        SELECT item_type, COUNT(*) AS plays,
+        f"""
+        SELECT item_type, {database.plays_sql()} AS plays,
                COALESCE(SUM(play_duration), 0) AS duration
         FROM session_history WHERE jellyfin_user_id = ?
         GROUP BY item_type ORDER BY plays DESC
@@ -84,8 +84,9 @@ def user_overview(jellyfin_user_id: str) -> dict:
         (jellyfin_user_id,),
     )
     top_clients = database.query(
-        """
-        SELECT COALESCE(NULLIF(client_name, ''), 'Inconnu') AS client, COUNT(*) AS plays
+        f"""
+        SELECT COALESCE(NULLIF(client_name, ''), 'Inconnu') AS client,
+               {database.plays_sql()} AS plays
         FROM session_history WHERE jellyfin_user_id = ?
         GROUP BY client ORDER BY plays DESC LIMIT 5
         """,

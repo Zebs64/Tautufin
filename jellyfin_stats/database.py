@@ -294,6 +294,22 @@ def has_live_play_near(conn, jellyfin_user_id: str, item_id: str, started_at: st
     )
 
 
+def first_segment_sql(alias: str = "") -> str:
+    """Condition SQL : la ligne est le premier segment de son visionnage (ou
+    n'a pas encore de viewing_id : elle compte alors pour elle-même)."""
+    p = f"{alias}." if alias else ""
+    return f"({p}viewing_id IS NULL OR {p}viewing_id = {p}id)"
+
+
+def plays_sql(alias: str = "") -> str:
+    """Nombre de lectures = nombre de visionnages (viewings.py) : un film vu en
+    plusieurs fois compte une fois, daté de son premier segment. ``alias`` :
+    alias de session_history dans la requête (obligatoire avec une jointure ou
+    json_each, qui a sa propre colonne ``id``). Sûr sous LEFT JOIN."""
+    p = f"{alias}." if alias else ""
+    return f"COUNT(CASE WHEN {first_segment_sql(alias)} THEN {p}id END)"
+
+
 def year_bounds(year: int) -> tuple[str, str]:
     """Bornes [1er janvier, 1er janvier suivant) d'une année civile, au format
     texte de ``started_at``. Comparer la colonne nue à ces bornes permet à

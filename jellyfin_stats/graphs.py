@@ -29,8 +29,13 @@ TYPE_CASE = """
 GROUP_FORMATS = {"day": "%Y-%m-%d", "week": "%Y-S%W", "month": "%Y-%m"}
 
 
-def _metric_sql(metric: str) -> str:
-    return "SUM(play_duration)" if metric == "duration" else "COUNT(*)"
+def _metric_sql(metric: str, alias: str = "") -> str:
+    """Durée : somme de tous les segments, au moment où ils ont été vus.
+    Lectures : nombre de visionnages (un film vu en plusieurs fois compte une
+    fois). ``alias`` : alias de session_history si la requête en a un."""
+    if metric == "duration":
+        return f"SUM({alias + '.' if alias else ''}play_duration)"
+    return database.plays_sql(alias)
 
 
 def _base_where(days, user_id: str | None, year: int | None = None) -> tuple[str, list]:
@@ -261,7 +266,7 @@ def by_genre(days=30, metric: str = "plays", user_id=None, year=None) -> dict:
     where, params = _base_where(days, user_id, year)
     rows = database.query(
         f"""
-        SELECT je.value AS label, {_metric_sql(metric)} AS value
+        SELECT je.value AS label, {_metric_sql(metric, "session_history")} AS value
         FROM session_history, json_each(session_history.genres) AS je
         WHERE {where} AND genres IS NOT NULL
         GROUP BY je.value
@@ -288,7 +293,7 @@ def top_people(
     where, params = _base_where(days, user_id, year)
     rows = database.query(
         f"""
-        SELECT json_extract(p.value, '$.Name') AS label, {_metric_sql(metric)} AS value
+        SELECT json_extract(p.value, '$.Name') AS label, {_metric_sql(metric, "h")} AS value
         FROM session_history h
         JOIN items i ON i.item_id = h.item_id
         JOIN json_each(i.people) AS p
@@ -319,7 +324,7 @@ def top_media(
         # table interne (toujours NULL pour une Series) et le match échoue.
         rows = database.query(
             f"""
-            SELECT sh.series_name AS label, {_metric_sql(metric)} AS value,
+            SELECT sh.series_name AS label, {_metric_sql(metric, "sh")} AS value,
                    COALESCE(
                        MAX(sh.series_id),
                        (SELECT i.item_id FROM items i
@@ -471,7 +476,7 @@ def top_libraries(
     return database.query(
         f"""
         SELECT COALESCE(sh.library_name, 'Inconnue') AS label,
-               {_metric_sql(metric)} AS value,
+               {_metric_sql(metric, "sh")} AS value,
                (SELECT l.library_id FROM libraries l
                 WHERE l.name = sh.library_name LIMIT 1) AS library_id,
                (SELECT l.collection_type FROM libraries l

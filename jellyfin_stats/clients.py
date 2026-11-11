@@ -3,6 +3,10 @@
 from . import database
 
 _METHOD = "LOWER(REPLACE(COALESCE(play_method, ''), ' ', ''))"
+# Une lecture (visionnage) compte pour le client et la méthode de son premier
+# segment ; les durées restent comptées segment par segment.
+_FIRST = database.first_segment_sql()
+_PLAYS = database.plays_sql()
 
 
 def _where(days, user_id: str | None, year: int | None = None) -> tuple[str, list]:
@@ -42,7 +46,7 @@ def _distribution(
     rows = database.query(
         f"""
         SELECT COALESCE(NULLIF(TRIM({column}), ''), ?) AS label,
-               COUNT(*) AS value
+               {_PLAYS} AS value
         FROM session_history WHERE {where}
         GROUP BY label ORDER BY value DESC, label ASC LIMIT {int(limit)}
         """,
@@ -73,13 +77,16 @@ def build(
     summary_row = (
         database.query_one(
             f"""
-        SELECT COUNT(*) AS plays,
+        SELECT {_PLAYS} AS plays,
                COALESCE(SUM(CASE WHEN play_duration > 0 THEN play_duration ELSE 0 END), 0)
                    AS duration_seconds,
-               SUM(CASE WHEN {_METHOD} = 'directplay' THEN 1 ELSE 0 END) AS direct_play,
-               SUM(CASE WHEN {_METHOD} = 'directstream' THEN 1 ELSE 0 END) AS direct_stream,
-               SUM(CASE WHEN {_METHOD} LIKE 'transcode%' THEN 1 ELSE 0 END) AS transcode,
-               SUM(CASE WHEN {_METHOD} NOT IN ('directplay', 'directstream')
+               SUM(CASE WHEN {_FIRST} AND {_METHOD} = 'directplay' THEN 1 ELSE 0 END)
+                   AS direct_play,
+               SUM(CASE WHEN {_FIRST} AND {_METHOD} = 'directstream' THEN 1 ELSE 0 END)
+                   AS direct_stream,
+               SUM(CASE WHEN {_FIRST} AND {_METHOD} LIKE 'transcode%' THEN 1 ELSE 0 END)
+                   AS transcode,
+               SUM(CASE WHEN {_FIRST} AND {_METHOD} NOT IN ('directplay', 'directstream')
                               AND {_METHOD} NOT LIKE 'transcode%'
                         THEN 1 ELSE 0 END) AS unknown_method,
                COALESCE(SUM(CASE WHEN {_METHOD} LIKE 'transcode%'
@@ -106,13 +113,16 @@ def build(
     all_client_rows = database.query(
         f"""
         SELECT COALESCE(NULLIF(TRIM(client_name), ''), ?) AS client,
-               COUNT(*) AS plays,
+               {_PLAYS} AS plays,
                COALESCE(SUM(CASE WHEN play_duration > 0 THEN play_duration ELSE 0 END), 0)
                    AS duration_seconds,
-               SUM(CASE WHEN {_METHOD} = 'directplay' THEN 1 ELSE 0 END) AS direct_play,
-               SUM(CASE WHEN {_METHOD} = 'directstream' THEN 1 ELSE 0 END) AS direct_stream,
-               SUM(CASE WHEN {_METHOD} LIKE 'transcode%' THEN 1 ELSE 0 END) AS transcode,
-               SUM(CASE WHEN {_METHOD} NOT IN ('directplay', 'directstream')
+               SUM(CASE WHEN {_FIRST} AND {_METHOD} = 'directplay' THEN 1 ELSE 0 END)
+                   AS direct_play,
+               SUM(CASE WHEN {_FIRST} AND {_METHOD} = 'directstream' THEN 1 ELSE 0 END)
+                   AS direct_stream,
+               SUM(CASE WHEN {_FIRST} AND {_METHOD} LIKE 'transcode%' THEN 1 ELSE 0 END)
+                   AS transcode,
+               SUM(CASE WHEN {_FIRST} AND {_METHOD} NOT IN ('directplay', 'directstream')
                               AND {_METHOD} NOT LIKE 'transcode%'
                         THEN 1 ELSE 0 END) AS unknown,
                MAX(started_at) AS last_used
@@ -185,7 +195,7 @@ def build(
         )
     four_k = database.query_one(
         f"""
-        SELECT COUNT(*) AS plays FROM session_history
+        SELECT {_PLAYS} AS plays FROM session_history
         WHERE {where} AND {_METHOD} LIKE 'transcode%'
           AND (LOWER(COALESCE(video_resolution, '')) LIKE '%2160%'
                OR LOWER(COALESCE(video_resolution, '')) LIKE '%4k%')

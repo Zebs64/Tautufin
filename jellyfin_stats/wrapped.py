@@ -92,10 +92,11 @@ def build(jellyfin_user_id: str, year: int) -> dict:
 
     totals = database.query_one(
         f"""
-        SELECT COUNT(*) AS plays,
+        SELECT {database.plays_sql()} AS plays,
                COALESCE(SUM(play_duration), 0) AS duration,
                COUNT(DISTINCT CASE WHEN item_type = 'Movie' THEN item_name END) AS movies,
-               SUM(CASE WHEN item_type = 'Episode' THEN 1 ELSE 0 END) AS episodes,
+               SUM(CASE WHEN item_type = 'Episode' AND {database.first_segment_sql()}
+                   THEN 1 ELSE 0 END) AS episodes,
                COUNT(DISTINCT CASE WHEN item_type = 'Episode' THEN series_name END) AS series,
                COUNT(DISTINCT date(started_at)) AS active_days,
                AVG(percent_complete) AS avg_percent
@@ -109,7 +110,7 @@ def build(jellyfin_user_id: str, year: int) -> dict:
 
     top_movies = database.query(
         f"""
-        SELECT item_name AS label, COUNT(*) AS plays,
+        SELECT item_name AS label, {database.plays_sql()} AS plays,
                COALESCE(SUM(play_duration), 0) AS duration, MAX(item_id) AS item_id
         FROM session_history WHERE {base} AND item_type = 'Movie'
         GROUP BY item_name ORDER BY duration DESC LIMIT 5
@@ -118,8 +119,8 @@ def build(jellyfin_user_id: str, year: int) -> dict:
     )
 
     top_series = database.query(
-        """
-        SELECT sh.series_name AS label, COUNT(*) AS plays,
+        f"""
+        SELECT sh.series_name AS label, {database.plays_sql("sh")} AS plays,
                COALESCE(SUM(sh.play_duration), 0) AS duration,
                COALESCE(
                    MAX(sh.series_id),
@@ -136,7 +137,7 @@ def build(jellyfin_user_id: str, year: int) -> dict:
 
     top_genres = database.query(
         f"""
-        SELECT je.value AS label, COUNT(*) AS plays
+        SELECT je.value AS label, {database.plays_sql("session_history")} AS plays
         FROM session_history, json_each(session_history.genres) AS je
         WHERE {base} AND genres IS NOT NULL
         GROUP BY je.value ORDER BY plays DESC LIMIT 8
@@ -175,7 +176,7 @@ def build(jellyfin_user_id: str, year: int) -> dict:
     busiest = database.query_one(
         f"""
         SELECT date(started_at) AS day, COALESCE(SUM(play_duration), 0) AS duration,
-               COUNT(*) AS plays
+               {database.plays_sql()} AS plays
         FROM session_history WHERE {base}
         GROUP BY day ORDER BY duration DESC LIMIT 1
         """,
@@ -184,7 +185,7 @@ def build(jellyfin_user_id: str, year: int) -> dict:
 
     top_client = database.query_one(
         f"""
-        SELECT client_name AS label, COUNT(*) AS plays
+        SELECT client_name AS label, {database.plays_sql()} AS plays
         FROM session_history
         WHERE {base} AND client_name IS NOT NULL AND client_name != ''
         GROUP BY client_name ORDER BY plays DESC LIMIT 1
@@ -216,7 +217,7 @@ def build(jellyfin_user_id: str, year: int) -> dict:
 
     # Comparaison avec l'année précédente (volume et lectures).
     prev = database.query_one(
-        "SELECT COUNT(*) AS plays, COALESCE(SUM(play_duration), 0) AS duration"
+        f"SELECT {database.plays_sql()} AS plays, COALESCE(SUM(play_duration), 0) AS duration"
         " FROM session_history WHERE jellyfin_user_id = ?"
         " AND started_at >= ? AND started_at < ?",
         (uid, *database.year_bounds(year - 1)),

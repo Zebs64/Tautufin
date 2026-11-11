@@ -5,7 +5,16 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from jellyfin_stats import database, import_playback, infer_history, viewings
+from jellyfin_stats import (
+    clients,
+    database,
+    graphs,
+    import_playback,
+    infer_history,
+    users,
+    viewings,
+    wrapped,
+)
 from jellyfin_stats.activity import TICKS_PER_SECOND, ActivityMonitor
 from jellyfin_stats.viewings import Segment, assign
 
@@ -209,6 +218,91 @@ class ViewingIdMaintenanceTests(unittest.TestCase):
 
         self.assertEqual(len(self._viewings()), 1)
         self._assert_consistent()
+
+
+class ViewingCountsTests(unittest.TestCase):
+    """Un film vu en trois fois = une lecture partout ; le temps vu reste la
+    somme des segments, chacun à sa date."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.db_path = str(Path(self.tmp.name) / "tautufin.db")
+        database.init(self.db_path)
+        database.execute("INSERT INTO users (jellyfin_user_id, username) VALUES ('u1', 'Alice')")
+        rows = [
+            # Film repris deux fois, du samedi soir au dimanche, sur deux clients.
+            ("film", "Movie", "2025-03-01 22:00:00", "2025-03-01 22:30:00", 1800, 30.0, "TV"),
+            ("film", "Movie", "2025-03-01 23:30:00", "2025-03-02 00:30:00", 3600, 85.0, "TV"),
+            ("film", "Movie", "2025-03-02 10:00:00", "2025-03-02 10:20:00", 600, 98.0, "Phone"),
+            # Épisode vu d'une traite.
+            ("ep1", "Episode", "2025-03-05 20:00:00", "2025-03-05 20:40:00", 2400, 97.0, "TV"),
+        ]
+        for item, kind, start, stop, duration, percent, client in rows:
+            database.execute(
+                """
+                INSERT INTO session_history (source, jellyfin_user_id, user_name, item_id,
+                    item_type, item_name, series_name, started_at, stopped_at, play_duration,
+                    runtime_seconds, percent_complete, client_name, play_method)
+                VALUES ('live', 'u1', 'Alice', ?, ?, ?, ?, ?, ?, ?, 6000, ?, ?, 'DirectPlay')
+                """,
+                (
+                    item,
+                    kind,
+                    item,
+                    "Série" if kind == "Episode" else None,
+                    start,
+                    stop,
+                    duration,
+                    percent,
+                    client,
+                ),
+            )
+        database.init(self.db_path)  # calcule les viewing_id
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    @staticmethod
+    def _total(chart):
+        return sum(sum(s["data"]) for s in chart["series"])
+
+    def test_every_breakdown_counts_two_plays(self):
+        charts = [
+            graphs.by_user(days=None),
+            graphs.by_client(days=None),
+            graphs.by_play_method(days=None),
+            graphs.by_day_of_week(days=None),
+            graphs.by_hour_of_day(days=None),
+        ]
+        self.assertEqual([self._total(c) for c in charts], [2] * len(charts))
+        over_time = graphs.plays_over_time(year=2025)["series"]
+        self.assertEqual(sum(next(x for x in over_time if x["name"] == "Total")["data"]), 2)
+
+        profile = users.user_overview("u1")
+        self.assertEqual(profile["totals"]["total_plays"], 2)
+        self.assertEqual(sum(r["plays"] for r in profile["by_type"]), 2)
+        self.assertEqual(sum(r["plays"] for r in profile["top_clients"]), 2)
+
+        summary = clients.build(days=None)
+        self.assertEqual(summary["summary"]["plays"], 2)
+        self.assertEqual(sum(summary["methods"].values()), 2)
+
+        year = wrapped.build("u1", 2025)
+        self.assertEqual((year["totals"]["plays"], year["totals"]["episodes"]), (2, 1))
+
+    def test_durations_stay_per_segment_at_their_real_moment(self):
+        self.assertEqual(self._total(graphs.by_user(days=None, metric="duration")), 8400)
+        by_dow = graphs.by_day_of_week(days=None, metric="duration")
+        days = dict(zip(by_dow["categories"], by_dow["series"][0]["data"], strict=True))
+        self.assertEqual((days["Samedi"], days["Dimanche"]), (5400, 600))
+        plays = dict(
+            zip(
+                by_dow["categories"],
+                graphs.by_day_of_week(days=None)["series"][0]["data"],
+                strict=True,
+            )
+        )
+        self.assertEqual((plays["Samedi"], plays["Dimanche"]), (1, 0))  # daté du 1er segment
 
 
 if __name__ == "__main__":

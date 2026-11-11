@@ -96,7 +96,7 @@ def _timeline(where: str, params: list) -> dict:
 
     rows = database.query(
         f"""
-        SELECT strftime('{fmt}', started_at) AS k, COUNT(*) AS plays
+        SELECT strftime('{fmt}', started_at) AS k, {database.plays_sql()} AS plays
         FROM session_history WHERE {where} AND started_at IS NOT NULL
         GROUP BY k ORDER BY k
         """,
@@ -147,7 +147,7 @@ def media_overview(item_id: str, user_id: str | None = None) -> dict | None:
 
     totals = database.query_one(
         f"""
-        SELECT COUNT(*) AS total_plays,
+        SELECT {database.plays_sql()} AS total_plays,
                COUNT(DISTINCT jellyfin_user_id) AS viewers,
                COALESCE(SUM(play_duration), 0) AS total_duration,
                MIN(started_at) AS first_played,
@@ -158,7 +158,7 @@ def media_overview(item_id: str, user_id: str | None = None) -> dict | None:
     )
     by_user = database.query(
         f"""
-        SELECT jellyfin_user_id, user_name, COUNT(*) AS plays,
+        SELECT jellyfin_user_id, user_name, {database.plays_sql()} AS plays,
                COALESCE(SUM(play_duration), 0) AS duration,
                MAX(started_at) AS last_played
         FROM session_history WHERE {where}

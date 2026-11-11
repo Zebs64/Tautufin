@@ -8,9 +8,9 @@ from . import database
 
 def list_libraries_with_stats() -> list[dict]:
     return database.query(
-        """
+        f"""
         SELECT l.library_id, l.name, l.collection_type, l.item_count, l.updated_at,
-               COUNT(h.id) AS total_plays,
+               {database.plays_sql("h")} AS total_plays,
                COALESCE(SUM(h.play_duration), 0) AS total_duration
         FROM libraries l
         LEFT JOIN session_history h ON h.library_id = l.library_id
@@ -28,8 +28,8 @@ def get_library(library_id: str) -> dict | None:
 def library_detail(library_id: str) -> dict:
     """Répartitions par genre / année / codecs + médias les plus et moins vus."""
     totals = database.query_one(
-        """
-        SELECT COUNT(h.id) AS total_plays,
+        f"""
+        SELECT {database.plays_sql("h")} AS total_plays,
                COALESCE(SUM(h.play_duration), 0) AS total_duration,
                COUNT(DISTINCT h.jellyfin_user_id) AS viewers
         FROM session_history h WHERE h.library_id = ?
@@ -62,8 +62,8 @@ def library_detail(library_id: str) -> dict:
         (library_id,),
     )
     most_watched = database.query(
-        """
-        SELECT i.name, i.type, i.series_name, COUNT(h.id) AS plays,
+        f"""
+        SELECT i.name, i.type, i.series_name, {database.plays_sql("h")} AS plays,
                COALESCE(SUM(h.play_duration), 0) AS duration
         FROM items i JOIN session_history h ON h.item_id = i.item_id
         WHERE i.library_id = ?
