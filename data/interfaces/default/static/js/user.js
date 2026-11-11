@@ -12,9 +12,9 @@ function userHoursBar(canvasId, data, color) {
     },
     options: {responsive: true, maintainAspectRatio: false,
               plugins: {legend: {display: false},
-                        tooltip: {callbacks: {label: c => fmtDuration(secs[c.dataIndex])}}},
+                        tooltip: {callbacks: {label: c => fmtDurationLong(secs[c.dataIndex])}}},
               scales: {y: {beginAtZero: true,
-                           ticks: {callback: v => v + ' h'}}}},
+                           ticks: {callback: fmtHoursTick}}}},
   });
 }
 const hasUserGraphData = data => Boolean((data.series || []).some(series =>

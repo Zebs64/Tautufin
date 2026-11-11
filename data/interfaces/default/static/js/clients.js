@@ -49,7 +49,11 @@
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: {legend: {display: data.series.length > 1}},
+        plugins: {
+          legend: {display: data.series.length > 1},
+          tooltip: {callbacks: {label: context =>
+            ` ${context.dataset.label} : ${playsLabel(context.parsed.y)}`}},
+        },
         scales: {
           x: {stacked, grid: {display: false}},
           y: {stacked, beginAtZero: true, ticks: {precision: 0},
@@ -78,7 +82,7 @@
         plugins: {
           legend: {position: 'right', labels: {font: {size: 11}}},
           tooltip: {callbacks: {label: context =>
-            ` ${context.label} : ${context.parsed} (${Math.round(context.parsed / total * 100)} %)`}},
+            ` ${context.label} : ${playsLabel(context.parsed)} (${Math.round(context.parsed / total * 100)} %)`}},
         },
       },
     });

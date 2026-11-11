@@ -38,6 +38,24 @@ function fmtDuration(seconds) {
   return h ? `${h}h\u00a0${String(m).padStart(2, '0')}m` : `${m}m`;
 }
 
+// Durée pour infobulles et listes : « 2 h 15 », « 3 h », « 45 min ».
+function fmtDurationLong(seconds) {
+  seconds = Math.round(seconds || 0);
+  const h = Math.floor(seconds / 3600), m = Math.floor((seconds % 3600) / 60);
+  if (!h) return `${m}\u00a0min`;
+  return m ? `${h}\u00a0h\u00a0${String(m).padStart(2, '0')}` : `${h}\u00a0h`;
+}
+
+// Graduation d'un axe exprimé en heures : « 1,5 h ».
+function fmtHoursTick(hours) {
+  return `${Number(hours).toLocaleString('fr-FR', {maximumFractionDigits: 1})}\u00a0h`;
+}
+
+function playsLabel(count) {
+  const n = Math.round(count || 0);
+  return `${n.toLocaleString('fr-FR')}\u00a0lecture${n > 1 ? 's' : ''}`;
+}
+
 // Dates lisibles, mêmes règles que le filtre Jinja « dt » (labels.py) :
 // « aujourd'hui 22:31 », « hier 22:31 », « 10 nov. 22:31 », « 10 nov. 2025 22:31 ».
 const MONTHS_SHORT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
@@ -210,7 +228,7 @@ function areaTimeline(canvasId, labels, data) {
         label: 'Lectures', data,
         borderColor: '#9b86ff', borderWidth: 2,
         backgroundColor: grad, fill: 'origin',
-        tension: 0.35, pointRadius: single ? 4 : 0, pointHoverRadius: 5,
+        cubicInterpolationMode: 'monotone', pointRadius: single ? 4 : 0, pointHoverRadius: 5,
         pointBackgroundColor: '#9b86ff', pointBorderColor: '#fff', pointBorderWidth: 1,
       }],
     },
@@ -218,7 +236,7 @@ function areaTimeline(canvasId, labels, data) {
       responsive: true, maintainAspectRatio: false,
       interaction: {intersect: false, mode: 'index'},
       plugins: {legend: {display: false},
-                tooltip: {callbacks: {label: c => `${c.parsed.y} lecture${c.parsed.y > 1 ? 's' : ''}`}}},
+                tooltip: {callbacks: {label: c => playsLabel(c.parsed.y)}}},
       scales: {
         x: {grid: {display: false}, ticks: {maxRotation: 0, autoSkipPadding: 16}},
         y: {beginAtZero: true, ticks: {precision: 0},

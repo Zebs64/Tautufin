@@ -19,7 +19,13 @@ function isDuration() {
   return document.getElementById('graph-metric').value === 'duration';
 }
 
-const fmtTick = v => isDuration() ? fmtDuration(v) : v;
+// Durées : l'API renvoie des secondes, les graphiques tracent des heures
+// (graduations rondes « 2 h ») et les infobulles disent « 2 h 15 ».
+const toPlot = values => isDuration() ? values.map(v => (v || 0) / 3600) : values;
+const fmtTick = v => isDuration() ? fmtHoursTick(v) : Number(v).toLocaleString('fr-FR');
+const fmtPoint = v => isDuration() ? fmtDurationLong(v * 3600) : playsLabel(v);
+// Listes classées : valeurs brutes (secondes), libellé compact.
+const fmtValue = v => isDuration() ? fmtDurationLong(v) : Number(v || 0).toLocaleString('fr-FR');
 
 // Valeur numérique d'un point quel que soit le type/orientation du graphe
 // (barre verticale → parsed.y, horizontale → parsed.x, camembert → parsed).
@@ -28,7 +34,23 @@ function tipValue(ctx) {
     ? ctx.raw
     : (ctx.parsed && typeof ctx.parsed === 'object'
         ? (ctx.parsed.y ?? ctx.parsed.x) : ctx.parsed);
-  return fmtTick(v);
+  return fmtPoint(v);
+}
+
+const MONTHS_LONG = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet',
+                     'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+
+// Périodes de l'axe temporel (« 2026-11-11 », « 2026-S45 », « 2026-11 ») :
+// court pour l'axe (« 11 nov. », « sem. 45 », « nov. 2026 »), long pour
+// l'infobulle (« 11 nov. 2026 », « semaine 45 (2026) », « novembre 2026 »).
+function fmtPeriod(label, long) {
+  let m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(label || '');
+  if (m) return fmtDay(new Date(+m[1], m[2] - 1, +m[3]), long);
+  m = /^(\d{4})-S(\d{2})$/.exec(label || '');
+  if (m) return long ? `semaine ${+m[2]} (${m[1]})` : `sem. ${+m[2]}`;
+  m = /^(\d{4})-(\d{2})$/.exec(label || '');
+  if (m) return long ? `${MONTHS_LONG[m[2] - 1]} ${m[1]}` : `${MONTHS_SHORT[m[2] - 1]} ${m[1]}`;
+  return label;
 }
 
 // Tronque les libellés d'axe trop longs (titres de films, noms…).
@@ -45,15 +67,22 @@ function renderChart(canvasId, type, data, options = {}) {
   if (charts[canvasId]) charts[canvasId].destroy();
   // On extrait `plugins` pour que le spread des autres options ne l'écrase pas
   // (sinon le tooltip de base — formatage durée — serait perdu).
+  // Idem pour les callbacks d'infobulle, fusionnés avec ceux de base.
   const {plugins = {}, ...rest} = options;
+  const {tooltip = {}, ...otherPlugins} = plugins;
   charts[canvasId] = new Chart(el, {type, data, options: {
     responsive: true,
     maintainAspectRatio: false,
     ...rest,
     plugins: {
-      tooltip: {callbacks: {label: ctx =>
-        ` ${ctx.dataset.label || ctx.label} : ${tipValue(ctx)}`}},
-      ...plugins,
+      ...otherPlugins,
+      tooltip: {
+        ...tooltip,
+        callbacks: {
+          label: ctx => ` ${ctx.dataset.label || ctx.label} : ${tipValue(ctx)}`,
+          ...(tooltip.callbacks || {}),
+        },
+      },
     },
   }});
 }
@@ -69,7 +98,7 @@ function rankedList(containerId, data, emptyMsg) {
     ? cats.map((c, i) =>
         `<li><span class="rank">${i + 1}</span>` +
         `<span class="name" title="${esc(c)}">${esc(c)}</span>` +
-        `<span class="val">${fmtTick(vals[i])}</span></li>`).join('')
+        `<span class="val">${fmtValue(vals[i])}</span></li>`).join('')
     : `<li class="muted">${emptyMsg || 'Aucune donnée'}</li>`;
 }
 
@@ -80,7 +109,7 @@ function barFrom(data, canvasId, {horizontal = false, color = 0} = {}) {
     labels: data.categories,
     datasets: data.series.map((s, i) => ({
       label: s.name,
-      data: s.data,
+      data: toPlot(s.data),
       backgroundColor: CHART_COLORS[(color + i) % CHART_COLORS.length],
       borderRadius: 5, borderSkipped: false, maxBarThickness: 30,
     })),
@@ -102,7 +131,7 @@ function hexA(hex, a) {
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
 }
 
-// Aire empilée lissée (lectures dans le temps, ventilées par type de média).
+// Aire empilée, peu lissée (lectures dans le temps, par type de média).
 function areaFrom(data, canvasId) {
   const series = data.series.filter(s => s.name !== 'Total');
   renderChart(canvasId, 'line', {
@@ -110,16 +139,24 @@ function areaFrom(data, canvasId) {
     datasets: series.map((s, i) => {
       const c = CHART_COLORS[i % CHART_COLORS.length];
       return {
-        label: s.name, data: s.data, borderColor: c,
-        backgroundColor: hexA(c, 0.28), fill: true, tension: 0.35,
+        label: s.name, data: toPlot(s.data), borderColor: c,
+        backgroundColor: hexA(c, 0.28), fill: true, cubicInterpolationMode: 'monotone',
         borderWidth: 2, pointRadius: 0, pointHoverRadius: 4,
       };
     }),
   }, {
     interaction: {intersect: false, mode: 'index'},
-    plugins: {legend: {display: series.length > 1}},
+    plugins: {
+      legend: {display: series.length > 1},
+      tooltip: {
+        filter: item => item.parsed.y > 0,  // pas de ligne « Musique : 0 min »
+        callbacks: {title: items => (items.length ? fmtPeriod(items[0].label, true) : '')},
+      },
+    },
     scales: {
-      x: {stacked: true, grid: {display: false}},
+      x: {stacked: true, grid: {display: false},
+          ticks: {maxRotation: 0, autoSkipPadding: 18,
+                  callback(value) { return fmtPeriod(this.getLabelForValue(value), false); }}},
       y: {stacked: true, beginAtZero: true, ticks: {callback: fmtTick},
           grid: {color: 'rgba(255,255,255,0.06)'}, border: {display: false}},
     },
@@ -127,7 +164,7 @@ function areaFrom(data, canvasId) {
 }
 
 function pieFrom(data, canvasId) {
-  const vals = data.series[0] ? data.series[0].data : [];
+  const vals = toPlot(data.series[0] ? data.series[0].data : []);
   const total = vals.reduce((a, b) => a + (b || 0), 0) || 1;
   renderChart(canvasId, 'doughnut', {
     labels: data.categories,
@@ -141,7 +178,7 @@ function pieFrom(data, canvasId) {
     plugins: {
       legend: {position: 'right', labels: {font: {size: 11}}},
       tooltip: {callbacks: {label: ctx =>
-        ` ${ctx.label} : ${fmtTick(ctx.parsed)} (${Math.round(ctx.parsed / total * 100)}%)`}},
+        ` ${ctx.label} : ${fmtPoint(ctx.parsed)} (${Math.round(ctx.parsed / total * 100)} %)`}},
     },
   });
 }
