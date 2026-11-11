@@ -34,7 +34,7 @@ utilisateurs, auto-hébergé.
 
 - 📊 **Graphiques riches** (Chart.js) : lectures dans le temps, films / séries /
   musique, top utilisateurs, genres, acteurs, réalisateurs, résolutions, clients,
-  Direct Play vs transcodage…
+  lecture directe vs transcodage…
 - 📱 **Diagnostic Clients** : KPIs, classement triable, méthodes de lecture,
   résolutions/codecs et constats déterministes sur les transcodages
 - 📜 **Historique** filtrable (utilisateur, type, bibliothèque, période),
@@ -215,7 +215,7 @@ vu récemment, bibliothèques et utilisateurs les plus actifs, podium des viewer
 ### Graphiques
 
 Une grille de graphiques filtrables par **période**, **utilisateur** et
-**mesure** (nombre de lectures ou durée). Sous *Direct Play vs Transcodage*, une
+**mesure** (nombre de lectures ou durée). Sous *Lecture directe vs transcodage*, une
 **estimation de l'électricité consommée et du coût** du transcodage sur la
 période (base configurable dans les Réglages).
 
