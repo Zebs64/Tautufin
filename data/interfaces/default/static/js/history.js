@@ -16,8 +16,8 @@ function mediaCell(r) {
   const thumb = imageId
     ? `<img class="thumb" loading="lazy" alt="" src="/image/item/${encodeURIComponent(imageId)}?w=120">`
     : '';
-  const badge = r.source === 'infer'
-    ? ' <span class="badge badge-off" title="Session reconstituée depuis le statut « Lu » de Jellyfin">inféré</span>'
+  const badge = r.estimated
+    ? ` <span class="badge badge-off badge-estimated" title="${esc(r.estimate_hint || '')}">estimée</span>`
     : '';
   const inner = r.item_id
     ? `<a href="/media/${encodeURIComponent(r.item_id)}">${title}</a>${badge}`

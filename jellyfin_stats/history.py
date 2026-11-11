@@ -10,8 +10,16 @@ l'impose depuis la session serveur pour un non-admin — jamais depuis un
 paramètre client.
 """
 
-from . import database
+from . import database, viewings
 from .labels import media_type_label
+
+# Infobulle du badge « estimée » (viewings.is_estimated), selon l'origine.
+ESTIMATE_HINTS = {
+    "infer": "Lecture estimée : reconstituée depuis le statut « Lu » de Jellyfin."
+    " Date et durée sont approximatives.",
+    "import": "Lecture estimée : reconstituée par Streamystats."
+    " Date et durée sont approximatives.",
+}
 
 # Tri whitelisté : clé exposée à l'API → colonne SQL (export, par segment).
 SORT_COLUMNS = {
@@ -160,6 +168,7 @@ def get_history(
                        THEN MIN(100.0, v.total_duration * 100.0 / l.runtime_seconds)
                    ELSE l.percent_complete
                END AS final_percent,
+               {viewings.estimated_sql("sh")} AS estimated,
                {_image_id("sh")} AS image_id
         FROM v
         JOIN session_history sh ON sh.id = v.vid
@@ -171,6 +180,8 @@ def get_history(
     )
     for row in rows:
         row["percent_complete"] = row.pop("final_percent")
+        row["estimated"] = bool(row["estimated"])
+        row["estimate_hint"] = ESTIMATE_HINTS.get(row["source"]) if row["estimated"] else None
     for row in rows:
         row["item_type_label"] = media_type_label(row["item_type"])
     return {"total": total, "page": page, "page_size": page_size, "rows": rows}

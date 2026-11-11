@@ -78,7 +78,8 @@
     <tbody>
       {% for h in media.recent %}
       <tr>
-        <td>{{ h.started_at | dt }}</td>
+        <td>{{ h.started_at | dt }}
+          {%- if h.estimated %} <span class="badge badge-off badge-estimated" title="{{ h.estimate_hint }}">estimée</span>{% endif %}</td>
         {% if user.is_admin %}
         <td><span class="cell-user">
           <img class="avatar" loading="lazy" alt="" src="/image/user/{{ h.jellyfin_user_id }}">

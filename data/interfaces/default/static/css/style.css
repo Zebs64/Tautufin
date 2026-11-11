@@ -686,6 +686,7 @@ form.inline input { width: 170px; margin: 0; display: inline-block; padding: 6px
 .badge-admin { background: linear-gradient(135deg, var(--accent), var(--accent-deep)); color: #fff; }
 .badge-ok { background: rgba(50, 167, 105, .2); color: var(--ok); }
 .badge-off { background: var(--bg-input-alpha); color: var(--text-muted); }
+.badge-estimated { cursor: help; border: 1px dashed var(--border-light); }
 .badge-running { background: rgba(119, 91, 244, .2); color: var(--accent); }
 .badge-error { background: rgba(217, 84, 84, .16); color: var(--err); }
 

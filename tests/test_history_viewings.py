@@ -57,6 +57,7 @@ class GroupedHistoryTests(unittest.TestCase):
                 ),
             )
         database.init(config.database_path)
+        self.db_path = config.database_path
         self.client = TestClient(create_app(config))
 
     def tearDown(self):
@@ -119,6 +120,27 @@ class GroupedHistoryTests(unittest.TestCase):
         self.assertEqual(film.count("en 3 fois"), 1)
         recent = film.split("récentes</h2>")[1]
         self.assertEqual(recent.count('href="/users/'), 2)  # une ligne par visionnage
+
+    def test_estimated_plays_are_flagged_with_their_origin(self):
+        for source, start, stop in (
+            ("infer", "2026-10-01 20:00:00", None),
+            ("import", "2026-10-02 20:00:00", "2026-10-02 20:00:00"),  # Streamystats
+        ):
+            database.execute(
+                "INSERT INTO session_history (source, jellyfin_user_id, item_id, item_type,"
+                " item_name, started_at, stopped_at, play_duration)"
+                " VALUES (?, 'u2', ?, 'Movie', 'Ancien', ?, ?, 6000)",
+                (source, "e" * 31 + source[0], start, stop),
+            )
+        database.init(self.db_path)
+
+        rows = self._get(ADMIN, "/api/history?user_id=u2&sort=date&order=asc").json()["rows"]
+
+        self.assertEqual([r["estimated"] for r in rows], [True, True, False])
+        self.assertIn("statut « Lu »", rows[0]["estimate_hint"])
+        self.assertIn("Streamystats", rows[1]["estimate_hint"])
+        self.assertIsNone(rows[2]["estimate_hint"])
+        self.assertIn("estimée</span>", self._get(ADMIN, "/users/u2").text)
 
     def test_csv_export_stays_per_segment(self):
         csv_text = self._get(ADMIN, "/api/history.csv").text

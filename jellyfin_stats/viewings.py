@@ -53,6 +53,15 @@ def is_estimated(seg: Segment) -> bool:
     )
 
 
+def estimated_sql(alias: str = "") -> str:
+    """Équivalent SQL de ``is_estimated``."""
+    p = f"{alias}." if alias else ""
+    return (
+        f"({p}source = 'infer' OR ({p}source = 'import' AND {p}stopped_at IS NOT NULL"
+        f" AND {p}stopped_at != '' AND {p}stopped_at = {p}started_at))"
+    )
+
+
 def _parse(value: str | None) -> datetime | None:
     try:
         return datetime.fromisoformat(str(value)[:19])

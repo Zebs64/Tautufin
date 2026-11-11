@@ -100,6 +100,7 @@
             {% if h.image_id or h.item_id %}<img class="thumb" loading="lazy" alt=""
                  src="/image/item/{{ h.image_id or h.item_id }}?w=120">{% endif %}
             <span>{% if h.item_id %}<a href="/media/{{ h.item_id }}">{{ title }}</a>{% else %}{{ title }}{% endif %}
+              {%- if h.estimated %} <span class="badge badge-off badge-estimated" title="{{ h.estimate_hint }}">estimée</span>{% endif %}
               {%- if h.segments > 1 %}<span class="viewing-parts">en {{ h.segments }} fois</span>{% endif %}</span>
           </span>
         </td>
