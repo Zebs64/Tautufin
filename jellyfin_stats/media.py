@@ -55,8 +55,21 @@ def _month_range(first_month: str, last_month: str) -> list[str]:
 
 # Granularité de la timeline selon l'étendue : SQLite strftime, libellé court,
 # et fonction de remplissage de l'axe (clé brute → toutes les clés de la plage).
-_FRENCH_MONTHS = ["", "janv.", "févr.", "mars", "avr.", "mai", "juin",
-                  "juil.", "août", "sept.", "oct.", "nov.", "déc."]
+_FRENCH_MONTHS = [
+    "",
+    "janv.",
+    "févr.",
+    "mars",
+    "avr.",
+    "mai",
+    "juin",
+    "juil.",
+    "août",
+    "sept.",
+    "oct.",
+    "nov.",
+    "déc.",
+]
 
 
 def _timeline(where: str, params: list) -> dict:
@@ -106,8 +119,12 @@ def _timeline(where: str, params: list) -> dict:
         cats = [str(y) for y in range(int(first_k), int(last_k) + 1)]
         labels = cats[:]
 
-    return {"categories": cats, "labels": labels,
-            "data": [counts.get(c, 0) for c in cats], "granularity": gran}
+    return {
+        "categories": cats,
+        "labels": labels,
+        "data": [counts.get(c, 0) for c in cats],
+        "granularity": gran,
+    }
 
 
 def media_overview(item_id: str, user_id: str | None = None) -> dict | None:

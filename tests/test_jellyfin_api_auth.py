@@ -92,10 +92,8 @@ class JellyfinAPIAuthTests(unittest.TestCase):
     def test_light_inventory_is_paginated_without_rich_fields_or_images(self):
         calls = []
         responses = [
-            {"Items": [{"Id": "i1", "Etag": "r1"}],
-             "TotalRecordCount": 2},
-            {"Items": [{"Id": "i2", "Etag": "r2"}],
-             "TotalRecordCount": 2},
+            {"Items": [{"Id": "i1", "Etag": "r1"}], "TotalRecordCount": 2},
+            {"Items": [{"Id": "i2", "Etag": "r2"}], "TotalRecordCount": 2},
         ]
 
         def fake_request(method, url, **kwargs):

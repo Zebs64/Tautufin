@@ -36,11 +36,11 @@ class AccessBlocked(Exception):
 @dataclass
 class CurrentUser:
     token: str
-    auth_mode: str               # 'jellyfin' | 'local'
+    auth_mode: str  # 'jellyfin' | 'local'
     username: str
-    role: str                    # 'admin' | 'user'
-    jellyfin_user_id: str | None # None pour un compte local non lié
-    can_view_all: bool = False   # droit « vision » (résolu en direct)
+    role: str  # 'admin' | 'user'
+    jellyfin_user_id: str | None  # None pour un compte local non lié
+    can_view_all: bool = False  # droit « vision » (résolu en direct)
 
     @property
     def is_admin(self) -> bool:
@@ -74,8 +74,10 @@ class RateLimiter:
 
 # --- Mots de passe locaux ---------------------------------------------------
 
+
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
 
 def check_password(password: str, password_hash: str) -> bool:
     try:
@@ -86,18 +88,20 @@ def check_password(password: str, password_hash: str) -> bool:
 
 # --- Comptes locaux ---------------------------------------------------------
 
-def create_local_user(username: str, password: str, role: str = "user",
-                      jellyfin_user_id: str | None = None) -> None:
+
+def create_local_user(
+    username: str, password: str, role: str = "user", jellyfin_user_id: str | None = None
+) -> None:
     database.execute(
         "INSERT INTO local_users (username, password_hash, role, jellyfin_user_id)"
         " VALUES (?, ?, ?, ?)",
         (username, hash_password(password), role, jellyfin_user_id or None),
     )
 
+
 def get_local_user(username: str) -> dict | None:
-    return database.query_one(
-        "SELECT * FROM local_users WHERE username = ?", (username,)
-    )
+    return database.query_one("SELECT * FROM local_users WHERE username = ?", (username,))
+
 
 def list_local_users() -> list[dict]:
     return database.query(
@@ -105,22 +109,27 @@ def list_local_users() -> list[dict]:
         " FROM local_users ORDER BY username"
     )
 
+
 def delete_local_user(user_id: int) -> None:
     database.execute("DELETE FROM local_users WHERE id = ?", (user_id,))
 
+
 def set_local_password(username: str, password: str) -> bool:
-    return database.execute(
-        "UPDATE local_users SET password_hash = ? WHERE username = ?",
-        (hash_password(password), username),
-    ) > 0
+    return (
+        database.execute(
+            "UPDATE local_users SET password_hash = ? WHERE username = ?",
+            (hash_password(password), username),
+        )
+        > 0
+    )
+
 
 def has_local_admin() -> bool:
-    return database.query_one(
-        "SELECT 1 FROM local_users WHERE role = 'admin' LIMIT 1"
-    ) is not None
+    return database.query_one("SELECT 1 FROM local_users WHERE role = 'admin' LIMIT 1") is not None
 
 
 # --- Logins -----------------------------------------------------------------
+
 
 def login_jellyfin(api, username: str, password: str) -> CurrentUser | None:
     """Authentifie via POST /Users/AuthenticateByName. Le token retourné par
@@ -162,9 +171,7 @@ def login_local(username: str, password: str) -> CurrentUser | None:
     user = get_local_user(username)
     if not user or not check_password(password, user["password_hash"]):
         return None
-    database.execute(
-        "UPDATE local_users SET last_login = ? WHERE id = ?", (now_iso(), user["id"])
-    )
+    database.execute("UPDATE local_users SET last_login = ? WHERE id = ?", (now_iso(), user["id"]))
     return _create_session(
         auth_mode="local",
         username=user["username"],
@@ -193,9 +200,16 @@ def _create_session(auth_mode, username, role, jellyfin_user_id) -> CurrentUser:
         "INSERT INTO http_sessions"
         " (token, auth_mode, username, role, jellyfin_user_id,"
         "  created_at, expires_at, last_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (token, auth_mode, username, role, jellyfin_user_id,
-         now.strftime("%Y-%m-%d %H:%M:%S"), expires.strftime("%Y-%m-%d %H:%M:%S"),
-         now.strftime("%Y-%m-%d %H:%M:%S")),
+        (
+            token,
+            auth_mode,
+            username,
+            role,
+            jellyfin_user_id,
+            now.strftime("%Y-%m-%d %H:%M:%S"),
+            expires.strftime("%Y-%m-%d %H:%M:%S"),
+            now.strftime("%Y-%m-%d %H:%M:%S"),
+        ),
     )
     return CurrentUser(token, auth_mode, username, role, jellyfin_user_id)
 
@@ -231,9 +245,7 @@ def resolve_session(cookie: str | None) -> CurrentUser | None:
                 database.execute("DELETE FROM http_sessions WHERE token = ?", (token,))
                 return None
             can_view_all = bool(flags["can_view_all"])
-    database.execute(
-        "UPDATE http_sessions SET last_active = ? WHERE token = ?", (now_iso(), token)
-    )
+    database.execute("UPDATE http_sessions SET last_active = ? WHERE token = ?", (now_iso(), token))
     return CurrentUser(
         token=row["token"],
         auth_mode=row["auth_mode"],
@@ -249,6 +261,4 @@ def destroy_session(token: str) -> None:
 
 
 def purge_expired_sessions() -> int:
-    return database.execute(
-        "DELETE FROM http_sessions WHERE expires_at < ?", (now_iso(),)
-    )
+    return database.execute("DELETE FROM http_sessions WHERE expires_at < ?", (now_iso(),))

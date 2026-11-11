@@ -47,8 +47,9 @@ def _base_where(days, user_id: str | None, year: int | None = None) -> tuple[str
     else:
         # Vue globale : les utilisateurs « masqués » sont totalement exclus
         # (totaux compris). Leur propre profil reste visible (user_id imposé).
-        where.append("jellyfin_user_id NOT IN "
-                     "(SELECT jellyfin_user_id FROM users WHERE hidden = 1)")
+        where.append(
+            "jellyfin_user_id NOT IN (SELECT jellyfin_user_id FROM users WHERE hidden = 1)"
+        )
     return " AND ".join(where), params
 
 
@@ -74,8 +75,13 @@ def _time_axis(days, group: str, year: int | None = None) -> list[str]:
     return labels
 
 
-def plays_over_time(days=30, group: str = "day", metric: str = "plays",
-                    user_id: str | None = None, year: int | None = None) -> dict:
+def plays_over_time(
+    days=30,
+    group: str = "day",
+    metric: str = "plays",
+    user_id: str | None = None,
+    year: int | None = None,
+) -> dict:
     """Lectures (ou durée) par jour/semaine/mois, ventilées films/séries/musique."""
     group = group if group in GROUP_FORMATS else "day"
     if not days and not year:
@@ -100,16 +106,25 @@ def plays_over_time(days=30, group: str = "day", metric: str = "plays",
         data = by_category.setdefault(row["category"], [0] * len(labels))
         data[index[row["bucket"]]] += row["value"] or 0
         totals[index[row["bucket"]]] += row["value"] or 0
-    series = [{"name": name, "data": data}
-              for name, data in by_category.items()
-              if name != "Autre" or any(data)]
+    series = [
+        {"name": name, "data": data}
+        for name, data in by_category.items()
+        if name != "Autre" or any(data)
+    ]
     series.append({"name": "Total", "data": totals})
     return {"categories": labels, "series": series}
 
 
-def _grouped(days, metric: str, user_id: str | None, group_expr: str,
-             label: str, limit: int = 10, extra_where: str = "",
-             year: int | None = None) -> dict:
+def _grouped(
+    days,
+    metric: str,
+    user_id: str | None,
+    group_expr: str,
+    label: str,
+    limit: int = 10,
+    extra_where: str = "",
+    year: int | None = None,
+) -> dict:
     where, params = _base_where(days, user_id, year)
     rows = database.query(
         f"""
@@ -134,38 +149,49 @@ def by_user(days=30, metric: str = "plays", year: int | None = None) -> dict:
 
 
 def by_library(days=30, metric: str = "plays", user_id=None, year=None) -> dict:
-    return _grouped(days, metric, user_id,
-                    "COALESCE(library_name, 'Inconnue')", "Par bibliothèque",
-                    year=year)
+    return _grouped(
+        days, metric, user_id, "COALESCE(library_name, 'Inconnue')", "Par bibliothèque", year=year
+    )
 
 
 def by_resolution(days=30, metric: str = "plays", user_id=None, year=None) -> dict:
-    return _grouped(days, metric, user_id,
-                    "COALESCE(video_resolution, 'Inconnue')", "Par résolution",
-                    year=year)
+    return _grouped(
+        days, metric, user_id, "COALESCE(video_resolution, 'Inconnue')", "Par résolution", year=year
+    )
 
 
-def by_client(days=30, metric: str = "plays", user_id=None, year=None,
-              hide_unknown: bool = True, unknown_label: str = "Inconnu") -> dict:
+def by_client(
+    days=30,
+    metric: str = "plays",
+    user_id=None,
+    year=None,
+    hide_unknown: bool = True,
+    unknown_label: str = "Inconnu",
+) -> dict:
     # Beaucoup de lectures importées (ou inférées en amont par Jellyfin /
     # Streamystats) n'ont pas de client connu — souvent un historique Plex
     # synchronisé. Selon la config on les masque de ce graphe (ils restent
     # comptés ailleurs) ou on les affiche sous un libellé dédié (« Plex »…).
     extra = "AND client_name IS NOT NULL AND client_name != ''" if hide_unknown else ""
-    data = _grouped(days, metric, user_id, "client_name", "Par client",
-                    extra_where=extra, year=year)
+    data = _grouped(
+        days, metric, user_id, "client_name", "Par client", extra_where=extra, year=year
+    )
     if not hide_unknown:
         # _grouped mappe les clients vides/NULL sur « Inconnu » : on les
         # renomme selon la préférence (« Plex » le cas échéant).
-        data["categories"] = [unknown_label if c == "Inconnu" else c
-                              for c in data["categories"]]
+        data["categories"] = [unknown_label if c == "Inconnu" else c for c in data["categories"]]
     return data
 
 
 def by_play_method(days=30, metric: str = "plays", user_id=None, year=None) -> dict:
-    return _grouped(days, metric, user_id,
-                    "COALESCE(play_method, 'Inconnu')", "Par méthode de lecture",
-                    year=year)
+    return _grouped(
+        days,
+        metric,
+        user_id,
+        "COALESCE(play_method, 'Inconnu')",
+        "Par méthode de lecture",
+        year=year,
+    )
 
 
 def transcode_seconds(days=30, user_id=None, year=None) -> int:
@@ -201,8 +227,7 @@ def by_day_of_week(days=30, metric: str = "plays", user_id=None, year=None) -> d
     for r in rows:
         # strftime('%w') : 0 = dimanche → remappé sur 0 = lundi
         data[(r["dow"] + 6) % 7] = r["value"] or 0
-    return {"categories": WEEKDAYS_FR,
-            "series": [{"name": "Par jour de la semaine", "data": data}]}
+    return {"categories": WEEKDAYS_FR, "series": [{"name": "Par jour de la semaine", "data": data}]}
 
 
 def by_hour_of_day(days=30, metric: str = "plays", user_id=None, year=None) -> dict:
@@ -220,8 +245,10 @@ def by_hour_of_day(days=30, metric: str = "plays", user_id=None, year=None) -> d
     data = [0] * 24
     for r in rows:
         data[r["hour"]] = r["value"] or 0
-    return {"categories": [f"{h:02d}h" for h in range(24)],
-            "series": [{"name": "Par heure de la journée", "data": data}]}
+    return {
+        "categories": [f"{h:02d}h" for h in range(24)],
+        "series": [{"name": "Par heure de la journée", "data": data}],
+    }
 
 
 def by_genre(days=30, metric: str = "plays", user_id=None, year=None) -> dict:
@@ -243,14 +270,15 @@ def by_genre(days=30, metric: str = "plays", user_id=None, year=None) -> dict:
     }
 
 
-def top_people(days=30, kind: str = "actor", metric: str = "plays",
-               user_id=None, year=None, limit: int = 10) -> dict:
+def top_people(
+    days=30, kind: str = "actor", metric: str = "plays", user_id=None, year=None, limit: int = 10
+) -> dict:
     """Top acteurs / réalisateurs / scénaristes selon les lectures (jointure
     historique × distribution stockée dans items.people)."""
-    person_type = {"actor": "Actor", "director": "Director",
-                   "writer": "Writer"}.get(kind, "Actor")
-    label = {"actor": "Acteurs", "director": "Réalisateurs",
-             "writer": "Scénaristes"}.get(kind, "Personnes")
+    person_type = {"actor": "Actor", "director": "Director", "writer": "Writer"}.get(kind, "Actor")
+    label = {"actor": "Acteurs", "director": "Réalisateurs", "writer": "Scénaristes"}.get(
+        kind, "Personnes"
+    )
     where, params = _base_where(days, user_id, year)
     rows = database.query(
         f"""
@@ -270,8 +298,9 @@ def top_people(days=30, kind: str = "actor", metric: str = "plays",
     }
 
 
-def top_media(days=30, kind: str = "movie", metric: str = "plays",
-              user_id=None, limit: int = 10, year=None) -> list[dict]:
+def top_media(
+    days=30, kind: str = "movie", metric: str = "plays", user_id=None, limit: int = 10, year=None
+) -> list[dict]:
     """Top films/séries avec IDs séparés pour le dashboard.
 
     ``image_id`` pointe vers le média dont le poster est servi par le proxy
@@ -317,8 +346,9 @@ def top_media(days=30, kind: str = "movie", metric: str = "plays",
     return rows
 
 
-def popular_media(days=30, kind: str = "movie", user_id=None,
-                  limit: int = 10, year=None) -> list[dict]:
+def popular_media(
+    days=30, kind: str = "movie", user_id=None, limit: int = 10, year=None
+) -> list[dict]:
     """Médias les plus *populaires* = nombre d'utilisateurs distincts les ayant
     regardés (logique « popular » de Tautulli, indépendante de plays/durée)."""
     where, params = _base_where(days, user_id, year)
@@ -381,19 +411,22 @@ def recently_watched(days=None, user_id=None, limit: int = 10) -> list[dict]:
     for r in rows:
         is_episode = r["item_type"] == "Episode" and r["series_name"]
         if is_episode:
-            label = (f"{r['series_name']} · S{r['season_number'] or 0}"
-                     f"E{r['episode_number'] or 0}")
+            label = f"{r['series_name']} · S{r['season_number'] or 0}E{r['episode_number'] or 0}"
         else:
             label = r["item_name"]
         if not label or label in seen:
             continue
         seen.add(label)
-        out.append({
-            "label": label, "last_watch": r["last_watch"],
-            "user_name": r["user_name"], "image_id": r["item_id"],
-            "target_id": r["item_id"],
-            "_series": r["series_name"] if is_episode else None,
-        })
+        out.append(
+            {
+                "label": label,
+                "last_watch": r["last_watch"],
+                "user_name": r["user_name"],
+                "image_id": r["item_id"],
+                "target_id": r["item_id"],
+                "_series": r["series_name"] if is_episode else None,
+            }
+        )
         if len(out) >= limit:
             break
     # Résout le poster de la série pour les épisodes (un seul lookup par série).
@@ -403,16 +436,17 @@ def recently_watched(days=None, user_id=None, limit: int = 10) -> list[dict]:
             continue
         if series not in series_ids:
             row = database.query_one(
-                "SELECT item_id FROM items WHERE type = 'Series' AND name = ?"
-                " LIMIT 1", (series,))
+                "SELECT item_id FROM items WHERE type = 'Series' AND name = ? LIMIT 1", (series,)
+            )
             series_ids[series] = row["item_id"] if row else None
         if series_ids[series]:
             o["image_id"] = series_ids[series]
     return out
 
 
-def top_libraries(days=30, metric: str = "plays", user_id=None,
-                  limit: int = 10, year=None) -> list[dict]:
+def top_libraries(
+    days=30, metric: str = "plays", user_id=None, limit: int = 10, year=None
+) -> list[dict]:
     """Bibliothèques les plus actives. ``collection_type`` (movies/tvshows/
     music…) sert à choisir une icône côté front (comme les clients)."""
     where, params = _base_where(days, user_id, year)
@@ -446,19 +480,38 @@ def top_users(days=30, metric: str = "plays", limit: int = 10) -> list[dict]:
     )
 
 
-def top_items(days=30, kind: str = "movie", metric: str = "plays",
-              user_id=None, limit: int = 10, year=None) -> dict:
+def top_items(
+    days=30, kind: str = "movie", metric: str = "plays", user_id=None, limit: int = 10, year=None
+) -> dict:
     if kind == "series":
-        return _grouped(days, metric, user_id, "series_name", "Top séries", limit,
-                        "AND item_type = 'Episode' AND series_name IS NOT NULL",
-                        year=year)
+        return _grouped(
+            days,
+            metric,
+            user_id,
+            "series_name",
+            "Top séries",
+            limit,
+            "AND item_type = 'Episode' AND series_name IS NOT NULL",
+            year=year,
+        )
     if kind == "episode":
-        expr = ("series_name || ' — S' || COALESCE(season_number, 0) || 'E' || "
-                "COALESCE(episode_number, 0) || ' ' || item_name")
-        return _grouped(days, metric, user_id, expr, "Top épisodes", limit,
-                        "AND item_type = 'Episode'", year=year)
-    return _grouped(days, metric, user_id, "item_name", "Top films", limit,
-                    "AND item_type = 'Movie'", year=year)
+        expr = (
+            "series_name || ' — S' || COALESCE(season_number, 0) || 'E' || "
+            "COALESCE(episode_number, 0) || ' ' || item_name"
+        )
+        return _grouped(
+            days,
+            metric,
+            user_id,
+            expr,
+            "Top épisodes",
+            limit,
+            "AND item_type = 'Episode'",
+            year=year,
+        )
+    return _grouped(
+        days, metric, user_id, "item_name", "Top films", limit, "AND item_type = 'Movie'", year=year
+    )
 
 
 def available_years() -> list[int]:

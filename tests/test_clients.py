@@ -34,8 +34,17 @@ class ClientStatisticsTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def _insert(self, user_id, client, method, duration, resolution, video, audio,
-                started="datetime('now', 'localtime')"):
+    def _insert(
+        self,
+        user_id,
+        client,
+        method,
+        duration,
+        resolution,
+        video,
+        audio,
+        started="datetime('now', 'localtime')",
+    ):
         database.execute(
             f"""
             INSERT INTO session_history
@@ -47,20 +56,22 @@ class ClientStatisticsTests(unittest.TestCase):
         )
 
     def test_global_summary_excludes_hidden_users_but_keeps_unknown_plays(self):
-        result = clients.build(days=None, hide_unknown=True,
-                               watts=100, electricity_price=0.27)
+        result = clients.build(days=None, hide_unknown=True, watts=100, electricity_price=0.27)
 
-        self.assertEqual(result["summary"], {
-            "active_clients": 2,
-            "plays": 4,
-            "duration_seconds": 6000,
-            "direct_play_percent": 25.0,
-            "direct_stream_percent": 25.0,
-            "transcode_percent": 25.0,
-            "transcode_seconds": 1800,
-            "transcode_kwh": 0.05,
-            "transcode_cost": 0.01,
-        })
+        self.assertEqual(
+            result["summary"],
+            {
+                "active_clients": 2,
+                "plays": 4,
+                "duration_seconds": 6000,
+                "direct_play_percent": 25.0,
+                "direct_stream_percent": 25.0,
+                "transcode_percent": 25.0,
+                "transcode_seconds": 1800,
+                "transcode_kwh": 0.05,
+                "transcode_cost": 0.01,
+            },
+        )
         self.assertEqual([row["client"] for row in result["clients"]], ["Alpha", "Beta"])
         self.assertEqual(result["clients"][0]["plays"], 2)
         self.assertEqual(result["clients"][0]["direct_play"], 1)
@@ -72,8 +83,7 @@ class ClientStatisticsTests(unittest.TestCase):
 
     def test_user_scope_and_unknown_client_preferences_are_respected(self):
         hidden = clients.build(days=None, user_id="u1", hide_unknown=True)
-        shown = clients.build(days=None, user_id="u1", hide_unknown=False,
-                              unknown_label="Plex")
+        shown = clients.build(days=None, user_id="u1", hide_unknown=False, unknown_label="Plex")
 
         self.assertEqual(hidden["summary"]["plays"], 3)
         self.assertEqual(hidden["summary"]["active_clients"], 1)
@@ -82,8 +92,7 @@ class ClientStatisticsTests(unittest.TestCase):
         self.assertEqual(shown["methods"]["unknown"], 1)
 
     def test_empty_result_has_zero_rates_cost_and_neutral_diagnostic(self):
-        result = clients.build(days=None, user_id="missing", watts=100,
-                               electricity_price=0.27)
+        result = clients.build(days=None, user_id="missing", watts=100, electricity_price=0.27)
 
         self.assertEqual(result["summary"]["plays"], 0)
         self.assertEqual(result["summary"]["direct_play_percent"], 0.0)
@@ -94,8 +103,7 @@ class ClientStatisticsTests(unittest.TestCase):
 
     def test_active_client_kpi_is_not_limited_by_bounded_table_and_charts(self):
         for index in range(11):
-            self._insert("many", f"Client {index:02d}", "DirectPlay", 60,
-                         "1080p", "h264", "aac")
+            self._insert("many", f"Client {index:02d}", "DirectPlay", 60, "1080p", "h264", "aac")
 
         result = clients.build(days=None, user_id="many")
 
@@ -105,13 +113,12 @@ class ClientStatisticsTests(unittest.TestCase):
     def test_transcode_leader_uses_full_scoped_set_beyond_top_ten(self):
         for index in range(10):
             for _ in range(3):
-                self._insert("leaders", f"High-{index:02d}", "DirectPlay", 60,
-                             "1080p", "h264", "aac")
-        self._insert("leaders", "High-00", "Transcode", 60,
-                     "1080p", "h264", "aac")
+                self._insert(
+                    "leaders", f"High-{index:02d}", "DirectPlay", 60, "1080p", "h264", "aac"
+                )
+        self._insert("leaders", "High-00", "Transcode", 60, "1080p", "h264", "aac")
         for _ in range(2):
-            self._insert("leaders", "Actual-Leader", "Transcode", 60,
-                         "1080p", "h264", "aac")
+            self._insert("leaders", "Actual-Leader", "Transcode", 60, "1080p", "h264", "aac")
 
         result = clients.build(days=None, user_id="leaders")
 
@@ -154,8 +161,16 @@ class ClientStatisticsTests(unittest.TestCase):
 
     def test_year_filter_and_available_years_use_the_same_scope(self):
         old_year = date.today().year - 1
-        self._insert("u1", "Old", "DirectPlay", 60, "480p", "h264", "aac",
-                     started=f"'{old_year}-03-01 12:00:00'")
+        self._insert(
+            "u1",
+            "Old",
+            "DirectPlay",
+            60,
+            "480p",
+            "h264",
+            "aac",
+            started=f"'{old_year}-03-01 12:00:00'",
+        )
 
         current = clients.build(days=None, user_id="u1", year=date.today().year)
         old = clients.build(days=None, user_id="u1", year=old_year)
@@ -173,9 +188,7 @@ class ClientRouteTests(unittest.TestCase):
         self.config.set("Database", "path", str(root / "tautufin.db"))
         self.config.save()
         database.init(self.config.database_path)
-        database.execute(
-            "INSERT INTO users (jellyfin_user_id, username) VALUES ('u1', 'Alice')"
-        )
+        database.execute("INSERT INTO users (jellyfin_user_id, username) VALUES ('u1', 'Alice')")
         database.execute(
             """
             INSERT INTO session_history

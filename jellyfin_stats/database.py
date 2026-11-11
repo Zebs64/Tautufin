@@ -207,9 +207,7 @@ def init(path: str) -> None:
     _db_path = path
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with db() as conn:
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)"
-        )
+        conn.execute("CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)")
         row = conn.execute("SELECT version FROM schema_version").fetchone()
         current = row["version"] if row else 0
         if row is None:

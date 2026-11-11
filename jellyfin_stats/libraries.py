@@ -19,9 +19,7 @@ def list_libraries_with_stats() -> list[dict]:
 
 
 def get_library(library_id: str) -> dict | None:
-    return database.query_one(
-        "SELECT * FROM libraries WHERE library_id = ?", (library_id,)
-    )
+    return database.query_one("SELECT * FROM libraries WHERE library_id = ?", (library_id,))
 
 
 def library_detail(library_id: str) -> dict:

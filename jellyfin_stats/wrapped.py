@@ -11,8 +11,20 @@ from datetime import date, timedelta
 from . import database
 
 WEEKDAYS_FR = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
-MONTHS_FR = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet",
-             "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
+MONTHS_FR = [
+    "Janvier",
+    "Février",
+    "Mars",
+    "Avril",
+    "Mai",
+    "Juin",
+    "Juillet",
+    "Août",
+    "Septembre",
+    "Octobre",
+    "Novembre",
+    "Décembre",
+]
 
 
 def user_years(jellyfin_user_id: str) -> list[int]:
@@ -20,7 +32,8 @@ def user_years(jellyfin_user_id: str) -> list[int]:
     rows = database.query(
         "SELECT DISTINCT strftime('%Y', started_at) AS y FROM session_history"
         " WHERE jellyfin_user_id = ? AND started_at IS NOT NULL ORDER BY y DESC",
-        (jellyfin_user_id,))
+        (jellyfin_user_id,),
+    )
     return [int(r["y"]) for r in rows if r["y"]]
 
 
@@ -55,7 +68,9 @@ def build(jellyfin_user_id: str, year: int) -> dict:
                COUNT(DISTINCT date(started_at)) AS active_days,
                AVG(percent_complete) AS avg_percent
         FROM session_history WHERE {base}
-        """, p)
+        """,
+        p,
+    )
 
     if not totals or not totals["plays"]:
         return {"year": year, "empty": True, "totals": totals or {}}
@@ -66,7 +81,9 @@ def build(jellyfin_user_id: str, year: int) -> dict:
                COALESCE(SUM(play_duration), 0) AS duration, MAX(item_id) AS item_id
         FROM session_history WHERE {base} AND item_type = 'Movie'
         GROUP BY item_name ORDER BY duration DESC LIMIT 5
-        """, p)
+        """,
+        p,
+    )
 
     top_series = database.query(
         f"""
@@ -78,7 +95,9 @@ def build(jellyfin_user_id: str, year: int) -> dict:
         WHERE sh.jellyfin_user_id = ? AND strftime('%Y', sh.started_at) = ?
           AND sh.item_type = 'Episode' AND sh.series_name IS NOT NULL
         GROUP BY sh.series_name ORDER BY duration DESC LIMIT 5
-        """, p)
+        """,
+        p,
+    )
 
     top_genres = database.query(
         f"""
@@ -86,28 +105,36 @@ def build(jellyfin_user_id: str, year: int) -> dict:
         FROM session_history, json_each(session_history.genres) AS je
         WHERE {base} AND genres IS NOT NULL
         GROUP BY je.value ORDER BY plays DESC LIMIT 8
-        """, p)
+        """,
+        p,
+    )
 
     # Saisonnalité : mois, jour de semaine, heure (axes complets).
     months = [0] * 12
     for r in database.query(
-            f"SELECT CAST(strftime('%m', started_at) AS INT) AS m,"
-            f" COALESCE(SUM(play_duration), 0) AS d FROM session_history"
-            f" WHERE {base} GROUP BY m", p):
+        f"SELECT CAST(strftime('%m', started_at) AS INT) AS m,"
+        f" COALESCE(SUM(play_duration), 0) AS d FROM session_history"
+        f" WHERE {base} GROUP BY m",
+        p,
+    ):
         months[r["m"] - 1] = r["d"]
 
     dow = [0] * 7
     for r in database.query(
-            f"SELECT CAST(strftime('%w', started_at) AS INT) AS w,"
-            f" COALESCE(SUM(play_duration), 0) AS d FROM session_history"
-            f" WHERE {base} GROUP BY w", p):
+        f"SELECT CAST(strftime('%w', started_at) AS INT) AS w,"
+        f" COALESCE(SUM(play_duration), 0) AS d FROM session_history"
+        f" WHERE {base} GROUP BY w",
+        p,
+    ):
         dow[(r["w"] + 6) % 7] = r["d"]  # %w: 0 = dimanche → 0 = lundi
 
     hours = [0] * 24
     for r in database.query(
-            f"SELECT CAST(strftime('%H', started_at) AS INT) AS h,"
-            f" COALESCE(SUM(play_duration), 0) AS d FROM session_history"
-            f" WHERE {base} GROUP BY h", p):
+        f"SELECT CAST(strftime('%H', started_at) AS INT) AS h,"
+        f" COALESCE(SUM(play_duration), 0) AS d FROM session_history"
+        f" WHERE {base} GROUP BY h",
+        p,
+    ):
         hours[r["h"]] = r["d"]
 
     busiest = database.query_one(
@@ -116,7 +143,9 @@ def build(jellyfin_user_id: str, year: int) -> dict:
                COUNT(*) AS plays
         FROM session_history WHERE {base}
         GROUP BY day ORDER BY duration DESC LIMIT 1
-        """, p)
+        """,
+        p,
+    )
 
     top_client = database.query_one(
         f"""
@@ -124,18 +153,27 @@ def build(jellyfin_user_id: str, year: int) -> dict:
         FROM session_history
         WHERE {base} AND client_name IS NOT NULL AND client_name != ''
         GROUP BY client_name ORDER BY plays DESC LIMIT 1
-        """, p)
+        """,
+        p,
+    )
 
     first_play = database.query_one(
         f"""
         SELECT started_at, item_type, item_name, series_name
         FROM session_history WHERE {base}
         ORDER BY started_at LIMIT 1
-        """, p)
+        """,
+        p,
+    )
 
-    all_days = [r["day"] for r in database.query(
-        f"SELECT DISTINCT date(started_at) AS day FROM session_history"
-        f" WHERE {base} ORDER BY day", p)]
+    all_days = [
+        r["day"]
+        for r in database.query(
+            f"SELECT DISTINCT date(started_at) AS day FROM session_history"
+            f" WHERE {base} ORDER BY day",
+            p,
+        )
+    ]
 
     peak_month = max(range(12), key=lambda i: months[i])
     fav_dow = max(range(7), key=lambda i: dow[i])
@@ -145,11 +183,15 @@ def build(jellyfin_user_id: str, year: int) -> dict:
     prev = database.query_one(
         "SELECT COUNT(*) AS plays, COALESCE(SUM(play_duration), 0) AS duration"
         " FROM session_history WHERE jellyfin_user_id = ?"
-        " AND strftime('%Y', started_at) = ?", (uid, f"{year - 1:04d}"))
+        " AND strftime('%Y', started_at) = ?",
+        (uid, f"{year - 1:04d}"),
+    )
     comparison = None
     if prev and prev["plays"]:
+
         def _pct(cur, old):
             return round((cur - old) / old * 100) if old else None
+
         comparison = {
             "prev_year": year - 1,
             "prev_duration": prev["duration"],
@@ -158,8 +200,7 @@ def build(jellyfin_user_id: str, year: int) -> dict:
             "plays_pct": _pct(totals["plays"], prev["plays"]),
         }
 
-    avg_percent = (round(totals["avg_percent"])
-                   if totals["avg_percent"] is not None else None)
+    avg_percent = round(totals["avg_percent"]) if totals["avg_percent"] is not None else None
 
     return {
         "year": year,

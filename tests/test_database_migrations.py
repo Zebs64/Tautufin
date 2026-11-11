@@ -41,8 +41,7 @@ class MigrationTests(unittest.TestCase):
             ("lib-1", "Films", "movies", 1),
         )
         conn.execute(
-            "INSERT INTO items (item_id, library_id, name, type, people) "
-            "VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO items (item_id, library_id, name, type, people) VALUES (?, ?, ?, ?, ?)",
             ("item-1", "lib-1", "Film", "Movie", '[{"Name":"Alice","Type":"Actor"}]'),
         )
         conn.execute(
@@ -62,9 +61,7 @@ class MigrationTests(unittest.TestCase):
     def test_new_database_reaches_schema_v7_without_cursor(self):
         database.init(self.db_path)
 
-        self.assertEqual(
-            database.query_one("SELECT version FROM schema_version"), {"version": 7}
-        )
+        self.assertEqual(database.query_one("SELECT version FROM schema_version"), {"version": 7})
         self.assertIsNone(database.get_sync_cursor())
         self.assertEqual(database.integrity_check()["integrity"], ["ok"])
         self.assertEqual(database.integrity_check()["foreign_key_violations"], 0)
@@ -72,31 +69,30 @@ class MigrationTests(unittest.TestCase):
     def test_populated_v4_migrates_without_data_loss_and_second_init_is_idempotent(self):
         self._create_populated_v4()
         tables = (
-            "local_users", "users", "libraries", "items",
-            "session_history", "http_sessions",
+            "local_users",
+            "users",
+            "libraries",
+            "items",
+            "session_history",
+            "http_sessions",
         )
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         before = {
-            table: [dict(row) for row in conn.execute(f"SELECT * FROM {table}")]
-            for table in tables
+            table: [dict(row) for row in conn.execute(f"SELECT * FROM {table}")] for table in tables
         }
         conn.close()
 
         database.init(self.db_path)
-        after_upgrade = {table: database.query(f"SELECT * FROM {table}")
-                         for table in tables}
+        after_upgrade = {table: database.query(f"SELECT * FROM {table}") for table in tables}
         database.init(self.db_path)
-        after_second_init = {table: database.query(f"SELECT * FROM {table}")
-                             for table in tables}
+        after_second_init = {table: database.query(f"SELECT * FROM {table}") for table in tables}
         for snapshot in (after_upgrade, after_second_init):
             for row in snapshot["items"]:
                 row.pop("source_date_last_refreshed", None)
                 row.pop("source_etag", None)
 
-        self.assertEqual(
-            database.query_one("SELECT version FROM schema_version"), {"version": 7}
-        )
+        self.assertEqual(database.query_one("SELECT version FROM schema_version"), {"version": 7})
         self.assertEqual(after_upgrade, before)
         self.assertEqual(after_second_init, before)
         self.assertIsNone(database.get_sync_cursor())
@@ -146,13 +142,9 @@ class DatabaseV6MigrationTests(unittest.TestCase):
         database.init(self.db_path)
         database.init(self.db_path)
 
+        self.assertEqual(database.query_one("SELECT version FROM schema_version"), {"version": 7})
         self.assertEqual(
-            database.query_one("SELECT version FROM schema_version"), {"version": 7}
-        )
-        self.assertEqual(
-            database.query_one(
-                "SELECT name, source_etag FROM items WHERE item_id = 'item-1'"
-            ),
+            database.query_one("SELECT name, source_etag FROM items WHERE item_id = 'item-1'"),
             {"name": "Film conservé", "source_etag": None},
         )
         self.assertEqual(database.get_sync_cursor(), "2026-08-01T10:00:00Z")

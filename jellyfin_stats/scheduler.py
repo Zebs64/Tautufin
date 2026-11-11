@@ -34,8 +34,7 @@ def _utc_now() -> datetime:
 
 
 def _format_utc(value: datetime) -> str:
-    return value.astimezone(timezone.utc).replace(microsecond=0) \
-        .isoformat().replace("+00:00", "Z")
+    return value.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _incremental_start(cursor: str | None) -> str | None:
@@ -68,9 +67,11 @@ def _people_json(people) -> str | None:
     """Sérialise la distribution/équipe utile d'un média (Name + Type)."""
     if not people:
         return None
-    kept = [{"Name": p["Name"], "Type": p.get("Type")}
-            for p in people
-            if p.get("Name") and p.get("Type") in _PEOPLE_TYPES]
+    kept = [
+        {"Name": p["Name"], "Type": p.get("Type")}
+        for p in people
+        if p.get("Name") and p.get("Type") in _PEOPLE_TYPES
+    ]
     return json.dumps(kept[:_PEOPLE_MAX], ensure_ascii=False) if kept else None
 
 
@@ -104,41 +105,49 @@ def sync_users(api) -> int:
     return len(users)
 
 
-def sync_libraries_and_items(api, report=None, force_full: bool = False,
-                             metrics: dict | None = None) -> int:
+def sync_libraries_and_items(
+    api, report=None, force_full: bool = False, metrics: dict | None = None
+) -> int:
     total_inspected = 0
     total_enriched = 0
     total_changed = 0
     folders = [f for f in api.get_libraries() if f.get("ItemId")]
     if metrics is not None:
         metrics.update(
-            libraries=len(folders), items_received=0, items_inspected=0,
-            items_enriched=0, items_changed=0,
+            libraries=len(folders),
+            items_received=0,
+            items_inspected=0,
+            items_enriched=0,
+            items_changed=0,
         )
     for idx, folder in enumerate(folders):
         if report:
-            report(phase="libraries", current=idx, total=len(folders),
-                   label=folder.get("Name", "?"), libraries=len(folders))
+            report(
+                phase="libraries",
+                current=idx,
+                total=len(folders),
+                label=folder.get("Name", "?"),
+                libraries=len(folders),
+            )
         library_id = folder["ItemId"]
         # Réseau hors transaction : inventaire léger, puis DTO riches ciblés.
         inventory = list(api.iter_item_inventory(library_id))
         if any(not item.get("Id") for item in inventory):
             raise JellyfinError("Inventaire Jellyfin incomplet : identifiant média absent")
         if any(
-            not isinstance(item.get("Etag"), str) or not item["Etag"].strip()
-            for item in inventory
+            not isinstance(item.get("Etag"), str) or not item["Etag"].strip() for item in inventory
         ):
             raise JellyfinError("Inventaire Jellyfin incomplet : ETag média absent")
         local_markers = {
             row["item_id"]: row["source_etag"]
             for row in database.query(
-                "SELECT item_id, source_etag FROM items "
-                "WHERE library_id = ?", (library_id,)
+                "SELECT item_id, source_etag FROM items WHERE library_id = ?", (library_id,)
             )
         }
         inventory_etags = {item["Id"]: item["Etag"] for item in inventory}
         target_ids = [
-            item["Id"] for item in inventory
+            item["Id"]
+            for item in inventory
             if force_full
             or item["Id"] not in local_markers
             or local_markers[item["Id"]] is None
@@ -148,15 +157,11 @@ def sync_libraries_and_items(api, report=None, force_full: bool = False,
         rich_by_id = {item.get("Id"): item for item in rich_items if item.get("Id")}
         missing_ids = [item_id for item_id in target_ids if item_id not in rich_by_id]
         if missing_ids:
-            raise JellyfinError(
-                f"Réponse Jellyfin incomplète : média {missing_ids[0]} absent"
-            )
+            raise JellyfinError(f"Réponse Jellyfin incomplète : média {missing_ids[0]} absent")
         for item_id in target_ids:
             rich_etag = rich_by_id[item_id].get("Etag")
             if not isinstance(rich_etag, str) or not rich_etag.strip():
-                raise JellyfinError(
-                    f"Réponse Jellyfin incomplète : ETag du média {item_id} absent"
-                )
+                raise JellyfinError(f"Réponse Jellyfin incomplète : ETag du média {item_id} absent")
             if rich_etag != inventory_etags[item_id]:
                 raise JellyfinError(
                     f"Réponse Jellyfin incohérente : ETag du média {item_id} divergent"
@@ -167,10 +172,12 @@ def sync_libraries_and_items(api, report=None, force_full: bool = False,
             for item_id in target_ids:
                 item = rich_by_id[item_id]
                 runtime_ticks = item.get("RunTimeTicks")
-                video = next((s for s in item.get("MediaStreams", [])
-                              if s.get("Type") == "Video"), {})
-                audio = next((s for s in item.get("MediaStreams", [])
-                              if s.get("Type") == "Audio"), {})
+                video = next(
+                    (s for s in item.get("MediaStreams", []) if s.get("Type") == "Video"), {}
+                )
+                audio = next(
+                    (s for s in item.get("MediaStreams", []) if s.get("Type") == "Audio"), {}
+                )
                 changed = conn.execute(
                     """
                     INSERT INTO items
@@ -214,16 +221,23 @@ def sync_libraries_and_items(api, report=None, force_full: bool = False,
                        OR items.source_etag IS NOT excluded.source_etag
                     """,
                     (
-                        item["Id"], library_id, item.get("Name"), item.get("Type"),
-                        item.get("SeriesName"), item.get("ParentIndexNumber"),
-                        item.get("IndexNumber"), item.get("ProductionYear"),
+                        item["Id"],
+                        library_id,
+                        item.get("Name"),
+                        item.get("Type"),
+                        item.get("SeriesName"),
+                        item.get("ParentIndexNumber"),
+                        item.get("IndexNumber"),
+                        item.get("ProductionYear"),
                         json.dumps(item["Genres"]) if item.get("Genres") else None,
                         runtime_ticks // TICKS_PER_SECOND if runtime_ticks else None,
                         resolution_label(video.get("Width"), video.get("Height")),
-                        video.get("Codec"), audio.get("Codec"),
+                        video.get("Codec"),
+                        audio.get("Codec"),
                         _people_json(item.get("People")),
                         (item.get("DateCreated") or "").replace("T", " ")[:19] or None,
-                        now_iso(), item["Etag"],
+                        now_iso(),
+                        item["Etag"],
                     ),
                 )
                 total_changed += changed.rowcount
@@ -237,20 +251,29 @@ def sync_libraries_and_items(api, report=None, force_full: bool = False,
                     item_count = excluded.item_count,
                     updated_at = excluded.updated_at
                 """,
-                (library_id, folder.get("Name", "?"),
-                 folder.get("CollectionType"), len(inventory), now_iso()),
+                (
+                    library_id,
+                    folder.get("Name", "?"),
+                    folder.get("CollectionType"),
+                    len(inventory),
+                    now_iso(),
+                ),
             )
         total_inspected += len(inventory)
         total_enriched += len(target_ids)
         if metrics is not None:
             metrics.update(
-                items_received=total_inspected, items_inspected=total_inspected,
-                items_enriched=total_enriched, items_changed=total_changed,
+                items_received=total_inspected,
+                items_inspected=total_inspected,
+                items_enriched=total_enriched,
+                items_changed=total_changed,
             )
         if report:
             report(
-                items=total_inspected, items_inspected=total_inspected,
-                items_enriched=total_enriched, items_changed=total_changed,
+                items=total_inspected,
+                items_inspected=total_inspected,
+                items_enriched=total_enriched,
+                items_changed=total_changed,
             )
     if report:
         report(current=len(folders), label="")
@@ -265,11 +288,21 @@ def sync_all(api, report=None, force_full: bool = False) -> dict:
     started_text = _format_utc(started_at)
     health = database.get_sync_health()
     health.update(
-        status="running", mode=mode, phase="users", started_at=started_text,
-        last_attempt_at=started_text, finished_at=None, duration_seconds=None,
-        users=0, libraries=0, items_received=0, items_inspected=0,
-        items_enriched=0, items_changed=0,
-        error=None, cursor_preserved=False,
+        status="running",
+        mode=mode,
+        phase="users",
+        started_at=started_text,
+        last_attempt_at=started_text,
+        finished_at=None,
+        duration_seconds=None,
+        users=0,
+        libraries=0,
+        items_received=0,
+        items_inspected=0,
+        items_enriched=0,
+        items_changed=0,
+        error=None,
+        cursor_preserved=False,
     )
     database.set_sync_health(health)
 
@@ -300,25 +333,36 @@ def sync_all(api, report=None, force_full: bool = False) -> dict:
         users = sync_users(api)
         report_progress(users=users)
         items = sync_libraries_and_items(
-            api, report=report_progress, force_full=(mode == "full"), metrics=metrics,
+            api,
+            report=report_progress,
+            force_full=(mode == "full"),
+            metrics=metrics,
         )
         finished_at = _utc_now()
         health = database.get_sync_health()
         health.update(
-            status="success", phase="done", finished_at=_format_utc(finished_at),
+            status="success",
+            phase="done",
+            finished_at=_format_utc(finished_at),
             last_success_at=_format_utc(finished_at),
             duration_seconds=round((finished_at - started_at).total_seconds(), 3),
-            users=users, libraries=metrics.get("libraries", 0),
-            items_received=items, items_inspected=items,
+            users=users,
+            libraries=metrics.get("libraries", 0),
+            items_received=items,
+            items_inspected=items,
             items_enriched=metrics.get("items_enriched", 0),
             items_changed=metrics.get("items_changed", 0),
-            error=None, cursor_preserved=False,
+            error=None,
+            cursor_preserved=False,
         )
         database.finalize_sync_success(started_text, health)
         logger.info(
             "Synchronisation Jellyfin : %d utilisateurs, %d bibliothèques, "
             "%d médias inspectés, %d enrichis, %d insérés/modifiés",
-            users, health["libraries"], items, health["items_enriched"],
+            users,
+            health["libraries"],
+            items,
+            health["items_enriched"],
             health["items_changed"],
         )
         return {
@@ -334,9 +378,12 @@ def sync_all(api, report=None, force_full: bool = False) -> dict:
         health = database.get_sync_health()
         cursor_preserved = database.get_sync_cursor() == cursor
         health.update(
-            status="error", phase="error", finished_at=_format_utc(finished_at),
+            status="error",
+            phase="error",
+            finished_at=_format_utc(finished_at),
             duration_seconds=round((finished_at - started_at).total_seconds(), 3),
-            error=_sanitize_sync_error(exc), cursor_preserved=cursor_preserved,
+            error=_sanitize_sync_error(exc),
+            cursor_preserved=cursor_preserved,
         )
         database.set_sync_health(health)
         logger.exception("Synchronisation Jellyfin échouée")
@@ -349,9 +396,15 @@ def sync_all(api, report=None, force_full: bool = False) -> dict:
 # client (la requête HTTP qui la déclenche ne fait que la lancer).
 _sync_lock = threading.Lock()
 _sync_state = {
-    "running": False, "phase": "idle", "label": "",
-    "current": 0, "total": 0, "users": 0, "items": 0,
-    "error": None, "finished_at": None,
+    "running": False,
+    "phase": "idle",
+    "label": "",
+    "current": 0,
+    "total": 0,
+    "users": 0,
+    "items": 0,
+    "error": None,
+    "finished_at": None,
 }
 
 
@@ -376,15 +429,22 @@ def start_sync(api, force_full: bool = True) -> bool:
     with _sync_lock:
         if _sync_state["running"]:
             return False
-        _sync_state.update(running=True, phase="users", label="Utilisateurs",
-                           current=0, total=0, users=0, items=0,
-                           error=None, finished_at=None)
+        _sync_state.update(
+            running=True,
+            phase="users",
+            label="Utilisateurs",
+            current=0,
+            total=0,
+            users=0,
+            items=0,
+            error=None,
+            finished_at=None,
+        )
 
     def _run():
         try:
             result = sync_all(api, report=_sync_set, force_full=force_full)
-            _sync_set(phase="done", label="", users=result["users"],
-                      items=result["items"])
+            _sync_set(phase="done", label="", users=result["users"], items=result["items"])
         except Exception as exc:  # noqa: BLE001 — on remonte l'erreur à l'UI
             logger.exception("Synchronisation en arrière-plan échouée")
             _sync_set(phase="error", error=_sanitize_sync_error(exc))
@@ -408,8 +468,11 @@ class Scheduler:
             asyncio.create_task(self._sync_loop()),
             asyncio.create_task(self._cleanup_loop()),
         ]
-        logger.info("Scheduler démarré (poll: %ds, sync: %ds)",
-                    self.config.poll_interval, self.config.sync_interval)
+        logger.info(
+            "Scheduler démarré (poll: %ds, sync: %ds)",
+            self.config.poll_interval,
+            self.config.sync_interval,
+        )
 
     async def stop(self) -> None:
         for task in self._tasks:

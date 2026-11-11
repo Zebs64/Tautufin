@@ -83,10 +83,7 @@ class TwoPassSyncTests(unittest.TestCase):
             return scheduler.sync_all(api, force_full=force_full)
 
     def test_large_unchanged_inventory_makes_no_rich_call(self):
-        inventory = [
-            {"Id": f"item-{index}", "Etag": REFRESH_1}
-            for index in range(200)
-        ]
+        inventory = [{"Id": f"item-{index}", "Etag": REFRESH_1} for index in range(200)]
         for item in inventory:
             self._seed_item(item["Id"], REFRESH_1)
         database.set_sync_cursor("2026-08-02T10:00:00Z")
@@ -120,9 +117,7 @@ class TwoPassSyncTests(unittest.TestCase):
         self.assertEqual(result["items_enriched"], 1)
         self.assertEqual(result["items_changed"], 1)
         self.assertEqual(
-            database.query_one(
-                "SELECT name, source_etag FROM items WHERE item_id = 'changed'"
-            ),
+            database.query_one("SELECT name, source_etag FROM items WHERE item_id = 'changed'"),
             {"name": "Nouveau", "source_etag": REFRESH_2},
         )
 
@@ -138,9 +133,7 @@ class TwoPassSyncTests(unittest.TestCase):
         self.assertEqual(result["items_enriched"], 1)
         self.assertEqual(result["items_changed"], 1)
         self.assertEqual(
-            database.query_one(
-                "SELECT source_etag FROM items WHERE item_id = 'new'"
-            ),
+            database.query_one("SELECT source_etag FROM items WHERE item_id = 'new'"),
             {"source_etag": REFRESH_1},
         )
 
@@ -172,9 +165,7 @@ class TwoPassSyncTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "rich failure"):
             self._run(api)
 
-        row = database.query_one(
-            "SELECT name, source_etag FROM items WHERE item_id = 'changed'"
-        )
+        row = database.query_one("SELECT name, source_etag FROM items WHERE item_id = 'changed'")
         health = database.get_sync_health()
         self.assertEqual(row, {"name": "Ancien", "source_etag": REFRESH_1})
         self.assertEqual(database.get_sync_cursor(), previous_cursor)
@@ -204,9 +195,7 @@ class TwoPassSyncTests(unittest.TestCase):
             self._run(api)
 
         self.assertEqual(
-            database.query_one(
-                "SELECT name, source_etag FROM items WHERE item_id = 'changed'"
-            ),
+            database.query_one("SELECT name, source_etag FROM items WHERE item_id = 'changed'"),
             {"name": "Ancien", "source_etag": REFRESH_1},
         )
         self.assertEqual(database.get_sync_cursor(), previous_cursor)
@@ -219,9 +208,7 @@ class TwoPassSyncTests(unittest.TestCase):
         with self.assertRaisesRegex(Exception, "missing"):
             self._run(api)
 
-        self.assertIsNone(
-            database.query_one("SELECT item_id FROM items WHERE item_id = 'missing'")
-        )
+        self.assertIsNone(database.query_one("SELECT item_id FROM items WHERE item_id = 'missing'"))
         self.assertEqual(database.get_sync_cursor(), previous_cursor)
 
 
@@ -465,9 +452,7 @@ class UnchangedMediaTests(unittest.TestCase):
         api.item["Etag"] = "refresh-2"
         with patch("jellyfin_stats.scheduler.now_iso", side_effect=["third", "library-3"]):
             scheduler.sync_libraries_and_items(api)
-        changed = database.query_one(
-            "SELECT name, updated_at FROM items WHERE item_id = 'item-1'"
-        )
+        changed = database.query_one("SELECT name, updated_at FROM items WHERE item_id = 'item-1'")
 
         self.assertEqual(unchanged, {"name": None, "updated_at": "first"})
         self.assertEqual(changed, {"name": "Film modifié", "updated_at": "third"})

@@ -19,8 +19,7 @@ def _where(days, user_id: str | None, year: int | None = None) -> tuple[str, lis
         params.append(user_id)
     else:
         where.append(
-            "jellyfin_user_id NOT IN "
-            "(SELECT jellyfin_user_id FROM users WHERE hidden = 1)"
+            "jellyfin_user_id NOT IN (SELECT jellyfin_user_id FROM users WHERE hidden = 1)"
         )
     return " AND ".join(where), params
 
@@ -38,8 +37,9 @@ def available_years(user_id: str | None = None) -> list[int]:
     return [int(row["year"]) for row in rows if row["year"]]
 
 
-def _distribution(where: str, params: list, column: str,
-                  unknown: str = "Inconnu", limit: int = 10) -> dict:
+def _distribution(
+    where: str, params: list, column: str, unknown: str = "Inconnu", limit: int = 10
+) -> dict:
     rows = database.query(
         f"""
         SELECT COALESCE(NULLIF(TRIM({column}), ''), ?) AS label,
@@ -55,17 +55,25 @@ def _distribution(where: str, params: list, column: str,
     }
 
 
-def build(days: int | None = 30, user_id: str | None = None, year: int | None = None,
-          *, hide_unknown: bool = True, unknown_label: str = "Inconnu",
-          watts: int = 0, electricity_price: float = 0.0) -> dict:
+def build(
+    days: int | None = 30,
+    user_id: str | None = None,
+    year: int | None = None,
+    *,
+    hide_unknown: bool = True,
+    unknown_label: str = "Inconnu",
+    watts: int = 0,
+    electricity_price: float = 0.0,
+) -> dict:
     """Construit les KPIs, le classement, cinq graphiques et les constats.
 
     ``user_id`` est déjà imposé depuis la session par ``main.py``. Sans filtre,
     les utilisateurs marqués comme masqués sont exclus comme dans ``graphs.py``.
     """
     where, params = _where(days, user_id, year)
-    summary_row = database.query_one(
-        f"""
+    summary_row = (
+        database.query_one(
+            f"""
         SELECT COUNT(*) AS plays,
                COALESCE(SUM(CASE WHEN play_duration > 0 THEN play_duration ELSE 0 END), 0)
                    AS duration_seconds,
@@ -81,8 +89,10 @@ def build(days: int | None = 30, user_id: str | None = None, year: int | None = 
                                  ELSE 0 END), 0) AS transcode_seconds
         FROM session_history WHERE {where}
         """,
-        params,
-    ) or {}
+            params,
+        )
+        or {}
+    )
     plays = int(summary_row.get("plays") or 0)
     method_counts = {
         "direct_play": int(summary_row.get("direct_play") or 0),
@@ -121,8 +131,14 @@ def build(days: int | None = 30, user_id: str | None = None, year: int | None = 
         [unknown_label, *params],
     )
     for row in all_client_rows:
-        for key in ("plays", "duration_seconds", "direct_play", "direct_stream",
-                    "transcode", "unknown"):
+        for key in (
+            "plays",
+            "duration_seconds",
+            "direct_play",
+            "direct_stream",
+            "transcode",
+            "unknown",
+        ):
             row[key] = int(row[key] or 0)
     client_rows = all_client_rows[:10]
 
@@ -133,11 +149,12 @@ def build(days: int | None = 30, user_id: str | None = None, year: int | None = 
         "plays": plays,
         "duration_seconds": int(summary_row.get("duration_seconds") or 0),
         "direct_play_percent": round(method_counts["direct_play"] / plays * 100, 1)
-        if plays else 0.0,
+        if plays
+        else 0.0,
         "direct_stream_percent": round(method_counts["direct_stream"] / plays * 100, 1)
-        if plays else 0.0,
-        "transcode_percent": round(method_counts["transcode"] / plays * 100, 1)
-        if plays else 0.0,
+        if plays
+        else 0.0,
+        "transcode_percent": round(method_counts["transcode"] / plays * 100, 1) if plays else 0.0,
         "transcode_seconds": transcode_seconds,
         "transcode_kwh": round(transcode_kwh, 2),
         "transcode_cost": round(transcode_kwh * max(0.0, electricity_price), 2),
@@ -152,15 +169,19 @@ def build(days: int | None = 30, user_id: str | None = None, year: int | None = 
         leader = max(transcoders, key=lambda row: (row["transcode"], row["client"]))
         eligible_transcodes = sum(row["transcode"] for row in transcoders)
         share = round(leader["transcode"] / eligible_transcodes * 100)
-        diagnostics.append({
-            "kind": "transcode_leader",
-            "text": f"{leader['client']} concentre {share} % des lectures transcodées.",
-        })
+        diagnostics.append(
+            {
+                "kind": "transcode_leader",
+                "text": f"{leader['client']} concentre {share} % des lectures transcodées.",
+            }
+        )
     if plays >= 5 and summary["direct_play_percent"] >= 90:
-        diagnostics.append({
-            "kind": "direct_play",
-            "text": f"Excellent taux de Direct Play : {summary['direct_play_percent']:.1f} %.",
-        })
+        diagnostics.append(
+            {
+                "kind": "direct_play",
+                "text": f"Excellent taux de Direct Play : {summary['direct_play_percent']:.1f} %.",
+            }
+        )
     four_k = database.query_one(
         f"""
         SELECT COUNT(*) AS plays FROM session_history
@@ -171,10 +192,12 @@ def build(days: int | None = 30, user_id: str | None = None, year: int | None = 
         params,
     )
     if four_k and four_k["plays"]:
-        diagnostics.append({
-            "kind": "transcode_4k",
-            "text": f"{four_k['plays']} lecture(s) 4K ont été transcodées sur la période.",
-        })
+        diagnostics.append(
+            {
+                "kind": "transcode_4k",
+                "text": f"{four_k['plays']} lecture(s) 4K ont été transcodées sur la période.",
+            }
+        )
 
     categories = [row["client"] for row in client_rows]
     return {
@@ -190,7 +213,10 @@ def build(days: int | None = 30, user_id: str | None = None, year: int | None = 
                 "categories": categories,
                 "series": [
                     {"name": "Direct Play", "data": [row["direct_play"] for row in client_rows]},
-                    {"name": "Direct Stream", "data": [row["direct_stream"] for row in client_rows]},
+                    {
+                        "name": "Direct Stream",
+                        "data": [row["direct_stream"] for row in client_rows],
+                    },
                     {"name": "Transcodage", "data": [row["transcode"] for row in client_rows]},
                     {"name": "Inconnu", "data": [row["unknown"] for row in client_rows]},
                 ],

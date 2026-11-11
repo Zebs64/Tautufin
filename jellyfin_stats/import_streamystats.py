@@ -70,7 +70,8 @@ def _load_backup(path: str) -> dict:
     if info.get("version") != "streamystats":
         raise ImportError_(
             "Ce JSON n'est pas un backup Streamystats "
-            f"(exportInfo.version = {info.get('version')!r}, attendu « streamystats »)")
+            f"(exportInfo.version = {info.get('version')!r}, attendu « streamystats »)"
+        )
     if not isinstance(data.get("sessions"), list):
         raise ImportError_("Backup Streamystats invalide : tableau « sessions » absent")
     return data
@@ -80,8 +81,7 @@ def analyze(path: str) -> dict:
     """Aperçu avant import : volume, plage de dates, utilisateurs, serveur."""
     data = _load_backup(path)
     sessions = data["sessions"]
-    dates = sorted(_normalize_date(s["startTime"]) for s in sessions
-                   if s.get("startTime"))
+    dates = sorted(_normalize_date(s["startTime"]) for s in sessions if s.get("startTime"))
     per_user = Counter(s.get("userId") or "" for s in sessions)
     known = {
         u["jellyfin_user_id"]: u["username"]
@@ -109,7 +109,8 @@ def _items_cache() -> dict[str, dict]:
                i.runtime_seconds, i.genres, i.video_resolution,
                i.video_codec, i.audio_codec
         FROM items i LEFT JOIN libraries l ON l.library_id = i.library_id
-        """)
+        """
+    )
     return {r["item_id"]: r for r in rows}
 
 
@@ -134,8 +135,7 @@ def run_import(path: str, api, minimum_duration: int, minimum_percent: int) -> d
     except JellyfinError as exc:
         logger.warning("Résolution des utilisateurs via Jellyfin impossible : %s", exc)
 
-    report = {"imported": 0, "duplicates": 0, "filtered": 0,
-              "errors": 0, "format": "streamystats"}
+    report = {"imported": 0, "duplicates": 0, "filtered": 0, "errors": 0, "format": "streamystats"}
 
     with database.db() as conn:
         for s in sessions:
@@ -154,13 +154,16 @@ def run_import(path: str, api, minimum_duration: int, minimum_percent: int) -> d
                 cached = items.get(item_id, {}) if item_id else {}
 
                 runtime_ticks = s.get("runtimeTicks")
-                runtime_seconds = (runtime_ticks // TICKS_PER_SECOND
-                                   if runtime_ticks
-                                   else cached.get("runtime_seconds"))
+                runtime_seconds = (
+                    runtime_ticks // TICKS_PER_SECOND
+                    if runtime_ticks
+                    else cached.get("runtime_seconds")
+                )
                 play_duration = int(s.get("playDuration") or 0)
 
                 record, reason = should_record(
-                    play_duration, runtime_seconds, minimum_duration, minimum_percent)
+                    play_duration, runtime_seconds, minimum_duration, minimum_percent
+                )
                 if not record:
                     report["filtered"] += 1
                     continue
@@ -170,10 +173,11 @@ def run_import(path: str, api, minimum_duration: int, minimum_percent: int) -> d
                     percent = min(100.0, play_duration / runtime_seconds * 100)
 
                 resolution = resolution_label(
-                    s.get("resolutionWidth"), s.get("resolutionHeight")) \
-                    or cached.get("video_resolution")
+                    s.get("resolutionWidth"), s.get("resolutionHeight")
+                ) or cached.get("video_resolution")
                 play_method = s.get("playMethod") or (
-                    "Transcode" if s.get("isTranscoded") else None)
+                    "Transcode" if s.get("isTranscoded") else None
+                )
 
                 cursor = conn.execute(
                     """
@@ -188,16 +192,27 @@ def run_import(path: str, api, minimum_duration: int, minimum_percent: int) -> d
                             ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
-                        s.get("id"), user_id,
+                        s.get("id"),
+                        user_id,
                         usernames.get(user_id, (user_id or "")[:8] or "?"),
-                        item_id, cached.get("type"),
+                        item_id,
+                        cached.get("type"),
                         s.get("itemName"),
                         s.get("seriesName") or cached.get("series_name"),
-                        cached.get("season_number"), cached.get("episode_number"),
-                        cached.get("library_id"), cached.get("library_name"),
-                        started_at, stopped_at, play_duration, runtime_seconds,
-                        percent, s.get("clientName"), s.get("deviceName"),
-                        s.get("remoteEndPoint"), play_method, resolution,
+                        cached.get("season_number"),
+                        cached.get("episode_number"),
+                        cached.get("library_id"),
+                        cached.get("library_name"),
+                        started_at,
+                        stopped_at,
+                        play_duration,
+                        runtime_seconds,
+                        percent,
+                        s.get("clientName"),
+                        s.get("deviceName"),
+                        s.get("remoteEndPoint"),
+                        play_method,
+                        resolution,
                         s.get("videoCodec") or cached.get("video_codec"),
                         s.get("audioCodec") or cached.get("audio_codec"),
                         cached.get("genres"),
@@ -208,11 +223,12 @@ def run_import(path: str, api, minimum_duration: int, minimum_percent: int) -> d
                 else:
                     report["duplicates"] += 1
             except Exception:
-                logger.exception("Import Streamystats : session en erreur (%s)",
-                                 s.get("id"))
+                logger.exception("Import Streamystats : session en erreur (%s)", s.get("id"))
                 report["errors"] += 1
 
     logger.info(
         "Import Streamystats terminé : %(imported)d importées, %(duplicates)d "
-        "doublons, %(filtered)d filtrées, %(errors)d erreurs", report)
+        "doublons, %(filtered)d filtrées, %(errors)d erreurs",
+        report,
+    )
     return report

@@ -11,14 +11,23 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import uvicorn
-from fastapi import (Depends, FastAPI, File, Form, HTTPException, Query,
-                     Request, UploadFile)
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import (__version__, auth, clients, database, graphs, history, import_playback,
-               import_streamystats, infer_history, media)
+from . import (
+    __version__,
+    auth,
+    clients,
+    database,
+    graphs,
+    history,
+    import_playback,
+    import_streamystats,
+    infer_history,
+    media,
+)
 from . import libraries as libraries_mod
 from . import users as users_mod
 from . import wrapped as wrapped_mod
@@ -37,13 +46,33 @@ STATIC_DIR = BASE_DIR / "data" / "interfaces" / "default" / "static"
 MEDIA_TYPES = ["Movie", "Episode", "Audio", "MusicVideo", "AudioBook"]
 PERIOD_DAYS = {"24h": 1, "7d": 7, "30d": 30, "12m": 365, "all": None}
 
-MEDIA_ICONS = {"Movie": "🎬", "Episode": "📺", "Series": "📺", "Season": "📺",
-               "Audio": "🎵", "MusicAlbum": "💿", "MusicVideo": "🎤",
-               "AudioBook": "🎧"}
+MEDIA_ICONS = {
+    "Movie": "🎬",
+    "Episode": "📺",
+    "Series": "📺",
+    "Season": "📺",
+    "Audio": "🎵",
+    "MusicAlbum": "💿",
+    "MusicVideo": "🎤",
+    "AudioBook": "🎧",
+}
 
 CLIENT_ICONS = [  # mapping par sous-chaîne, premier qui matche
-    (("android tv", "androidtv", "apple tv", "tvos", "roku", "tizen",
-      "webos", "samsung", "lg tv", "shield"), "📺"),
+    (
+        (
+            "android tv",
+            "androidtv",
+            "apple tv",
+            "tvos",
+            "roku",
+            "tizen",
+            "webos",
+            "samsung",
+            "lg tv",
+            "shield",
+        ),
+        "📺",
+    ),
     (("web", "browser", "chrome", "firefox", "edge", "safari", "opera"), "🌐"),
     (("iphone", "ipad", "ios", "swiftfin"), "📱"),
     (("android", "findroid"), "🤖"),
@@ -53,10 +82,18 @@ CLIENT_ICONS = [  # mapping par sous-chaîne, premier qui matche
 ]
 
 
-LIBRARY_ICONS = {"movies": "🎬", "tvshows": "📺", "music": "🎵",
-                 "musicvideos": "🎤", "books": "📚", "homevideos": "🎥",
-                 "photos": "🖼️", "boxsets": "🎞️", "livetv": "📡",
-                 "playlists": "🎼"}
+LIBRARY_ICONS = {
+    "movies": "🎬",
+    "tvshows": "📺",
+    "music": "🎵",
+    "musicvideos": "🎤",
+    "books": "📚",
+    "homevideos": "🎥",
+    "photos": "🖼️",
+    "boxsets": "🎞️",
+    "livetv": "📡",
+    "playlists": "🎼",
+}
 
 
 def media_icon(media_type: str) -> str:
@@ -100,8 +137,7 @@ def client_slug(product: str, device: str = "") -> str:
         return _browser_slug(d) or _browser_slug(p) or "jellyfin"
     if "wholphin" in p:
         return "wholphin"
-    if any(k in p for k in ("ios", "ipad", "iphone", "tvos", "mac", "apple",
-                            "swiftfin", "infuse")):
+    if any(k in p for k in ("ios", "ipad", "iphone", "tvos", "mac", "apple", "swiftfin", "infuse")):
         return "apple"
     if "kodi" in p:
         return "kodi"
@@ -124,6 +160,7 @@ def client_slug(product: str, device: str = "") -> str:
 
 def client_logo(client_name: str) -> str:
     return f"/static/img/clients/{client_slug(client_name)}.svg"
+
 
 # Identifiants Jellyfin (GUID avec ou sans tirets) — borne aussi les noms de
 # fichiers du cache d'images.
@@ -152,6 +189,7 @@ def _sniff_mime(data: bytes) -> str:
 # Helpers d'application
 # ---------------------------------------------------------------------------
 
+
 def _duration_hm(seconds) -> str:
     seconds = int(seconds or 0)
     hours, minutes = divmod(seconds // 60, 60)
@@ -179,8 +217,9 @@ def create_app(config: Config) -> FastAPI:
     templates = make_templates()
     # Libellé d'un client dans les tableaux server-rendered : « Plex » pour les
     # lectures sans client (selon la config), sinon tiret.
-    templates.env.filters["client_label"] = \
-        lambda name: name or ("Plex" if config.unknown_as_plex else "—")
+    templates.env.filters["client_label"] = lambda name: (
+        name or ("Plex" if config.unknown_as_plex else "—")
+    )
     auth.init(config.secret_key, config.session_lifetime)
 
     def _user_profile(jellyfin_user_id: str) -> dict:
@@ -200,9 +239,13 @@ def create_app(config: Config) -> FastAPI:
         """Graphe clients (accueil + graphs) avec masquage / relabel selon la
         config des clients inconnus."""
         return graphs.by_client(
-            days, metric, user_id, year,
+            days,
+            metric,
+            user_id,
+            year,
             hide_unknown=config.hide_unknown_clients,
-            unknown_label="Plex" if config.unknown_as_plex else "Inconnu")
+            unknown_label="Plex" if config.unknown_as_plex else "Inconnu",
+        )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -210,8 +253,14 @@ def create_app(config: Config) -> FastAPI:
         yield
         await scheduler.stop()
 
-    app = FastAPI(title="Tautufin", version=__version__, lifespan=lifespan,
-                  docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(
+        title="Tautufin",
+        version=__version__,
+        lifespan=lifespan,
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+    )
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
     config_dir = Path(config.path).parent
@@ -238,14 +287,16 @@ def create_app(config: Config) -> FastAPI:
         """Admin ou droit « vision » : consultation des stats de tous les
         utilisateurs (mais pas la configuration)."""
         if not user.can_view_everyone:
-            raise HTTPException(status_code=403,
-                                detail="Réservé aux administrateurs et au droit « vision »")
+            raise HTTPException(
+                status_code=403, detail="Réservé aux administrateurs et au droit « vision »"
+            )
         return user
 
     def require_library_access(user: CurrentUser = Depends(require_user)) -> CurrentUser:
         if not user.is_admin and not config.allow_user_library_pages:
-            raise HTTPException(status_code=403,
-                                detail="Pages bibliothèques désactivées par l'admin")
+            raise HTTPException(
+                status_code=403, detail="Pages bibliothèques désactivées par l'admin"
+            )
         return user
 
     @app.exception_handler(HTTPException)
@@ -257,11 +308,18 @@ def create_app(config: Config) -> FastAPI:
             # Spec : 403 explicite, pas de redirect silencieux.
             user = get_user(request)
             return templates.TemplateResponse(
-                request, "error.html",
-                {"user": user, "version": __version__, "page": "",
-                 "allow_library": _allow_library(user),
-                 "status_code": 403, "detail": exc.detail},
-                status_code=403)
+                request,
+                "error.html",
+                {
+                    "user": user,
+                    "version": __version__,
+                    "page": "",
+                    "allow_library": _allow_library(user),
+                    "status_code": 403,
+                    "detail": exc.detail,
+                },
+                status_code=403,
+            )
         return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
 
     # --- Helpers ------------------------------------------------------------
@@ -279,11 +337,14 @@ def create_app(config: Config) -> FastAPI:
     def render(request, template, user=None, **ctx):
         ctx.setdefault("page", "")
         logo = _branding_file("logo")
-        ctx.update(user=user, version=__version__,
-                   allow_library=_allow_library(user),
-                   jellyfin_configured=config.jellyfin_configured,
-                   logo_ver=int(logo.stat().st_mtime) if logo else 0,
-                   has_logo=logo is not None)
+        ctx.update(
+            user=user,
+            version=__version__,
+            allow_library=_allow_library(user),
+            jellyfin_configured=config.jellyfin_configured,
+            logo_ver=int(logo.stat().st_mtime) if logo else 0,
+            has_logo=logo is not None,
+        )
         return templates.TemplateResponse(request, template, ctx)
 
     def is_configured() -> bool:
@@ -321,8 +382,9 @@ def create_app(config: Config) -> FastAPI:
         if jellyfin_url and api_key:
             try:
                 info = api.ping(base_url=jellyfin_url, api_key=api_key.strip())
-                logger.info("Connexion Jellyfin OK : %s %s",
-                            info.get("ServerName"), info.get("Version"))
+                logger.info(
+                    "Connexion Jellyfin OK : %s %s", info.get("ServerName"), info.get("Version")
+                )
             except JellyfinError as exc:
                 errors.append(f"Connexion Jellyfin impossible : {exc}")
         elif jellyfin_url or api_key:
@@ -330,9 +392,12 @@ def create_app(config: Config) -> FastAPI:
         if not admin_username or not admin_password:
             errors.append("Le compte admin local de secours est obligatoire.")
         if errors:
-            return render(request, "setup.html", errors=errors,
-                          form={"jellyfin_url": jellyfin_url,
-                                "admin_username": admin_username})
+            return render(
+                request,
+                "setup.html",
+                errors=errors,
+                form={"jellyfin_url": jellyfin_url, "admin_username": admin_username},
+            )
         if jellyfin_url:
             config.set("Jellyfin", "url", jellyfin_url)
             config.set("Jellyfin", "api_key", api_key.strip())
@@ -358,9 +423,12 @@ def create_app(config: Config) -> FastAPI:
             return RedirectResponse("/setup", status_code=303)
         if get_user(request):
             return RedirectResponse("/", status_code=303)
-        return render(request, "login.html",
-                      jellyfin_enabled=config.jellyfin_auth_enabled and config.jellyfin_configured,
-                      local_enabled=config.local_auth_enabled)
+        return render(
+            request,
+            "login.html",
+            jellyfin_enabled=config.jellyfin_auth_enabled and config.jellyfin_configured,
+            local_enabled=config.local_auth_enabled,
+        )
 
     @app.post("/login")
     def login_submit(
@@ -372,8 +440,9 @@ def create_app(config: Config) -> FastAPI:
         ip = request.client.host if request.client else "?"
         if not rate_limiter.check(ip):
             logger.warning("Rate limit login dépassé pour %s", ip)
-            raise HTTPException(status_code=429,
-                                detail="Trop de tentatives, réessayez dans une minute.")
+            raise HTTPException(
+                status_code=429, detail="Trop de tentatives, réessayez dans une minute."
+            )
         user = None
         try:
             if mode == "jellyfin" and config.jellyfin_auth_enabled and config.jellyfin_configured:
@@ -382,20 +451,31 @@ def create_app(config: Config) -> FastAPI:
                 user = auth.login_local(username.strip(), password)
         except auth.AccessBlocked:
             logger.warning("Login refusé (accès bloqué) : %s", username.strip())
-            return render(request, "login.html",
-                          error="Votre accès à Tautufin a été désactivé.",
-                          active_tab=mode,
-                          jellyfin_enabled=config.jellyfin_auth_enabled and config.jellyfin_configured,
-                          local_enabled=config.local_auth_enabled)
+            return render(
+                request,
+                "login.html",
+                error="Votre accès à Tautufin a été désactivé.",
+                active_tab=mode,
+                jellyfin_enabled=config.jellyfin_auth_enabled and config.jellyfin_configured,
+                local_enabled=config.local_auth_enabled,
+            )
         if user is None:
-            return render(request, "login.html",
-                          error="Identifiants invalides.", active_tab=mode,
-                          jellyfin_enabled=config.jellyfin_auth_enabled and config.jellyfin_configured,
-                          local_enabled=config.local_auth_enabled)
+            return render(
+                request,
+                "login.html",
+                error="Identifiants invalides.",
+                active_tab=mode,
+                jellyfin_enabled=config.jellyfin_auth_enabled and config.jellyfin_configured,
+                local_enabled=config.local_auth_enabled,
+            )
         response = RedirectResponse("/", status_code=303)
         response.set_cookie(
-            auth.SESSION_COOKIE, auth.cookie_value(user),
-            max_age=config.session_lifetime, httponly=True, samesite="lax")
+            auth.SESSION_COOKIE,
+            auth.cookie_value(user),
+            max_age=config.session_lifetime,
+            httponly=True,
+            samesite="lax",
+        )
         logger.info("Login %s réussi : %s (%s)", mode, user.username, user.role)
         return response
 
@@ -423,12 +503,20 @@ def create_app(config: Config) -> FastAPI:
     def history_page(request: Request, user: CurrentUser = Depends(require_user)):
         jf_users = users_mod.list_users_with_stats() if user.can_view_everyone else []
         libs = database.query("SELECT library_id, name FROM libraries ORDER BY name")
-        return render(request, "history.html", user=user, page="history",
-                      jf_users=jf_users, libs=libs, media_types=MEDIA_TYPES)
+        return render(
+            request,
+            "history.html",
+            user=user,
+            page="history",
+            jf_users=jf_users,
+            libs=libs,
+            media_types=MEDIA_TYPES,
+        )
 
     @app.get("/media/{item_id}")
-    def media_detail_page(request: Request, item_id: str,
-                          user: CurrentUser = Depends(require_user)):
+    def media_detail_page(
+        request: Request, item_id: str, user: CurrentUser = Depends(require_user)
+    ):
         if not JELLYFIN_ID_RE.match(item_id):
             raise HTTPException(status_code=404, detail="Média inconnu")
         # Isolation : un non-admin ne voit que ses propres visionnages.
@@ -439,106 +527,160 @@ def create_app(config: Config) -> FastAPI:
             for row in detail.get("recent", []):
                 if not row.get("client_name"):
                     row["client_name"] = "Plex"
-        return render(request, "media.html", user=user, page="history",
-                      media=detail)
+        return render(request, "media.html", user=user, page="history", media=detail)
 
     @app.get("/graphs")
     def graphs_page(request: Request, user: CurrentUser = Depends(require_user)):
         jf_users = users_mod.list_users_with_stats() if user.can_view_everyone else []
-        return render(request, "graphs.html", user=user, page="graphs",
-                      jf_users=jf_users, years=graphs.available_years())
+        return render(
+            request,
+            "graphs.html",
+            user=user,
+            page="graphs",
+            jf_users=jf_users,
+            years=graphs.available_years(),
+        )
 
     @app.get("/clients")
     def clients_page(request: Request, user: CurrentUser = Depends(require_user)):
         jf_users = users_mod.list_users_with_stats() if user.can_view_everyone else []
         return render(
-            request, "clients.html", user=user, page="clients",
+            request,
+            "clients.html",
+            user=user,
+            page="clients",
             jf_users=jf_users,
             years=clients.available_years(scoped_user_id(user, None)),
         )
 
     @app.get("/users")
     def users_page(request: Request, user: CurrentUser = Depends(require_global_view)):
-        return render(request, "users.html", user=user, page="users",
-                      users=users_mod.list_users_with_stats())
+        return render(
+            request, "users.html", user=user, page="users", users=users_mod.list_users_with_stats()
+        )
 
     @app.get("/users/{jellyfin_user_id}")
-    def user_detail_page(request: Request, jellyfin_user_id: str,
-                         user: CurrentUser = Depends(require_user)):
+    def user_detail_page(
+        request: Request, jellyfin_user_id: str, user: CurrentUser = Depends(require_user)
+    ):
         if not user.can_view_everyone and jellyfin_user_id != user.jellyfin_user_id:
-            raise HTTPException(status_code=403,
-                                detail="Vous ne pouvez consulter que votre propre profil.")
-        return render(request, "user.html", user=user, page="users",
-                      profile=_user_profile(jellyfin_user_id))
+            raise HTTPException(
+                status_code=403, detail="Vous ne pouvez consulter que votre propre profil."
+            )
+        return render(
+            request, "user.html", user=user, page="users", profile=_user_profile(jellyfin_user_id)
+        )
 
     @app.get("/users/{jellyfin_user_id}/wrapped")
-    def user_wrapped_page(request: Request, jellyfin_user_id: str,
-                          year: int | None = Query(None),
-                          user: CurrentUser = Depends(require_user)):
+    def user_wrapped_page(
+        request: Request,
+        jellyfin_user_id: str,
+        year: int | None = Query(None),
+        user: CurrentUser = Depends(require_user),
+    ):
         if not user.can_view_everyone and jellyfin_user_id != user.jellyfin_user_id:
-            raise HTTPException(status_code=403,
-                                detail="Vous ne pouvez consulter que votre propre profil.")
+            raise HTTPException(
+                status_code=403, detail="Vous ne pouvez consulter que votre propre profil."
+            )
         years = wrapped_mod.user_years(jellyfin_user_id)
         selected = year if year in years else (years[0] if years else None)
         data = wrapped_mod.build(jellyfin_user_id, selected) if selected else None
-        if data and config.unknown_as_plex and data.get("top_client") \
-                and not data["top_client"]["label"]:
+        if (
+            data
+            and config.unknown_as_plex
+            and data.get("top_client")
+            and not data["top_client"]["label"]
+        ):
             data["top_client"]["label"] = "Plex"
-        return render(request, "wrapped.html", user=user, page="users",
-                      jellyfin_user_id=jellyfin_user_id,
-                      username=users_mod.get_username(jellyfin_user_id),
-                      years=years, selected_year=selected, data=data)
+        return render(
+            request,
+            "wrapped.html",
+            user=user,
+            page="users",
+            jellyfin_user_id=jellyfin_user_id,
+            username=users_mod.get_username(jellyfin_user_id),
+            years=years,
+            selected_year=selected,
+            data=data,
+        )
 
     @app.get("/profile")
     def profile_page(request: Request, user: CurrentUser = Depends(require_user)):
         if not user.jellyfin_user_id:
-            return render(request, "user.html", user=user, page="profile",
-                          profile=None)
-        return render(request, "user.html", user=user, page="profile",
-                      profile=_user_profile(user.jellyfin_user_id))
+            return render(request, "user.html", user=user, page="profile", profile=None)
+        return render(
+            request,
+            "user.html",
+            user=user,
+            page="profile",
+            profile=_user_profile(user.jellyfin_user_id),
+        )
 
     @app.get("/libraries")
-    def libraries_page(request: Request,
-                       user: CurrentUser = Depends(require_library_access)):
-        return render(request, "libraries.html", user=user, page="libraries",
-                      libraries=libraries_mod.list_libraries_with_stats())
+    def libraries_page(request: Request, user: CurrentUser = Depends(require_library_access)):
+        return render(
+            request,
+            "libraries.html",
+            user=user,
+            page="libraries",
+            libraries=libraries_mod.list_libraries_with_stats(),
+        )
 
     @app.get("/libraries/{library_id}")
-    def library_detail_page(request: Request, library_id: str,
-                            user: CurrentUser = Depends(require_library_access)):
+    def library_detail_page(
+        request: Request, library_id: str, user: CurrentUser = Depends(require_library_access)
+    ):
         library = libraries_mod.get_library(library_id)
         if not library:
             raise HTTPException(status_code=404, detail="Bibliothèque inconnue")
-        return render(request, "library.html", user=user, page="libraries",
-                      library=library, detail=libraries_mod.library_detail(library_id))
+        return render(
+            request,
+            "library.html",
+            user=user,
+            page="libraries",
+            library=library,
+            detail=libraries_mod.library_detail(library_id),
+        )
 
     @app.get("/import")
     def import_page(request: Request, user: CurrentUser = Depends(require_admin)):
-        return render(request, "import.html", user=user, page="import",
-                      minimum_duration=config.minimum_duration,
-                      minimum_percent=config.minimum_percent,
-                      jf_users=database.query(
-                          "SELECT jellyfin_user_id, username FROM users"
-                          " ORDER BY username"),
-                      inferred_count=infer_history.count_inferred())
+        return render(
+            request,
+            "import.html",
+            user=user,
+            page="import",
+            minimum_duration=config.minimum_duration,
+            minimum_percent=config.minimum_percent,
+            jf_users=database.query(
+                "SELECT jellyfin_user_id, username FROM users ORDER BY username"
+            ),
+            inferred_count=infer_history.count_inferred(),
+        )
 
     # ------------------------------------------------------------------
     # Settings (admin)
     # ------------------------------------------------------------------
 
     def _render_settings(request, user, **ctx):
-        return render(request, "settings.html", user=user, page="settings",
-                      config=config, local_users=auth.list_local_users(),
-                      jf_users=database.query(
-                          "SELECT jellyfin_user_id, username FROM users ORDER BY username"),
-                      jf_users_admin=users_mod.list_users_for_admin(),
-                      **ctx)
+        return render(
+            request,
+            "settings.html",
+            user=user,
+            page="settings",
+            config=config,
+            local_users=auth.list_local_users(),
+            jf_users=database.query(
+                "SELECT jellyfin_user_id, username FROM users ORDER BY username"
+            ),
+            jf_users_admin=users_mod.list_users_for_admin(),
+            **ctx,
+        )
 
     @app.get("/settings")
-    def settings_page(request: Request, saved: int = 0, reset: int = 0,
-                      user: CurrentUser = Depends(require_admin)):
-        return _render_settings(request, user, saved=bool(saved),
-                                reset=bool(reset))
+    def settings_page(
+        request: Request, saved: int = 0, reset: int = 0, user: CurrentUser = Depends(require_admin)
+    ):
+        return _render_settings(request, user, saved=bool(saved), reset=bool(reset))
 
     @app.post("/settings/connection")
     def settings_connection_submit(
@@ -591,8 +733,7 @@ def create_app(config: Config) -> FastAPI:
         return RedirectResponse("/settings?saved=1", status_code=303)
 
     @app.post("/settings/jellyfin-users")
-    async def jellyfin_users_submit(request: Request,
-                                    user: CurrentUser = Depends(require_admin)):
+    async def jellyfin_users_submit(request: Request, user: CurrentUser = Depends(require_admin)):
         """Met à jour les droits par utilisateur Jellyfin (masquage, blocage,
         vision). Le formulaire envoie, par utilisateur coché, les champs
         ``hidden_<id>`` / ``blocked_<id>`` / ``view_<id>``."""
@@ -611,7 +752,9 @@ def create_app(config: Config) -> FastAPI:
                 # Coupe immédiatement les sessions Jellyfin actives du bloqué.
                 database.execute(
                     "DELETE FROM http_sessions WHERE jellyfin_user_id = ?"
-                    " AND auth_mode = 'jellyfin'", (uid,))
+                    " AND auth_mode = 'jellyfin'",
+                    (uid,),
+                )
         return RedirectResponse("/settings?saved=1", status_code=303)
 
     @app.post("/settings/local-users")
@@ -625,19 +768,21 @@ def create_app(config: Config) -> FastAPI:
     ):
         username = username.strip()
         if not username or not password:
-            return _render_settings(request, user,
-                                    user_error="Nom et mot de passe obligatoires.")
+            return _render_settings(request, user, user_error="Nom et mot de passe obligatoires.")
         if auth.get_local_user(username):
-            return _render_settings(request, user,
-                                    user_error=f"Le compte « {username} » existe déjà.")
-        auth.create_local_user(username, password,
-                               role if role in ("admin", "user") else "user",
-                               jellyfin_user_id.strip() or None)
+            return _render_settings(
+                request, user, user_error=f"Le compte « {username} » existe déjà."
+            )
+        auth.create_local_user(
+            username,
+            password,
+            role if role in ("admin", "user") else "user",
+            jellyfin_user_id.strip() or None,
+        )
         return RedirectResponse("/settings", status_code=303)
 
     @app.post("/settings/local-users/{local_id}/delete")
-    def delete_local_user_route(local_id: int,
-                                user: CurrentUser = Depends(require_admin)):
+    def delete_local_user_route(local_id: int, user: CurrentUser = Depends(require_admin)):
         auth.delete_local_user(local_id)
         return RedirectResponse("/settings", status_code=303)
 
@@ -647,8 +792,7 @@ def create_app(config: Config) -> FastAPI:
         user: CurrentUser = Depends(require_admin),
         new_password: str = Form(...),
     ):
-        row = database.query_one("SELECT username FROM local_users WHERE id = ?",
-                                 (local_id,))
+        row = database.query_one("SELECT username FROM local_users WHERE id = ?", (local_id,))
         if row and new_password:
             auth.set_local_password(row["username"], new_password)
         return RedirectResponse("/settings", status_code=303)
@@ -663,8 +807,8 @@ def create_app(config: Config) -> FastAPI:
         return Response(
             content=data,
             media_type="application/x-sqlite3",
-            headers={"Content-Disposition":
-                     f'attachment; filename="tautufin-backup-{stamp}.db"'})
+            headers={"Content-Disposition": f'attachment; filename="tautufin-backup-{stamp}.db"'},
+        )
 
     @app.post("/api/settings/verify-db")
     def maintenance_verify(user: CurrentUser = Depends(require_admin)):
@@ -697,33 +841,33 @@ def create_app(config: Config) -> FastAPI:
 
     def _image_response(data: bytes | None, placeholder: str) -> Response:
         if data:
-            return Response(data, media_type=_sniff_mime(data),
-                            headers=IMAGE_CACHE_HEADERS)
-        return FileResponse(STATIC_DIR / "img" / placeholder,
-                            headers=IMAGE_CACHE_HEADERS)
+            return Response(data, media_type=_sniff_mime(data), headers=IMAGE_CACHE_HEADERS)
+        return FileResponse(STATIC_DIR / "img" / placeholder, headers=IMAGE_CACHE_HEADERS)
 
     @app.get("/image/item/{item_id}")
-    def image_item(item_id: str,
-                   fallback: str | None = Query(None),
-                   w: int = Query(480, ge=40, le=1200),
-                   type: str = Query("Primary"),
-                   user: CurrentUser = Depends(require_user)):
+    def image_item(
+        item_id: str,
+        fallback: str | None = Query(None),
+        w: int = Query(480, ge=40, le=1200),
+        type: str = Query("Primary"),
+        user: CurrentUser = Depends(require_user),
+    ):
         # Backdrop (fond « hero » des cartes du dashboard) : on tente l'art
         # paysage du média ; s'il est absent on retombe sur le poster.
         if type == "Backdrop" and JELLYFIN_ID_RE.match(item_id):
             data = _cached_fetch(
                 f"item_{item_id}_bd_{w}",
-                lambda: api.get_image(item_id, image_type="Backdrop",
-                                      max_width=w))
+                lambda: api.get_image(item_id, image_type="Backdrop", max_width=w),
+            )
             if data is not None:
                 return _image_response(data, "poster-placeholder.svg")
         data = None
         if JELLYFIN_ID_RE.match(item_id):
-            data = _cached_fetch(f"item_{item_id}_{w}",
-                                 lambda: api.get_image(item_id, max_width=w))
+            data = _cached_fetch(f"item_{item_id}_{w}", lambda: api.get_image(item_id, max_width=w))
         if data is None and fallback and JELLYFIN_ID_RE.match(fallback):
-            data = _cached_fetch(f"item_{fallback}_{w}",
-                                 lambda: api.get_image(fallback, max_width=w))
+            data = _cached_fetch(
+                f"item_{fallback}_{w}", lambda: api.get_image(fallback, max_width=w)
+            )
         if data is None and not fallback and JELLYFIN_ID_RE.match(item_id):
             # Épisode sans image propre : tenter le poster de sa série.
             series = database.query_one(
@@ -732,19 +876,19 @@ def create_app(config: Config) -> FastAPI:
                 JOIN items s ON s.type = 'Series' AND s.name = e.series_name
                 WHERE e.item_id = ? LIMIT 1
                 """,
-                (item_id,))
+                (item_id,),
+            )
             if series:
                 data = _cached_fetch(
-                    f"item_{series['id']}_{w}",
-                    lambda: api.get_image(series["id"], max_width=w))
+                    f"item_{series['id']}_{w}", lambda: api.get_image(series["id"], max_width=w)
+                )
         return _image_response(data, "poster-placeholder.svg")
 
     @app.get("/image/user/{user_id}")
     def image_user(user_id: str, user: CurrentUser = Depends(require_user)):
         data = None
         if JELLYFIN_ID_RE.match(user_id):
-            data = _cached_fetch(f"user_{user_id}",
-                                 lambda: api.get_user_image(user_id))
+            data = _cached_fetch(f"user_{user_id}", lambda: api.get_user_image(user_id))
         return _image_response(data, "avatar-placeholder.svg")
 
     # ------------------------------------------------------------------
@@ -768,8 +912,10 @@ def create_app(config: Config) -> FastAPI:
         """Enregistre logo/favicon ; retourne un message d'erreur ou None."""
         ext = Path(upload.filename or "").suffix.lower()
         if ext not in BRANDING_EXTS:
-            return (f"Format non supporté ({ext or 'sans extension'}) — "
-                    f"acceptés : {', '.join(sorted(BRANDING_EXTS))}")
+            return (
+                f"Format non supporté ({ext or 'sans extension'}) — "
+                f"acceptés : {', '.join(sorted(BRANDING_EXTS))}"
+            )
         data = upload.file.read(BRANDING_MAX_BYTES + 1)
         if not data:
             return None  # champ laissé vide : on ne touche à rien
@@ -783,10 +929,12 @@ def create_app(config: Config) -> FastAPI:
         return None
 
     @app.post("/settings/branding")
-    def upload_branding(request: Request,
-                        user: CurrentUser = Depends(require_admin),
-                        logo: UploadFile = File(None),
-                        favicon: UploadFile = File(None)):
+    def upload_branding(
+        request: Request,
+        user: CurrentUser = Depends(require_admin),
+        logo: UploadFile = File(None),
+        favicon: UploadFile = File(None),
+    ):
         errors = []
         for name, upload in (("logo", logo), ("favicon", favicon)):
             if upload and upload.filename:
@@ -798,8 +946,7 @@ def create_app(config: Config) -> FastAPI:
         return RedirectResponse("/settings?saved=1", status_code=303)
 
     @app.post("/settings/branding/delete")
-    def delete_branding(user: CurrentUser = Depends(require_admin),
-                        which: str = Form(...)):
+    def delete_branding(user: CurrentUser = Depends(require_admin), which: str = Form(...)):
         if which in ("logo", "favicon"):
             f = _branding_file(which)
             if f:
@@ -814,7 +961,7 @@ def create_app(config: Config) -> FastAPI:
     def api_activity(user: CurrentUser = Depends(require_user)):
         sessions = monitor.snapshot(scoped_user_id(user, None))
         for s in sessions:
-            if not user.is_admin:        # détails réseau réservés à l'admin
+            if not user.is_admin:  # détails réseau réservés à l'admin
                 s.pop("ip_address", None)
                 s.pop("is_lan", None)
             if not user.can_view_everyone:  # identité réservée admin/vision
@@ -837,9 +984,16 @@ def create_app(config: Config) -> FastAPI:
     ):
         result = history.get_history(
             user_id=scoped_user_id(user, user_id),
-            media_type=media_type, library_id=library_id,
-            date_from=date_from, date_to=date_to, search=search,
-            sort=sort, order=order, page=page, page_size=page_size)
+            media_type=media_type,
+            library_id=library_id,
+            date_from=date_from,
+            date_to=date_to,
+            search=search,
+            sort=sort,
+            order=order,
+            page=page,
+            page_size=page_size,
+        )
         if config.unknown_as_plex:
             for row in result["rows"]:
                 if not row.get("client_name"):
@@ -850,17 +1004,18 @@ def create_app(config: Config) -> FastAPI:
         return result
 
     @app.get("/api/home_stats")
-    def api_home_stats(user: CurrentUser = Depends(require_user),
-                       period: str = Query("7d"),
-                       metric: str = Query("plays")):
+    def api_home_stats(
+        user: CurrentUser = Depends(require_user),
+        period: str = Query("7d"),
+        metric: str = Query("plays"),
+    ):
         days = PERIOD_DAYS.get(period, 7)  # None = depuis toujours
         metric = metric if metric in ("plays", "duration") else "plays"
         uid = scoped_user_id(user, None)
 
         def flat(data):
             series = data["series"][0]["data"] if data["series"] else []
-            return [{"label": c, "value": v}
-                    for c, v in zip(data["categories"], series)]
+            return [{"label": c, "value": v} for c, v in zip(data["categories"], series)]
 
         stats = {
             "metric": metric,
@@ -891,8 +1046,9 @@ def create_app(config: Config) -> FastAPI:
         user_id: str | None = Query(None),
         year: int | None = YearParam,
     ):
-        return graphs.plays_over_time(days or None, group, metric,
-                                      scoped_user_id(user, user_id), year)
+        return graphs.plays_over_time(
+            days or None, group, metric, scoped_user_id(user, user_id), year
+        )
 
     @app.get("/api/clients")
     def api_clients(
@@ -921,51 +1077,61 @@ def create_app(config: Config) -> FastAPI:
     }
 
     @app.get("/api/graphs/by_user")
-    def api_graph_by_user(user: CurrentUser = Depends(require_global_view),
-                          days: int = DaysParam,
-                          metric: str = Query("plays"),
-                          year: int | None = YearParam):
+    def api_graph_by_user(
+        user: CurrentUser = Depends(require_global_view),
+        days: int = DaysParam,
+        metric: str = Query("plays"),
+        year: int | None = YearParam,
+    ):
         return graphs.by_user(days or None, metric, year)
 
     @app.get("/api/graphs/top_items")
-    def api_graph_top_items(user: CurrentUser = Depends(require_user),
-                            days: int = DaysParam,
-                            kind: str = Query("movie"),
-                            metric: str = Query("plays"),
-                            user_id: str | None = Query(None),
-                            year: int | None = YearParam):
-        return graphs.top_items(days or None, kind, metric,
-                                scoped_user_id(user, user_id), year=year)
+    def api_graph_top_items(
+        user: CurrentUser = Depends(require_user),
+        days: int = DaysParam,
+        kind: str = Query("movie"),
+        metric: str = Query("plays"),
+        user_id: str | None = Query(None),
+        year: int | None = YearParam,
+    ):
+        return graphs.top_items(
+            days or None, kind, metric, scoped_user_id(user, user_id), year=year
+        )
 
     @app.get("/api/graphs/top_people")
-    def api_graph_top_people(user: CurrentUser = Depends(require_user),
-                             days: int = DaysParam,
-                             kind: str = Query("actor"),
-                             metric: str = Query("plays"),
-                             user_id: str | None = Query(None),
-                             year: int | None = YearParam):
-        return graphs.top_people(days or None, kind, metric,
-                                 scoped_user_id(user, user_id), year=year)
+    def api_graph_top_people(
+        user: CurrentUser = Depends(require_user),
+        days: int = DaysParam,
+        kind: str = Query("actor"),
+        metric: str = Query("plays"),
+        user_id: str | None = Query(None),
+        year: int | None = YearParam,
+    ):
+        return graphs.top_people(
+            days or None, kind, metric, scoped_user_id(user, user_id), year=year
+        )
 
     @app.get("/api/graphs/by_client")
-    def api_graph_by_client(user: CurrentUser = Depends(require_user),
-                            days: int = DaysParam,
-                            metric: str = Query("plays"),
-                            user_id: str | None = Query(None),
-                            year: int | None = YearParam):
-        return _client_breakdown(days or None, metric,
-                                 scoped_user_id(user, user_id), year)
+    def api_graph_by_client(
+        user: CurrentUser = Depends(require_user),
+        days: int = DaysParam,
+        metric: str = Query("plays"),
+        user_id: str | None = Query(None),
+        year: int | None = YearParam,
+    ):
+        return _client_breakdown(days or None, metric, scoped_user_id(user, user_id), year)
 
     @app.get("/api/graphs/transcode_cost")
-    def api_transcode_cost(user: CurrentUser = Depends(require_user),
-                           days: int = DaysParam,
-                           user_id: str | None = Query(None),
-                           year: int | None = YearParam):
+    def api_transcode_cost(
+        user: CurrentUser = Depends(require_user),
+        days: int = DaysParam,
+        user_id: str | None = Query(None),
+        year: int | None = YearParam,
+    ):
         """Estimation de la conso électrique imputable au transcodage vidéo sur
         la période/le filtre courant (hypothèses : surconsommation fixe et prix
         du kWh, cf. constantes ci-dessous — volontairement approximatif)."""
-        seconds = graphs.transcode_seconds(days or None,
-                                           scoped_user_id(user, user_id), year)
+        seconds = graphs.transcode_seconds(days or None, scoped_user_id(user, user_id), year)
         hours = seconds / 3600
         watts = config.transcode_watts
         price = config.electricity_price
@@ -980,12 +1146,14 @@ def create_app(config: Config) -> FastAPI:
         }
 
     @app.get("/api/graphs/{graph_name}")
-    def api_graph(graph_name: str,
-                  user: CurrentUser = Depends(require_user),
-                  days: int = DaysParam,
-                  metric: str = Query("plays"),
-                  user_id: str | None = Query(None),
-                  year: int | None = YearParam):
+    def api_graph(
+        graph_name: str,
+        user: CurrentUser = Depends(require_user),
+        days: int = DaysParam,
+        metric: str = Query("plays"),
+        user_id: str | None = Query(None),
+        year: int | None = YearParam,
+    ):
         func = GRAPH_FUNCS.get(graph_name)
         if func is None:
             raise HTTPException(status_code=404, detail="Graphique inconnu")
@@ -996,14 +1164,13 @@ def create_app(config: Config) -> FastAPI:
         return {"users": users_mod.list_users_with_stats()}
 
     @app.post("/api/settings/test-jellyfin")
-    def api_test_jellyfin(payload: dict,
-                          user: CurrentUser = Depends(require_admin)):
+    def api_test_jellyfin(payload: dict, user: CurrentUser = Depends(require_admin)):
         try:
-            info = api.ping(base_url=(payload.get("url") or "").strip().rstrip("/"),
-                            api_key=(payload.get("api_key") or "").strip()
-                                    or config.jellyfin_api_key)
-            return {"ok": True,
-                    "server": info.get("ServerName"), "version": info.get("Version")}
+            info = api.ping(
+                base_url=(payload.get("url") or "").strip().rstrip("/"),
+                api_key=(payload.get("api_key") or "").strip() or config.jellyfin_api_key,
+            )
+            return {"ok": True, "server": info.get("ServerName"), "version": info.get("Version")}
         except JellyfinError as exc:
             return {"ok": False, "error": str(exc)}
 
@@ -1021,13 +1188,14 @@ def create_app(config: Config) -> FastAPI:
         return get_sync_status()
 
     @app.post("/api/import/upload")
-    def api_import_upload(user: CurrentUser = Depends(require_admin),
-                          file: UploadFile = File(...)):
+    def api_import_upload(user: CurrentUser = Depends(require_admin), file: UploadFile = File(...)):
         """Réception d'un backup .tsv ou d'un playback_reporting.db envoyé
         depuis le navigateur. Stocké dans <config>/uploads/ (un seul fichier
         conservé), puis analysé/importé via son chemin comme un fichier local."""
-        safe_name = re.sub(r"[^A-Za-z0-9._-]", "_",
-                           Path(file.filename or "").name).lstrip(".") or "backup-upload"
+        safe_name = (
+            re.sub(r"[^A-Za-z0-9._-]", "_", Path(file.filename or "").name).lstrip(".")
+            or "backup-upload"
+        )
         uploads_dir = config_dir / "uploads"
         uploads_dir.mkdir(parents=True, exist_ok=True)
         # Écriture dans un .tmp : l'upload précédent n'est remplacé qu'une
@@ -1040,8 +1208,8 @@ def create_app(config: Config) -> FastAPI:
                     size += len(chunk)
                     if size > IMPORT_UPLOAD_MAX_BYTES:
                         raise HTTPException(
-                            status_code=413,
-                            detail="Fichier trop volumineux (max 512 Mo)")
+                            status_code=413, detail="Fichier trop volumineux (max 512 Mo)"
+                        )
                     out.write(chunk)
             if size == 0:
                 raise HTTPException(status_code=400, detail="Fichier vide")
@@ -1053,13 +1221,11 @@ def create_app(config: Config) -> FastAPI:
                 old.unlink()
         dest = uploads_dir / safe_name
         tmp.rename(dest)
-        logger.info("Backup uploadé par %s : %s (%d octets)",
-                    user.username, safe_name, size)
+        logger.info("Backup uploadé par %s : %s (%d octets)", user.username, safe_name, size)
         return {"path": str(dest), "filename": safe_name, "size": size}
 
     @app.post("/api/import/analyze")
-    def api_import_analyze(payload: dict,
-                           user: CurrentUser = Depends(require_admin)):
+    def api_import_analyze(payload: dict, user: CurrentUser = Depends(require_admin)):
         # Détection automatique : backup JSON Streamystats vs base/backup
         # Playback Reporting (.db/.tsv).
         path = (payload.get("path") or "").strip()
@@ -1071,15 +1237,15 @@ def create_app(config: Config) -> FastAPI:
             raise HTTPException(status_code=400, detail=str(exc))
 
     @app.post("/api/import/run")
-    def api_import_run(payload: dict,
-                       user: CurrentUser = Depends(require_admin)):
+    def api_import_run(payload: dict, user: CurrentUser = Depends(require_admin)):
         path = (payload.get("path") or "").strip()
-        module = (import_streamystats
-                  if import_streamystats.looks_like_streamystats(path)
-                  else import_playback)
+        module = (
+            import_streamystats
+            if import_streamystats.looks_like_streamystats(path)
+            else import_playback
+        )
         try:
-            return module.run_import(
-                path, api, config.minimum_duration, config.minimum_percent)
+            return module.run_import(path, api, config.minimum_duration, config.minimum_percent)
         except import_playback.ImportError_ as exc:
             raise HTTPException(status_code=400, detail=str(exc))
 
@@ -1088,23 +1254,21 @@ def create_app(config: Config) -> FastAPI:
     # ------------------------------------------------------------------
 
     @app.post("/api/infer/run")
-    def api_infer_run(payload: dict,
-                      user: CurrentUser = Depends(require_admin)):
+    def api_infer_run(payload: dict, user: CurrentUser = Depends(require_admin)):
         if not config.jellyfin_configured:
             raise HTTPException(status_code=400, detail="Jellyfin non configuré")
         target = (payload.get("user_id") or "").strip() or None
         report = infer_history.infer_history(
-            api, config.minimum_duration, config.minimum_percent, user_id=target)
+            api, config.minimum_duration, config.minimum_percent, user_id=target
+        )
         report["inferred_count"] = infer_history.count_inferred()
         return report
 
     @app.post("/api/infer/cleanup")
-    def api_infer_cleanup(payload: dict,
-                          user: CurrentUser = Depends(require_admin)):
+    def api_infer_cleanup(payload: dict, user: CurrentUser = Depends(require_admin)):
         target = (payload.get("user_id") or "").strip() or None
         deleted = infer_history.delete_inferred(user_id=target)
-        return {"deleted": deleted,
-                "inferred_count": infer_history.count_inferred()}
+        return {"deleted": deleted, "inferred_count": infer_history.count_inferred()}
 
     # ------------------------------------------------------------------
     # Webhook Jellyfin (plugin Webhook, événements temps réel)
@@ -1125,12 +1289,16 @@ def create_app(config: Config) -> FastAPI:
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def reset_password_cli(username: str) -> int:
     user = auth.get_local_user(username)
     if not user:
         print(f"Compte local introuvable : {username!r}", file=sys.stderr)
-        print("(le reset CLI ne concerne que les comptes locaux ; les mots de"
-              " passe Jellyfin se gèrent dans Jellyfin)", file=sys.stderr)
+        print(
+            "(le reset CLI ne concerne que les comptes locaux ; les mots de"
+            " passe Jellyfin se gèrent dans Jellyfin)",
+            file=sys.stderr,
+        )
         return 1
     password = getpass.getpass("Nouveau mot de passe : ")
     confirm = getpass.getpass("Confirmation : ")
@@ -1144,20 +1312,27 @@ def reset_password_cli(username: str) -> int:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
-        prog="jellyfin-stats",
-        description="Statistiques et historique de lecture pour Jellyfin")
-    parser.add_argument("--config", default="config.ini",
-                        help="chemin du fichier de configuration (défaut: ./config.ini)")
+        prog="jellyfin-stats", description="Statistiques et historique de lecture pour Jellyfin"
+    )
+    parser.add_argument(
+        "--config",
+        default="config.ini",
+        help="chemin du fichier de configuration (défaut: ./config.ini)",
+    )
     parser.add_argument("--host", help="écrase [Web] host")
     parser.add_argument("--port", type=int, help="écrase [Web] port")
-    parser.add_argument("--reset-password", metavar="USERNAME",
-                        help="réinitialise le mot de passe d'un compte local puis quitte")
+    parser.add_argument(
+        "--reset-password",
+        metavar="USERNAME",
+        help="réinitialise le mot de passe d'un compte local puis quitte",
+    )
     parser.add_argument("--debug", action="store_true", help="logs DEBUG")
     args = parser.parse_args(argv)
 
     logging.basicConfig(
         level=logging.DEBUG if args.debug else logging.INFO,
-        format="%(asctime)s %(levelname)-7s %(name)s :: %(message)s")
+        format="%(asctime)s %(levelname)-7s %(name)s :: %(message)s",
+    )
 
     config = Config(args.config)
     database.init(config.database_path)
@@ -1166,10 +1341,12 @@ def main(argv=None) -> int:
         return reset_password_cli(args.reset_password)
 
     app = create_app(config)
-    uvicorn.run(app,
-                host=args.host or config.get("Web", "host"),
-                port=args.port or config.get_int("Web", "port"),
-                log_level="debug" if args.debug else "info")
+    uvicorn.run(
+        app,
+        host=args.host or config.get("Web", "host"),
+        port=args.port or config.get_int("Web", "port"),
+        log_level="debug" if args.debug else "info",
+    )
     return 0
 
 

@@ -26,10 +26,7 @@ class FakeSyncAPI:
         self.inventory_calls.append(parent_id)
         if self.fail:
             raise RuntimeError("Jellyfin failure")
-        yield from [
-            {"Id": item["Id"], "Etag": item.get("Etag")}
-            for item in self.items
-        ]
+        yield from [{"Id": item["Id"], "Etag": item.get("Etag")} for item in self.items]
 
     def iter_items_by_ids(self, item_ids):
         ids = list(item_ids)
@@ -144,9 +141,7 @@ class IncrementalSyncTests(unittest.TestCase):
             with patch("jellyfin_stats.scheduler.now_iso", return_value="second"):
                 scheduler.sync_all(api)
 
-        row = database.query_one(
-            "SELECT updated_at FROM items WHERE item_id = 'item-1'"
-        )
+        row = database.query_one("SELECT updated_at FROM items WHERE item_id = 'item-1'")
         self.assertEqual(api.inventory_calls, ["lib-1", "lib-1"])
         self.assertEqual(api.rich_calls, [["item-1"]])
         self.assertEqual(row, {"updated_at": "first"})

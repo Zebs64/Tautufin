@@ -33,8 +33,17 @@ logger = logging.getLogger(__name__)
 
 SQLITE_MAGIC = b"SQLite format 3\x00"
 
-TSV_COLUMNS = ["DateCreated", "UserId", "ItemId", "ItemType", "ItemName",
-               "PlaybackMethod", "ClientName", "DeviceName", "PlayDuration"]
+TSV_COLUMNS = [
+    "DateCreated",
+    "UserId",
+    "ItemId",
+    "ItemType",
+    "ItemName",
+    "PlaybackMethod",
+    "ClientName",
+    "DeviceName",
+    "PlayDuration",
+]
 
 
 def _resolve_display_tz() -> ZoneInfo | None:
@@ -85,6 +94,7 @@ def _normalize_date(value: str) -> str:
 
 # --- Chargement des sources ---------------------------------------------------
 
+
 def _load_sqlite(path: str) -> list[dict]:
     try:
         conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
@@ -120,7 +130,8 @@ def _load_tsv(path: str) -> tuple[list[dict], int]:
     if not rows:
         raise ImportError_(
             "Aucune ligne exploitable — un backup .tsv du plugin contient"
-            " 9 colonnes séparées par des tabulations, sans en-tête")
+            " 9 colonnes séparées par des tabulations, sans en-tête"
+        )
     rows.sort(key=lambda r: r["DateCreated"])
     return rows, malformed
 
@@ -188,12 +199,16 @@ def run_import(path: str, api, minimum_duration: int, minimum_percent: int) -> d
         )
     }
     library_names = {
-        l["library_id"]: l["name"]
-        for l in database.query("SELECT library_id, name FROM libraries")
+        l["library_id"]: l["name"] for l in database.query("SELECT library_id, name FROM libraries")
     }
 
-    report = {"imported": 0, "duplicates": 0, "filtered": 0,
-              "errors": malformed, "format": source_format}
+    report = {
+        "imported": 0,
+        "duplicates": 0,
+        "filtered": 0,
+        "errors": malformed,
+        "format": source_format,
+    }
 
     with database.db() as conn:
         for row in rows:
@@ -204,16 +219,15 @@ def run_import(path: str, api, minimum_duration: int, minimum_percent: int) -> d
                 item = items.get(row["ItemId"], {})
                 runtime = item.get("runtime_seconds")
 
-                record, reason = should_record(
-                    duration, runtime, minimum_duration, minimum_percent)
+                record, reason = should_record(duration, runtime, minimum_duration, minimum_percent)
                 if not record:
-                    logger.debug("Import : entrée filtrée (%s, %s) : %s",
-                                 row["ItemName"], started_at, reason)
+                    logger.debug(
+                        "Import : entrée filtrée (%s, %s) : %s", row["ItemName"], started_at, reason
+                    )
                     report["filtered"] += 1
                     continue
 
-                percent = (min(100.0, duration / runtime * 100)
-                           if runtime else None)
+                percent = min(100.0, duration / runtime * 100) if runtime else None
                 cursor = conn.execute(
                     """
                     INSERT OR IGNORE INTO session_history
@@ -229,14 +243,25 @@ def run_import(path: str, api, minimum_duration: int, minimum_percent: int) -> d
                     (
                         user_id,
                         usernames.get(user_id, user_id[:8] if user_id else "?"),
-                        row["ItemId"], row["ItemType"], row["ItemName"],
-                        item.get("series_name"), item.get("season_number"),
-                        item.get("episode_number"), item.get("library_id"),
+                        row["ItemId"],
+                        row["ItemType"],
+                        row["ItemName"],
+                        item.get("series_name"),
+                        item.get("season_number"),
+                        item.get("episode_number"),
+                        item.get("library_id"),
                         library_names.get(item.get("library_id")),
-                        started_at, duration, runtime, percent,
-                        row["ClientName"], row["DeviceName"], row["PlaybackMethod"],
-                        item.get("video_resolution"), item.get("video_codec"),
-                        item.get("audio_codec"), item.get("genres"),
+                        started_at,
+                        duration,
+                        runtime,
+                        percent,
+                        row["ClientName"],
+                        row["DeviceName"],
+                        row["PlaybackMethod"],
+                        item.get("video_resolution"),
+                        item.get("video_codec"),
+                        item.get("audio_codec"),
+                        item.get("genres"),
                     ),
                 )
                 if cursor.rowcount:

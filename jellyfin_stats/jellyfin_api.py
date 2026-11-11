@@ -124,19 +124,19 @@ class JellyfinAPI:
 
     # --- Images ---------------------------------------------------------
 
-    def get_image(self, item_id: str, image_type: str = "Primary",
-                  max_width: int = 480) -> tuple[bytes, str] | None:
+    def get_image(
+        self, item_id: str, image_type: str = "Primary", max_width: int = 480
+    ) -> tuple[bytes, str] | None:
         """Poster/artwork d'un média ; None si absent ou serveur injoignable."""
-        return self._get_binary(f"/Items/{item_id}/Images/{image_type}",
-                                {"maxWidth": max_width, "quality": 90})
+        return self._get_binary(
+            f"/Items/{item_id}/Images/{image_type}", {"maxWidth": max_width, "quality": 90}
+        )
 
-    def get_user_image(self, user_id: str,
-                       max_width: int = 128) -> tuple[bytes, str] | None:
+    def get_user_image(self, user_id: str, max_width: int = 128) -> tuple[bytes, str] | None:
         """Avatar d'un utilisateur Jellyfin ; None si absent."""
-        return self._get_binary("/UserImage",
-                                {"userId": user_id, "maxWidth": max_width}) \
-            or self._get_binary(f"/Users/{user_id}/Images/Primary",
-                                {"maxWidth": max_width})
+        return self._get_binary(
+            "/UserImage", {"userId": user_id, "maxWidth": max_width}
+        ) or self._get_binary(f"/Users/{user_id}/Images/Primary", {"maxWidth": max_width})
 
     def _get_binary(self, path: str, params: dict) -> tuple[bytes, str] | None:
         base = self.config.jellyfin_url
@@ -185,27 +185,33 @@ class JellyfinAPI:
             "ParentIndexNumber,IndexNumber,DateCreated,People,Etag"
         )
         for offset in range(0, len(ids), batch_size):
-            batch = ids[offset:offset + batch_size]
+            batch = ids[offset : offset + batch_size]
             start = 0
             while True:
-                data = self._get(
-                    "/Items",
-                    params={
-                        "Ids": ",".join(batch),
-                        "Fields": fields,
-                        "StartIndex": start,
-                        "Limit": batch_size,
-                    },
-                ) or {}
+                data = (
+                    self._get(
+                        "/Items",
+                        params={
+                            "Ids": ",".join(batch),
+                            "Fields": fields,
+                            "StartIndex": start,
+                            "Limit": batch_size,
+                        },
+                    )
+                    or {}
+                )
                 items = data.get("Items", [])
                 yield from items
                 start += len(items)
                 if not items or start >= data.get("TotalRecordCount", 0):
                     break
 
-    def iter_played_items(self, user_id: str,
-                          item_types: str = "Movie,Episode,Audio,AudioBook,MusicVideo",
-                          page_size: int = 500):
+    def iter_played_items(
+        self,
+        user_id: str,
+        item_types: str = "Movie,Episode,Audio,AudioBook,MusicVideo",
+        page_size: int = 500,
+    ):
         """Itère sur les médias marqués « Lu » par un utilisateur.
 
         Filtre ``IsPlayed=true`` côté Jellyfin ; chaque item porte un champ
@@ -214,21 +220,24 @@ class JellyfinAPI:
         en direct (cf. infer_history)."""
         start = 0
         while True:
-            data = self._get(
-                "/Items",
-                params={
-                    "UserId": user_id,
-                    "Recursive": "true",
-                    "IsPlayed": "true",
-                    "IsFolder": "false",
-                    "IncludeItemTypes": item_types,
-                    "Fields": "UserData,Genres,RunTimeTicks,ProductionYear,"
-                              "MediaStreams,SeriesName,SeriesId,"
-                              "ParentIndexNumber,IndexNumber",
-                    "StartIndex": start,
-                    "Limit": page_size,
-                },
-            ) or {}
+            data = (
+                self._get(
+                    "/Items",
+                    params={
+                        "UserId": user_id,
+                        "Recursive": "true",
+                        "IsPlayed": "true",
+                        "IsFolder": "false",
+                        "IncludeItemTypes": item_types,
+                        "Fields": "UserData,Genres,RunTimeTicks,ProductionYear,"
+                        "MediaStreams,SeriesName,SeriesId,"
+                        "ParentIndexNumber,IndexNumber",
+                        "StartIndex": start,
+                        "Limit": page_size,
+                    },
+                )
+                or {}
+            )
             items = data.get("Items", [])
             yield from items
             start += len(items)

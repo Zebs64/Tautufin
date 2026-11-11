@@ -66,9 +66,7 @@ class SyncHealthTests(unittest.TestCase):
         expected = database.empty_sync_health()
         self.assertEqual(database.get_sync_health(), expected)
 
-        database.execute(
-            "INSERT INTO sync_state (key, value) VALUES ('sync_health', 'not-json')"
-        )
+        database.execute("INSERT INTO sync_state (key, value) VALUES ('sync_health', 'not-json')")
         with self.assertLogs("jellyfin_stats.database", level="WARNING"):
             actual = database.get_sync_health()
 
@@ -172,10 +170,12 @@ class SyncHealthTests(unittest.TestCase):
         previous_cursor = "2026-07-31T09:00:00Z"
         previous_success = "2026-07-31T09:00:01Z"
         database.set_sync_cursor(previous_cursor)
-        database.set_sync_health({
-            "status": "success",
-            "last_success_at": previous_success,
-        })
+        database.set_sync_health(
+            {
+                "status": "success",
+                "last_success_at": previous_success,
+            }
+        )
         database.execute(
             """
             CREATE TRIGGER fail_final_success_health
@@ -191,8 +191,7 @@ class SyncHealthTests(unittest.TestCase):
         end = datetime(2026, 7, 31, 10, 0, 1, tzinfo=timezone.utc)
 
         with patch("jellyfin_stats.scheduler._utc_now", side_effect=[start, end, end]):
-            with self.assertRaisesRegex(sqlite3.IntegrityError,
-                                        "injected final health failure"):
+            with self.assertRaisesRegex(sqlite3.IntegrityError, "injected final health failure"):
                 scheduler.sync_all(FakeHealthAPI(), force_full=False)
 
         health = database.get_sync_health()
@@ -206,9 +205,7 @@ class SyncHealthTests(unittest.TestCase):
     def test_health_survives_reinitialization_and_reset_clears_only_sync_keys(self):
         database.set_sync_cursor("2026-07-31T10:00:00Z")
         database.set_sync_health({"status": "success", "last_success_at": "saved"})
-        database.execute(
-            "INSERT INTO sync_state (key, value) VALUES ('protected-key', 'keep')"
-        )
+        database.execute("INSERT INTO sync_state (key, value) VALUES ('protected-key', 'keep')")
 
         database.init(self.db_path)
         self.assertEqual(database.get_sync_health()["last_success_at"], "saved")
@@ -218,14 +215,10 @@ class SyncHealthTests(unittest.TestCase):
         self.assertIsNone(database.get_sync_cursor())
         self.assertEqual(database.get_sync_health(), database.empty_sync_health())
         self.assertEqual(
-            database.query_one(
-                "SELECT value FROM sync_state WHERE key = 'protected-key'"
-            ),
+            database.query_one("SELECT value FROM sync_state WHERE key = 'protected-key'"),
             {"value": "keep"},
         )
-        self.assertEqual(
-            database.query_one("SELECT version FROM schema_version"), {"version": 7}
-        )
+        self.assertEqual(database.query_one("SELECT version FROM schema_version"), {"version": 7})
 
     def test_status_combines_legacy_progress_with_persistent_health(self):
         database.set_sync_health({"status": "success", "last_success_at": "saved"})

@@ -40,10 +40,11 @@ def count_inferred(user_id: str | None = None) -> int:
     if user_id:
         row = database.query_one(
             "SELECT COUNT(*) AS n FROM session_history"
-            " WHERE source = 'infer' AND jellyfin_user_id = ?", (user_id,))
+            " WHERE source = 'infer' AND jellyfin_user_id = ?",
+            (user_id,),
+        )
     else:
-        row = database.query_one(
-            "SELECT COUNT(*) AS n FROM session_history WHERE source = 'infer'")
+        row = database.query_one("SELECT COUNT(*) AS n FROM session_history WHERE source = 'infer'")
     return row["n"] if row else 0
 
 
@@ -51,8 +52,9 @@ def delete_inferred(user_id: str | None = None) -> int:
     """Supprime les sessions inférées (toutes, ou d'un utilisateur)."""
     if user_id:
         return database.execute(
-            "DELETE FROM session_history WHERE source = 'infer'"
-            " AND jellyfin_user_id = ?", (user_id,))
+            "DELETE FROM session_history WHERE source = 'infer' AND jellyfin_user_id = ?",
+            (user_id,),
+        )
     return database.execute("DELETE FROM session_history WHERE source = 'infer'")
 
 
@@ -61,13 +63,12 @@ def _target_users(user_id: str | None) -> list[dict]:
     ``user_id`` est fourni."""
     if user_id:
         rows = database.query(
-            "SELECT jellyfin_user_id, username FROM users WHERE jellyfin_user_id = ?",
-            (user_id,))
+            "SELECT jellyfin_user_id, username FROM users WHERE jellyfin_user_id = ?", (user_id,)
+        )
         # Utilisateur absent du cache mais demandé explicitement : on tente
         # quand même (l'API Jellyfin tranchera).
         return rows or [{"jellyfin_user_id": user_id, "username": user_id[:8]}]
-    return database.query(
-        "SELECT jellyfin_user_id, username FROM users ORDER BY username")
+    return database.query("SELECT jellyfin_user_id, username FROM users ORDER BY username")
 
 
 def _items_cache() -> dict[str, dict]:
@@ -77,12 +78,14 @@ def _items_cache() -> dict[str, dict]:
                i.season_number, i.episode_number, i.runtime_seconds, i.genres,
                i.video_resolution, i.video_codec, i.audio_codec
         FROM items i LEFT JOIN libraries l ON l.library_id = i.library_id
-        """)
+        """
+    )
     return {r["item_id"]: r for r in rows}
 
 
-def infer_history(api, minimum_duration: int, minimum_percent: int,
-                  user_id: str | None = None) -> dict:
+def infer_history(
+    api, minimum_duration: int, minimum_percent: int, user_id: str | None = None
+) -> dict:
     """Reconstitue les sessions inférées. Idempotent (voir docstring module).
 
     Rapport : utilisateurs traités, sessions créées, doublons ignorés (lecture
@@ -90,8 +93,15 @@ def infer_history(api, minimum_duration: int, minimum_percent: int,
     """
     users = _target_users(user_id)
     items = _items_cache()
-    report = {"users": 0, "created": 0, "duplicates": 0, "filtered": 0,
-              "no_date": 0, "errors": 0, "deleted": 0}
+    report = {
+        "users": 0,
+        "created": 0,
+        "duplicates": 0,
+        "filtered": 0,
+        "no_date": 0,
+        "errors": 0,
+        "deleted": 0,
+    }
 
     # Phase réseau : on récupère les médias lus de chaque utilisateur SANS
     # tenir de transaction SQLite (sinon le verrou d'écriture bloquerait le
@@ -99,11 +109,11 @@ def infer_history(api, minimum_duration: int, minimum_percent: int,
     fetched: list[tuple[dict, list[dict]]] = []
     for user in users:
         try:
-            played = list(api.iter_played_items(
-                user["jellyfin_user_id"], item_types=INFER_ITEM_TYPES))
+            played = list(
+                api.iter_played_items(user["jellyfin_user_id"], item_types=INFER_ITEM_TYPES)
+            )
         except JellyfinError as exc:
-            logger.warning("Inférence : médias lus de %s inaccessibles : %s",
-                           user["username"], exc)
+            logger.warning("Inférence : médias lus de %s inaccessibles : %s", user["username"], exc)
             report["errors"] += 1
             continue
         fetched.append((user, played))
@@ -114,11 +124,13 @@ def infer_history(api, minimum_duration: int, minimum_percent: int,
     with database.db() as conn:
         if user_id:
             report["deleted"] = conn.execute(
-                "DELETE FROM session_history WHERE source = 'infer'"
-                " AND jellyfin_user_id = ?", (user_id,)).rowcount
+                "DELETE FROM session_history WHERE source = 'infer' AND jellyfin_user_id = ?",
+                (user_id,),
+            ).rowcount
         else:
             report["deleted"] = conn.execute(
-                "DELETE FROM session_history WHERE source = 'infer'").rowcount
+                "DELETE FROM session_history WHERE source = 'infer'"
+            ).rowcount
 
         for user, played in fetched:
             uid = user["jellyfin_user_id"]
@@ -137,15 +149,17 @@ def infer_history(api, minimum_duration: int, minimum_percent: int,
                     cached = items.get(item_id, {})
 
                     runtime_ticks = item.get("RunTimeTicks")
-                    runtime_seconds = (runtime_ticks // TICKS_PER_SECOND
-                                       if runtime_ticks
-                                       else cached.get("runtime_seconds"))
+                    runtime_seconds = (
+                        runtime_ticks // TICKS_PER_SECOND
+                        if runtime_ticks
+                        else cached.get("runtime_seconds")
+                    )
                     # Hypothèse : un média « Lu » a été vu en entier.
                     play_duration = int(runtime_seconds or 0)
 
                     record, reason = should_record(
-                        play_duration, runtime_seconds,
-                        minimum_duration, minimum_percent)
+                        play_duration, runtime_seconds, minimum_duration, minimum_percent
+                    )
                     if not record:
                         report["filtered"] += 1
                         continue
@@ -159,17 +173,21 @@ def infer_history(api, minimum_duration: int, minimum_percent: int,
                           AND ABS(julianday(started_at) - julianday(?)) <= 1
                         LIMIT 1
                         """,
-                        (uid, item_id, started_at)).fetchone()
+                        (uid, item_id, started_at),
+                    ).fetchone()
                     if dup:
                         report["duplicates"] += 1
                         continue
 
-                    video = next((s for s in item.get("MediaStreams", [])
-                                  if s.get("Type") == "Video"), {})
-                    audio = next((s for s in item.get("MediaStreams", [])
-                                  if s.get("Type") == "Audio"), {})
-                    genres = (json.dumps(item["Genres"]) if item.get("Genres")
-                              else cached.get("genres"))
+                    video = next(
+                        (s for s in item.get("MediaStreams", []) if s.get("Type") == "Video"), {}
+                    )
+                    audio = next(
+                        (s for s in item.get("MediaStreams", []) if s.get("Type") == "Audio"), {}
+                    )
+                    genres = (
+                        json.dumps(item["Genres"]) if item.get("Genres") else cached.get("genres")
+                    )
                     percent = 100.0 if runtime_seconds else None
 
                     cursor = conn.execute(
@@ -186,14 +204,21 @@ def infer_history(api, minimum_duration: int, minimum_percent: int,
                         """,
                         (
                             f"infer:{uid}:{item_id}:{started_at}",
-                            uid, uname, item_id, item.get("Type"),
+                            uid,
+                            uname,
+                            item_id,
+                            item.get("Type"),
                             item.get("Name"),
                             item.get("SeriesName") or cached.get("series_name"),
                             item.get("ParentIndexNumber") or cached.get("season_number"),
                             item.get("IndexNumber") or cached.get("episode_number"),
-                            cached.get("library_id"), cached.get("library_name"),
-                            started_at, started_at, play_duration,
-                            runtime_seconds, percent,
+                            cached.get("library_id"),
+                            cached.get("library_name"),
+                            started_at,
+                            started_at,
+                            play_duration,
+                            runtime_seconds,
+                            percent,
                             resolution_label(video.get("Width"), video.get("Height"))
                             or cached.get("video_resolution"),
                             video.get("Codec") or cached.get("video_codec"),
@@ -206,8 +231,7 @@ def infer_history(api, minimum_duration: int, minimum_percent: int,
                     else:
                         report["duplicates"] += 1
                 except Exception:
-                    logger.exception("Inférence : média en erreur (%s)",
-                                     item.get("Name"))
+                    logger.exception("Inférence : média en erreur (%s)", item.get("Name"))
                     report["errors"] += 1
 
     logger.info(

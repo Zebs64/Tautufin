@@ -40,8 +40,9 @@ def resolution_label(width, height) -> str | None:
     return "SD"
 
 
-def should_record(play_duration: int, runtime_seconds: int | None,
-                  minimum_duration: int, minimum_percent: int) -> tuple[bool, str]:
+def should_record(
+    play_duration: int, runtime_seconds: int | None, minimum_duration: int, minimum_percent: int
+) -> tuple[bool, str]:
     """Applique les seuils, retourne (enregistrer, raison)."""
     if minimum_duration <= 0 and minimum_percent <= 0:
         return True, "filtres désactivés"
@@ -88,8 +89,7 @@ def _stream_details(session: dict, item: dict) -> dict:
 
     def pick(stype, idx):
         if idx is not None:
-            m = next((s for s in streams
-                      if s.get("Type") == stype and s.get("Index") == idx), None)
+            m = next((s for s in streams if s.get("Type") == stype and s.get("Index") == idx), None)
             if m:
                 return m
         return next((s for s in streams if s.get("Type") == stype), {})
@@ -111,7 +111,8 @@ def _stream_details(session: dict, item: dict) -> dict:
     src_res = resolution_label(video.get("Width"), video.get("Height"))
     tgt_res = resolution_label(ti.get("Width"), ti.get("Height")) if transcoding else None
     a_chan = audio.get("ChannelLayout") or (
-        f"{audio.get('Channels')}ch" if audio.get("Channels") else None)
+        f"{audio.get('Channels')}ch" if audio.get("Channels") else None
+    )
     bitrate = ti.get("Bitrate") or video.get("BitRate") or item.get("Bitrate")
 
     return {
@@ -128,10 +129,13 @@ def _stream_details(session: dict, item: dict) -> dict:
         "video_direct": bool(ti.get("IsVideoDirect")) if transcoding else True,
         "video_src": " ".join(x for x in (up(video.get("Codec")), src_res) if x) or None,
         "video_tgt": (" ".join(x for x in (up(ti.get("VideoCodec")), tgt_res) if x) or None)
-        if transcoding else None,
+        if transcoding
+        else None,
         "audio_direct": bool(ti.get("IsAudioDirect")) if transcoding else True,
         "audio_src": " ".join(
-            x for x in (up(audio.get("Codec")), a_chan, audio.get("Language")) if x) or None,
+            x for x in (up(audio.get("Codec")), a_chan, audio.get("Language")) if x
+        )
+        or None,
         "audio_tgt": up(ti.get("AudioCodec")) if transcoding else None,
         "subtitle": sub.get("DisplayTitle") or sub.get("Language") if sub else None,
         "ip_address": session.get("RemoteEndPoint"),
@@ -174,8 +178,7 @@ class TrackedSession:
     def percent_complete(self) -> float | None:
         if not self.runtime_seconds:
             return None
-        return min(100.0, self.position_ticks / TICKS_PER_SECOND
-                   / self.runtime_seconds * 100)
+        return min(100.0, self.position_ticks / TICKS_PER_SECOND / self.runtime_seconds * 100)
 
 
 class ActivityMonitor:
@@ -203,15 +206,15 @@ class ActivityMonitor:
                 if tracked is None:
                     tracked = self._new_tracked(key, session, item, now)
                     self._sessions[key] = tracked
-                    logger.info("Lecture démarrée : %s par %s",
-                                tracked.item_name, tracked.user_name)
+                    logger.info(
+                        "Lecture démarrée : %s par %s", tracked.item_name, tracked.user_name
+                    )
                 else:
                     delta = now - tracked.last_seen
                     if not tracked.paused:
                         # Borne le delta : si le poller a sauté des cycles, on
                         # ne crédite pas plus de 3 intervalles d'un coup.
-                        tracked.watched_seconds += min(
-                            delta, self.config.poll_interval * 3)
+                        tracked.watched_seconds += min(delta, self.config.poll_interval * 3)
                 tracked.paused = bool(play_state.get("IsPaused"))
                 tracked.position_ticks = play_state.get("PositionTicks") or 0
                 tracked.play_method = play_state.get("PlayMethod") or tracked.play_method
@@ -236,16 +239,22 @@ class ActivityMonitor:
         play_state = session.get("PlayState", {})
         runtime_ticks = item.get("RunTimeTicks")
         video_stream = next(
-            (s for s in item.get("MediaStreams", []) if s.get("Type") == "Video"), {})
+            (s for s in item.get("MediaStreams", []) if s.get("Type") == "Video"), {}
+        )
         audio_stream = next(
-            (s for s in item.get("MediaStreams", []) if s.get("Type") == "Audio"), {})
+            (s for s in item.get("MediaStreams", []) if s.get("Type") == "Audio"), {}
+        )
         # Enrichissement depuis le cache items (bibliothèque, genres) si connu.
-        cached = database.query_one(
-            "SELECT library_id, genres, runtime_seconds FROM items WHERE item_id = ?",
-            (item["Id"],),
-        ) or {}
+        cached = (
+            database.query_one(
+                "SELECT library_id, genres, runtime_seconds FROM items WHERE item_id = ?",
+                (item["Id"],),
+            )
+            or {}
+        )
         genres = item.get("Genres") or (
-            json.loads(cached["genres"]) if cached.get("genres") else [])
+            json.loads(cached["genres"]) if cached.get("genres") else []
+        )
         return TrackedSession(
             key=key,
             session_id=session["Id"],
@@ -258,15 +267,19 @@ class ActivityMonitor:
             series_name=item.get("SeriesName"),
             season_number=item.get("ParentIndexNumber"),
             episode_number=item.get("IndexNumber"),
-            runtime_seconds=(runtime_ticks // TICKS_PER_SECOND if runtime_ticks
-                             else cached.get("runtime_seconds")),
+            runtime_seconds=(
+                runtime_ticks // TICKS_PER_SECOND
+                if runtime_ticks
+                else cached.get("runtime_seconds")
+            ),
             client_name=session.get("Client"),
             device_name=session.get("DeviceName"),
             ip_address=session.get("RemoteEndPoint"),
             play_method=play_state.get("PlayMethod"),
             video_resolution=resolution_label(
                 video_stream.get("Width") or item.get("Width"),
-                video_stream.get("Height") or item.get("Height")),
+                video_stream.get("Height") or item.get("Height"),
+            ),
             video_codec=video_stream.get("Codec"),
             audio_codec=audio_stream.get("Codec"),
             genres=genres,
@@ -282,11 +295,15 @@ class ActivityMonitor:
     def _finalize(self, tracked: TrackedSession) -> None:
         play_duration = int(tracked.watched_seconds)
         record, reason = should_record(
-            play_duration, tracked.runtime_seconds,
-            self.config.minimum_duration, self.config.minimum_percent)
+            play_duration,
+            tracked.runtime_seconds,
+            self.config.minimum_duration,
+            self.config.minimum_percent,
+        )
         if not record:
-            logger.debug("Session ignorée (%s par %s) : %s",
-                         tracked.item_name, tracked.user_name, reason)
+            logger.debug(
+                "Session ignorée (%s par %s) : %s", tracked.item_name, tracked.user_name, reason
+            )
             return
 
         library = database.query_one(
@@ -311,16 +328,29 @@ class ActivityMonitor:
                         ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    tracked.key, tracked.jellyfin_user_id, tracked.user_name,
-                    tracked.item_id, tracked.item_type, tracked.item_name,
-                    tracked.series_name, tracked.season_number, tracked.episode_number,
+                    tracked.key,
+                    tracked.jellyfin_user_id,
+                    tracked.user_name,
+                    tracked.item_id,
+                    tracked.item_type,
+                    tracked.item_name,
+                    tracked.series_name,
+                    tracked.season_number,
+                    tracked.episode_number,
                     library["library_id"] if library else None,
                     library["name"] if library else None,
-                    tracked.started_at, now_iso(), play_duration,
-                    tracked.runtime_seconds, tracked.percent_complete(),
-                    tracked.client_name, tracked.device_name, tracked.ip_address,
-                    tracked.play_method, tracked.video_resolution,
-                    tracked.video_codec, tracked.audio_codec,
+                    tracked.started_at,
+                    now_iso(),
+                    play_duration,
+                    tracked.runtime_seconds,
+                    tracked.percent_complete(),
+                    tracked.client_name,
+                    tracked.device_name,
+                    tracked.ip_address,
+                    tracked.play_method,
+                    tracked.video_resolution,
+                    tracked.video_codec,
+                    tracked.audio_codec,
                     json.dumps(tracked.genres) if tracked.genres else None,
                 ),
             )
@@ -328,8 +358,13 @@ class ActivityMonitor:
                 "UPDATE users SET last_activity = ? WHERE jellyfin_user_id = ?",
                 (now_iso(), tracked.jellyfin_user_id),
             )
-        logger.info("Session enregistrée : %s par %s (%ds vus, %s)",
-                    tracked.item_name, tracked.user_name, play_duration, reason)
+        logger.info(
+            "Session enregistrée : %s par %s (%ds vus, %s)",
+            tracked.item_name,
+            tracked.user_name,
+            play_duration,
+            reason,
+        )
 
     # --- Webhook ------------------------------------------------------------
 
@@ -345,8 +380,11 @@ class ActivityMonitor:
         if not user_id or not item_id:
             return
         with self._lock:
-            matches = [t for t in self._sessions.values()
-                       if t.jellyfin_user_id == user_id and t.item_id == item_id]
+            matches = [
+                t
+                for t in self._sessions.values()
+                if t.jellyfin_user_id == user_id and t.item_id == item_id
+            ]
             if notif == "PlaybackStop":
                 for t in matches:
                     self._sessions.pop(t.key, None)
@@ -369,25 +407,27 @@ class ActivityMonitor:
         for t in sessions:
             if user_id and t.jellyfin_user_id != user_id:
                 continue
-            out.append({
-                "user_name": t.user_name,
-                "jellyfin_user_id": t.jellyfin_user_id,
-                "item_id": t.item_id,
-                "series_id": t.series_id,
-                "item_name": t.item_name,
-                "item_type": t.item_type,
-                "series_name": t.series_name,
-                "season_number": t.season_number,
-                "episode_number": t.episode_number,
-                "client_name": t.client_name,
-                "device_name": t.device_name,
-                "play_method": t.play_method,
-                "video_resolution": t.video_resolution,
-                "paused": t.paused,
-                "watched_seconds": int(t.watched_seconds),
-                "runtime_seconds": t.runtime_seconds,
-                "percent_complete": t.percent_complete(),
-                "started_at": t.started_at,
-                **t.info,
-            })
+            out.append(
+                {
+                    "user_name": t.user_name,
+                    "jellyfin_user_id": t.jellyfin_user_id,
+                    "item_id": t.item_id,
+                    "series_id": t.series_id,
+                    "item_name": t.item_name,
+                    "item_type": t.item_type,
+                    "series_name": t.series_name,
+                    "season_number": t.season_number,
+                    "episode_number": t.episode_number,
+                    "client_name": t.client_name,
+                    "device_name": t.device_name,
+                    "play_method": t.play_method,
+                    "video_resolution": t.video_resolution,
+                    "paused": t.paused,
+                    "watched_seconds": int(t.watched_seconds),
+                    "runtime_seconds": t.runtime_seconds,
+                    "percent_complete": t.percent_complete(),
+                    "started_at": t.started_at,
+                    **t.info,
+                }
+            )
         return sorted(out, key=lambda s: s["started_at"], reverse=True)

@@ -38,8 +38,9 @@ def list_users_for_admin() -> list[dict]:
     )
 
 
-def set_user_flags(jellyfin_user_id: str, hidden: bool,
-                   access_blocked: bool, can_view_all: bool) -> None:
+def set_user_flags(
+    jellyfin_user_id: str, hidden: bool, access_blocked: bool, can_view_all: bool
+) -> None:
     database.execute(
         "UPDATE users SET hidden = ?, access_blocked = ?, can_view_all = ?"
         " WHERE jellyfin_user_id = ?",
@@ -153,11 +154,18 @@ def _top_per_kind(jellyfin_user_id: str) -> list[dict]:
         (jellyfin_user_id,),
     )
     out = []
-    for kind, icon, row in (("Film", "🎬", film),
-                            ("Série", "📺", serie),
-                            ("Chanson", "🎵", chanson)):
-        out.append({"kind": kind, "icon": icon,
-                    "label": row["label"] if row else None,
-                    "duration": row["duration"] if row else 0,
-                    "item_id": row["item_id"] if row else None})
+    for kind, icon, row in (
+        ("Film", "🎬", film),
+        ("Série", "📺", serie),
+        ("Chanson", "🎵", chanson),
+    ):
+        out.append(
+            {
+                "kind": kind,
+                "icon": icon,
+                "label": row["label"] if row else None,
+                "duration": row["duration"] if row else 0,
+                "item_id": row["item_id"] if row else None,
+            }
+        )
     return out
