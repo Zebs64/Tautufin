@@ -90,6 +90,14 @@ function browserQuery() {
   return query;
 }
 
+// Lien d'export : mêmes filtres et même tri que le tableau, sans pagination.
+function updateExportLink() {
+  const query = apiQuery();
+  query.delete('page');
+  query.delete('page_size');
+  document.getElementById('history-export').href = '/api/history.csv?' + query;
+}
+
 function updateURL(mode) {
   if (mode === 'none') return;
   const query = browserQuery().toString();
@@ -155,6 +163,7 @@ function renderRows(rows) {
 
 async function load(urlMode = 'push') {
   updateURL(urlMode);
+  updateExportLink();
   renderChips();
   const generation = ++requestGeneration;
   tbody.innerHTML = `<tr><td colspan="${columnsCount()}" class="table-state muted">Chargement…</td></tr>`;

@@ -43,7 +43,7 @@ sont ailleurs :
 | 13 | ✅ v0.3.0 — Retirer du catalogue les médias supprimés de Jellyfin | Données | Moyenne | M |
 | 14 | ✅ v0.3.1 — Contrôle d'origine (CSRF) et logout en POST | Sécurité | Moyenne | S |
 | 15 | Notifications sortantes (ntfy, Discord, webhook) | Fonctionnel | Haute | M |
-| 16 | Export CSV de l'historique | Fonctionnel | Moyenne | S |
+| 16 | ✅ — Export CSV de l'historique | Fonctionnel | Moyenne | S |
 | 17 | API en lecture seule par jeton (widgets de tableau de bord) | Fonctionnel | Moyenne | M |
 | 18 | Simplifier le curseur de synchronisation | Dette | Moyenne | S |
 | 19 | Découper `main.py` en routeurs | Dette | Moyenne | M |
@@ -420,6 +420,9 @@ fixe et documenté.
 **Fichiers.** nouveau `notify.py`, `activity.py`, `scheduler.py`, Réglages.
 
 ### 16. Export CSV de l'historique — valeur moyenne, S
+
+**Statut : fait** (`/api/history.csv`, mêmes filtres et mêmes droits que
+l'historique, IP réservées aux admins, cellules de type formule neutralisées).
 
 Une route `/api/history.csv` qui réutilise `history.get_history` avec les mêmes
 filtres, sans pagination. C'est la seule façon simple de sortir ses données

@@ -260,7 +260,9 @@ Tableau filtrable (utilisateur, type, bibliothèque, dates, recherche), triable 
 paginé. Les filtres sont reflétés dans l'URL, restaurés avec précédent/suivant,
 affichés sous forme de chips supprimables et réinitialisables. Le total et les
 erreurs sont explicites. Poster du média (poster de la **série** pour un épisode),
-logo du client et — pour les admins — adresse IP.
+logo du client et — pour les admins — adresse IP. Le bouton **Exporter en CSV**
+télécharge les lectures correspondant aux filtres et au tri en cours (format
+compatible Excel : point-virgule, UTF-8).
 
 ![Historique](docs/screenshots/historique.png)
 

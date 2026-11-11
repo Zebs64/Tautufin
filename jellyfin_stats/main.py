@@ -2,7 +2,9 @@
 
 import argparse
 import asyncio
+import csv
 import getpass
+import io
 import logging
 import re
 import secrets
@@ -15,7 +17,13 @@ from urllib.parse import urlparse
 
 import uvicorn
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import (
+    FileResponse,
+    JSONResponse,
+    RedirectResponse,
+    Response,
+    StreamingResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -161,6 +169,21 @@ def client_slug(product: str, device: str = "") -> str:
     if "shield" in d or "nvidia" in d:
         return "nvidia"
     return _browser_slug(d) or "jellyfin"
+
+
+def _csv_cell(value):
+    """Valeur exportée en CSV. Un texte commençant par = + - @ (ou tabulation,
+    retour chariot) serait interprété comme une formule par un tableur : les
+    noms d'appareil, réglables par tout utilisateur Jellyfin, le permettraient.
+    On le préfixe d'une apostrophe."""
+    if value is None:
+        return ""
+    if isinstance(value, float):
+        return round(value, 1)
+    text = str(value)
+    if text[:1] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + text
+    return value
 
 
 def client_logo(client_name: str) -> str:
@@ -1079,6 +1102,55 @@ def create_app(config: Config) -> FastAPI:
             for row in result["rows"]:
                 row.pop("ip_address", None)
         return result
+
+    @app.get("/api/history.csv")
+    def api_history_csv(
+        user: CurrentUser = Depends(require_user),
+        user_id: str | None = Query(None),
+        media_type: str | None = Query(None),
+        library_id: str | None = Query(None),
+        date_from: str | None = Query(None),
+        date_to: str | None = Query(None),
+        search: str | None = Query(None),
+        sort: str = Query("date"),
+        order: str = Query("desc"),
+    ):
+        """Export CSV de l'historique filtré (mêmes filtres et mêmes droits que
+        /api/history, sans pagination). Point-virgule et BOM UTF-8 pour Excel."""
+        rows = history.export_rows(
+            user_id=scoped_user_id(user, user_id),
+            media_type=media_type,
+            library_id=library_id,
+            date_from=date_from,
+            date_to=date_to,
+            search=search,
+            sort=sort,
+            order=order,
+        )
+        columns = [c for c in history.EXPORT_COLUMNS if c != "ip_address" or user.is_admin]
+        if config.unknown_as_plex:
+            for row in rows:
+                if not row.get("client_name"):
+                    row["client_name"] = "Plex"
+
+        def lines():
+            buffer = io.StringIO()
+            writer = csv.writer(buffer, delimiter=";", lineterminator="\r\n")
+            yield "\ufeff"
+            writer.writerow(columns)
+            for row in rows:
+                writer.writerow([_csv_cell(row[c]) for c in columns])
+                yield buffer.getvalue()
+                buffer.seek(0)
+                buffer.truncate()
+            yield buffer.getvalue()
+
+        filename = f"tautufin-historique-{time.strftime('%Y%m%d')}.csv"
+        return StreamingResponse(
+            lines(),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
 
     @app.get("/api/home_stats")
     def api_home_stats(

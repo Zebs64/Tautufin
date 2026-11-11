@@ -22,18 +22,15 @@ SORT_COLUMNS = {
 PAGE_SIZE_MAX = 200
 
 
-def get_history(
+def _filters(
     user_id: str | None = None,
     media_type: str | None = None,
     library_id: str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
     search: str | None = None,
-    sort: str = "date",
-    order: str = "desc",
-    page: int = 1,
-    page_size: int = 25,
-) -> dict:
+) -> tuple[str, list]:
+    """Clause WHERE commune à la liste paginée et à l'export CSV."""
     where, params = ["1=1"], []
     if user_id:
         where.append("jellyfin_user_id = ?")
@@ -55,10 +52,27 @@ def get_history(
     if search:
         where.append("(item_name LIKE ? OR series_name LIKE ?)")
         params.extend([f"%{search}%", f"%{search}%"])
+    return " AND ".join(where), params
 
-    where_sql = " AND ".join(where)
-    sort_col = SORT_COLUMNS.get(sort, "started_at")
+
+def _order_by(sort: str, order: str) -> str:
     direction = "ASC" if order.lower() == "asc" else "DESC"
+    return f"{SORT_COLUMNS.get(sort, 'started_at')} {direction}, id {direction}"
+
+
+def get_history(
+    user_id: str | None = None,
+    media_type: str | None = None,
+    library_id: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    search: str | None = None,
+    sort: str = "date",
+    order: str = "desc",
+    page: int = 1,
+    page_size: int = 25,
+) -> dict:
+    where_sql, params = _filters(user_id, media_type, library_id, date_from, date_to, search)
     page = max(1, page)
     page_size = min(max(1, page_size), PAGE_SIZE_MAX)
 
@@ -83,9 +97,49 @@ def get_history(
                    sh.item_id) AS image_id
         FROM session_history sh
         WHERE {where_sql}
-        ORDER BY {sort_col} {direction}, sh.id {direction}
+        ORDER BY {_order_by(sort, order)}
         LIMIT ? OFFSET ?
         """,
         params + [page_size, (page - 1) * page_size],
     )
     return {"total": total, "page": page, "page_size": page_size, "rows": rows}
+
+
+EXPORT_COLUMNS = [
+    "started_at",
+    "stopped_at",
+    "user_name",
+    "item_type",
+    "item_name",
+    "series_name",
+    "season_number",
+    "episode_number",
+    "library_name",
+    "play_duration",
+    "percent_complete",
+    "client_name",
+    "device_name",
+    "play_method",
+    "video_resolution",
+    "source",
+    "ip_address",
+]
+
+
+def export_rows(
+    user_id: str | None = None,
+    media_type: str | None = None,
+    library_id: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    search: str | None = None,
+    sort: str = "date",
+    order: str = "desc",
+) -> list[dict]:
+    """Toutes les lectures correspondant aux filtres, sans pagination."""
+    where_sql, params = _filters(user_id, media_type, library_id, date_from, date_to, search)
+    return database.query(
+        f"SELECT {', '.join(EXPORT_COLUMNS)} FROM session_history"
+        f" WHERE {where_sql} ORDER BY {_order_by(sort, order)}",
+        params,
+    )
