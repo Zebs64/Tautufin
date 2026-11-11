@@ -7,11 +7,7 @@
   {% for l in libraries %}
   <a class="lib-card" href="/libraries/{{ l.library_id }}">
     <div class="lib-card-img">
-      {% if l.cover_id %}
-      <img loading="lazy" alt="" src="/image/item/{{ l.cover_id }}?type=Backdrop&amp;w=480">
-      {% else %}
       <img loading="lazy" alt="" src="/image/item/{{ l.library_id }}?w=480">
-      {% endif %}
       <span class="lib-card-icon">{{ l.collection_type | library_icon }}</span>
     </div>
     <div class="lib-card-body">
