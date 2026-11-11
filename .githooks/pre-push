@@ -31,13 +31,18 @@ while read -r local_ref local_sha remote_ref remote_sha; do
         status=1
     fi
 
-    # Métadonnées des commits que le distant n'a pas encore.
-    leaks=$(git log --format='%h %an <%ae> / %cn <%ce>%n%B' \
-        "$local_sha" --not --remotes="$remote" |
-        grep -i -E -f "$pattern_file")
+    # Métadonnées des commits que le distant n'a pas encore, et du tag
+    # annoté poussé le cas échéant (tagger et message).
+    leaks=$({
+        git log --format='%h %an <%ae> / %cn <%ce>%n%B' \
+            "$local_sha" --not --remotes="$remote"
+        if [ "$(git cat-file -t "$local_sha")" = tag ]; then
+            git cat-file -p "$local_sha"
+        fi
+    } | grep -i -E -f "$pattern_file")
     if [ -n "$leaks" ]; then
         printf '%s\n' "$leaks" >&2
-        echo "pre-push: motif privé dans l'identité ou le message d'un commit de $local_ref" >&2
+        echo "pre-push: motif privé dans l'identité ou le message de $local_ref" >&2
         status=1
     fi
 done
