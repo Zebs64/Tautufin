@@ -162,9 +162,17 @@ def invalidate(conn, where_sql: str, params=()) -> None:
 
 def ensure(conn) -> None:
     """Au démarrage : recalcul complet si la règle a changé, sinon rattrapage
-    des lignes sans viewing_id (ex. écrites par une version plus ancienne)."""
+    des lignes sans viewing_id (ex. écrites par une version plus ancienne) et
+    des visionnages dont le premier segment a disparu (supprimé par une version
+    plus ancienne, qui ne maintient pas viewing_id)."""
     row = conn.execute("SELECT value FROM sync_state WHERE key = ?", (_RULE_KEY,)).fetchone()
-    if row is None or row[0] != RULE_VERSION:
+    if row is not None and row[0] == RULE_VERSION:
+        invalidate(
+            conn,
+            "viewing_id IS NOT NULL AND NOT EXISTS"
+            " (SELECT 1 FROM session_history v WHERE v.id = session_history.viewing_id)",
+        )
+    else:
         conn.execute("UPDATE session_history SET viewing_id = NULL")
         conn.execute(
             "INSERT INTO sync_state (key, value) VALUES (?, ?)"

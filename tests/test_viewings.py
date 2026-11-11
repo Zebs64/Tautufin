@@ -139,6 +139,19 @@ class ViewingIdMaintenanceTests(unittest.TestCase):
             database.init(self.db_path)
         self.assertEqual(self._viewings(), [1, 1])
 
+    def test_startup_repairs_viewings_whose_first_segment_was_deleted(self):
+        # Retour temporaire à une version qui supprime sans maintenir viewing_id.
+        self._insert("2026-11-01 20:00:00", 1800, 40.0, "2026-11-01 20:30:00")
+        self._insert("2026-11-01 20:45:00", 1800, 70.0, "2026-11-01 21:15:00")
+        self._insert("2026-11-01 21:30:00", 1800, 97.0, "2026-11-01 22:00:00")
+        database.init(self.db_path)
+        database.execute("DELETE FROM session_history WHERE id = 1")
+
+        database.init(self.db_path)
+
+        self.assertEqual(self._viewings(), [2, 2])
+        self._assert_consistent()
+
     def test_live_capture_links_a_resumed_playback(self):
         config = SimpleNamespace(
             poll_interval=15,
