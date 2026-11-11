@@ -37,14 +37,14 @@ function percentText(value) {
 function segmentRows(parentId, segments) {
   return segments.map((s, i) => `
     <tr class="segment-row" data-parent="${parentId}">
-      <td>${dateCell(s.started_at)}</td>
-      ${canView ? '<td></td>' : ''}
-      <td class="segment-label">Partie ${i + 1}${s.stopped_at ? ` <span class="muted">→ ${esc(fmtDateTime(s.stopped_at))}</span>` : ''}</td>
-      <td></td>
-      <td>${fmtDuration(s.play_duration)}</td>
-      <td>${percentText(s.percent_complete)}</td>
-      <td>${clientCell(s)}</td>
-      ${isAdmin ? `<td>${esc(s.ip_address || '—')}</td>` : ''}
+      <td class="col-date">${dateCell(s.started_at)}</td>
+      ${canView ? '<td class="col-user"></td>' : ''}
+      <td class="col-media segment-label">Partie ${i + 1}${s.stopped_at ? ` <span class="muted">→ ${esc(fmtDateTime(s.stopped_at))}</span>` : ''}</td>
+      <td class="col-type"></td>
+      <td class="col-duration">${fmtDuration(s.play_duration)}</td>
+      <td class="col-percent">${percentText(s.percent_complete)}</td>
+      <td class="col-client">${clientCell(s)}</td>
+      ${isAdmin ? `<td class="col-ip">${esc(s.ip_address || '—')}</td>` : ''}
     </tr>`).join('');
 }
 
@@ -221,16 +221,16 @@ function renderRows(rows) {
     currentDay = day;
     return separator + `
     <tr>
-      <td>${byDay && r.started_at ? timeCell(r.started_at) : dateCell(r.started_at)}</td>
-      ${canView ? `<td><span class="cell-user"><img class="avatar" loading="lazy" alt=""
+      <td class="col-date">${byDay && r.started_at ? timeCell(r.started_at) : dateCell(r.started_at)}</td>
+      ${canView ? `<td class="col-user"><span class="cell-user"><img class="avatar" loading="lazy" alt=""
           src="/image/user/${encodeURIComponent(r.jellyfin_user_id)}"><a
           href="/users/${encodeURIComponent(r.jellyfin_user_id)}">${esc(r.user_name)}</a></span></td>` : ''}
-      <td>${mediaCell(r)}</td>
-      <td>${esc(r.item_type_label || r.item_type || '—')}</td>
-      <td>${fmtDuration(r.play_duration)}</td>
-      <td>${percentText(r.percent_complete)}</td>
-      <td>${clientCell(r)}</td>
-      ${isAdmin ? `<td>${esc(r.ip_address || '—')}</td>` : ''}
+      <td class="col-media">${mediaCell(r)}</td>
+      <td class="col-type">${esc(r.item_type_label || r.item_type || '—')}</td>
+      <td class="col-duration">${fmtDuration(r.play_duration)}</td>
+      <td class="col-percent">${percentText(r.percent_complete)}</td>
+      <td class="col-client">${clientCell(r)}</td>
+      ${isAdmin ? `<td class="col-ip">${esc(r.ip_address || '—')}</td>` : ''}
     </tr>`;
   }).join('');
 }

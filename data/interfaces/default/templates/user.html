@@ -88,14 +88,14 @@
 
 <h2>Lectures récentes</h2>
 <div class="card">
-  <table class="table">
+  <table class="table table-cards">
     <thead><tr><th>Date</th><th>Média</th><th>Durée vue</th><th>% vu</th><th>Client</th></tr></thead>
     <tbody>
       {% for h in profile.recent %}
       {% set title %}{% if h.series_name %}{{ h.series_name }} — S{{ h.season_number or 0 }}E{{ h.episode_number or 0 }} {{ h.item_name }}{% else %}{{ h.item_name }}{% endif %}{% endset %}
       <tr>
-        <td>{{ h.started_at | dt }}</td>
-        <td>
+        <td class="col-date">{{ h.started_at | dt }}</td>
+        <td class="col-media">
           <span class="cell-media">
             {% if h.image_id or h.item_id %}<img class="thumb" loading="lazy" alt=""
                  src="/image/item/{{ h.image_id or h.item_id }}?w=120">{% endif %}
@@ -104,9 +104,9 @@
               {%- if h.segments > 1 %}<span class="viewing-parts">en {{ h.segments }} fois</span>{% endif %}</span>
           </span>
         </td>
-        <td>{{ h.play_duration | duration_hm }}</td>
-        <td>{{ h.percent_complete and (h.percent_complete | round | int ~ '%') or '—' }}</td>
-        <td>{% if h.client_name %}<span class="cell-client"><img class="client-logo"
+        <td class="col-duration">{{ h.play_duration | duration_hm }}</td>
+        <td class="col-percent">{{ h.percent_complete and (h.percent_complete | round | int ~ '%') or '—' }}</td>
+        <td class="col-client">{% if h.client_name %}<span class="cell-client"><img class="client-logo"
             src="{{ h.client_name | client_logo }}" alt=""> {{ h.client_name }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
       </tr>
       {% else %}

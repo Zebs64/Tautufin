@@ -72,24 +72,24 @@
 
 <h2>Lectures {% if not user.is_admin %}(les vôtres) {% endif %}récentes</h2>
 <div class="card">
-  <table class="table">
+  <table class="table table-cards">
     <thead><tr><th>Date</th>{% if user.is_admin %}<th>Utilisateur</th>{% endif %}
       <th>Durée vue</th><th>% vu</th><th>Client</th></tr></thead>
     <tbody>
       {% for h in media.recent %}
       <tr>
-        <td>{{ h.started_at | dt }}
+        <td class="col-date">{{ h.started_at | dt }}
           {%- if h.estimated %} <span class="badge badge-off badge-estimated" title="{{ h.estimate_hint }}">estimée</span>{% endif %}</td>
         {% if user.is_admin %}
-        <td><span class="cell-user">
+        <td class="col-user"><span class="cell-user">
           <img class="avatar" loading="lazy" alt="" src="/image/user/{{ h.jellyfin_user_id }}">
           <a href="/users/{{ h.jellyfin_user_id }}">{{ h.user_name }}</a>
         </span></td>
         {% endif %}
-        <td>{{ h.play_duration | duration_hm }}
+        <td class="col-duration">{{ h.play_duration | duration_hm }}
           {%- if h.segments > 1 %}<span class="viewing-parts">en {{ h.segments }} fois</span>{% endif %}</td>
-        <td>{{ h.percent_complete and (h.percent_complete | round | int ~ '%') or '—' }}</td>
-        <td>{% if h.client_name %}<span class="cell-client"><img class="client-logo"
+        <td class="col-percent">{{ h.percent_complete and (h.percent_complete | round | int ~ '%') or '—' }}</td>
+        <td class="col-client">{% if h.client_name %}<span class="cell-client"><img class="client-logo"
             src="{{ h.client_name | client_logo }}" alt=""> {{ h.client_name }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
       </tr>
       {% else %}

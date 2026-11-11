@@ -81,7 +81,7 @@ code {
 
 @media (max-width: 760px) {
   .nav-toggle-label { display: block; margin-left: auto; padding: 12px; cursor: pointer; font-size: 1.3em; }
-  .nav-links { display: none; flex-direction: column; align-items: stretch; width: 100%; padding-bottom: 10px; }
+  .nav-links { display: none; flex: 1 1 100%; flex-direction: column; align-items: stretch; padding-bottom: 10px; }
   .nav-toggle:checked ~ .nav-links { display: flex; }
   .nav-links a, .nav-logout button { margin: 2px 0; }
   .nav-logout button { width: 100%; text-align: left; }
@@ -560,6 +560,29 @@ th.sorted-desc::after { content: " ▼"; color: var(--accent); }
 @media (max-width: 760px) {
   .table { display: block; overflow-x: auto; }
 }
+/* Téléphone : les tableaux de lectures deviennent des cartes empilées, titre
+   en premier sur toute la largeur, puis date, utilisateur, durée… en ligne. */
+@media (max-width: 760px) {
+  .table.table-cards { overflow-x: visible; }
+  .table-cards thead { display: none; }
+  .table-cards tbody { display: block; }
+  .table-cards tbody tr {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px;
+    padding: 10px 2px; border-bottom: 1px solid var(--border);
+  }
+  .table-cards tbody tr:last-child { border-bottom: none; }
+  .table-cards td { border: 0; padding: 0; font-size: .88em; color: var(--text-muted); }
+  .table-cards td:empty, .table-cards td.col-type, .table-cards td.col-ip { display: none; }
+  .table-cards td.col-media { order: -1; flex: 1 1 100%; font-size: 1em; color: var(--text); }
+  .table-cards td.table-state { flex: 1 1 100%; }
+  .table-cards .cell-media { min-width: 0; }
+  .table-cards .cell-user .avatar { width: 20px; height: 20px; }
+  .table-cards tbody tr.segment-row { padding-left: 14px; background: rgba(0, 0, 0, .14); }
+  .table.table-cards tr.segment-row td { background: transparent; }
+  .table.table-cards tr.segment-row td.segment-label { padding-left: 0; }
+  .table-cards tr.day-separator { display: block; padding: 0; border-bottom: none; }
+  .table-cards tr.day-separator th { display: block; padding: 16px 2px 2px; border: 0; }
+}
 
 /* Historique : visionnage en plusieurs fois et ses parties dépliées. */
 .viewing-toggle, .viewing-parts {
@@ -646,7 +669,8 @@ form.inline input { width: 170px; margin: 0; display: inline-block; padding: 6px
 .btn-danger:hover { box-shadow: 0 0 0.6em rgba(217, 84, 84, 0.3); border-color: var(--err); }
 .btn-sm { padding: 4px 13px; font-size: .85em; }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
-.btn-group { display: inline-flex; gap: 6px; }
+.btn-group { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.btn-group .btn { white-space: nowrap; }
 .btn-group .btn.active {
   background: linear-gradient(135deg, var(--accent), var(--accent-deep));
   border-color: var(--accent); color: #fff;
@@ -906,6 +930,15 @@ form.inline input { width: 170px; margin: 0; display: inline-block; padding: 6px
   font-variant-numeric: tabular-nums;
   background: linear-gradient(90deg, #fff, #c9c2ff);
   -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+@media (max-width: 760px) {
+  .detail-hero-inner { padding: 20px 18px; gap: 16px; flex-direction: column; align-items: stretch; }
+  .detail-avatar, .detail-icon { width: 84px; height: 84px; }
+  .detail-hero-body { min-width: 0; }
+  .kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .kpi { padding: 10px 12px; }
+  .kpi-val { font-size: 1.2em; }
+  .filters label { flex-basis: 130px; }
 }
 .kpi-lab {
   display: block; margin-top: 3px; font-size: .68em; color: var(--text-muted);
