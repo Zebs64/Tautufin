@@ -46,7 +46,7 @@ sont ailleurs :
 | 16 | ✅ v0.3.2 — Export CSV de l'historique | Fonctionnel | Moyenne | S |
 | 17 | ✗ écarté — API en lecture seule par jeton (widgets de tableau de bord) | Fonctionnel | Moyenne | M |
 | 18 | ✅ — Simplifier le curseur de synchronisation | Dette | Moyenne | S |
-| 19 | Découper `main.py` en routeurs | Dette | Moyenne | M |
+| 19 | ✅ — Découper `main.py` en routeurs | Dette | Moyenne | M |
 | 20 | Sortir le JS inline des templates | Dette | Faible | M |
 | 21 | Divers (code mort, tests de chaînes, SVG, setup) | Dette | Faible | S |
 | 22 | Horodatages locaux naïfs (heure d'été) | Données | Faible | L |
@@ -488,6 +488,12 @@ moins de concepts à expliquer.
 `tests/test_sync_*.py`.
 
 ### 19. Découper `main.py` — valeur moyenne, M
+
+**Statut : fait.** `main.py` passe de 1 527 à ~210 lignes (application, middlewares,
+CLI) ; les routes sont réparties dans `jellyfin_stats/web/` (un module par
+domaine, `register(app, context)`), avec un contexte partagé pour les services
+et dépendances. Corps des routes déplacés tels quels : table des routes
+identique (58 routes, même ordre, mêmes dépendances).
 
 `main.py` fait 1356 lignes, dont l'essentiel dans une seule fonction
 `create_app` (`main.py:212`) qui déclare toutes les routes en closures. On ne

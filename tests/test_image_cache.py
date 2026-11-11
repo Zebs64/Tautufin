@@ -11,8 +11,9 @@ from fastapi.testclient import TestClient
 
 from jellyfin_stats import auth, database, image_cache
 from jellyfin_stats.config import Config
-from jellyfin_stats.main import NEGATIVE_IMAGE_CACHE_SECONDS, create_app
+from jellyfin_stats.main import create_app
 from jellyfin_stats.scheduler import Scheduler
+from jellyfin_stats.web.helpers import NEGATIVE_IMAGE_CACHE_SECONDS
 
 ITEM_ID = "0123456789abcdef0123456789abcdef"
 PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 32

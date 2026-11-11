@@ -494,7 +494,20 @@ minimum `NotificationType`, `UserId`, `ItemId` et `IsPaused`. Le paramètre
 
 ```
 jellyfin_stats/
-├── main.py              # point d'entrée, CLI, routes FastAPI
+├── main.py              # point d'entrée, CLI, application (middlewares, erreurs)
+├── web/                 # couche HTTP
+│   ├── context.py       # services partagés, dépendances d'auth, rendu
+│   ├── helpers.py       # constantes, icônes, MIME, CSV, templates
+│   ├── auth_routes.py   # setup, connexion, déconnexion
+│   ├── pages.py         # pages HTML
+│   ├── settings_routes.py  # réglages et maintenance
+│   ├── branding.py      # logo et favicon
+│   ├── images.py        # proxy d'images + cache disque
+│   ├── api.py           # API JSON du front
+│   ├── imports.py       # import d'historique et inférence
+│   └── webhook.py       # webhook Jellyfin (jeton)
+├── proxy.py             # en-têtes X-Forwarded-* des proxys de confiance
+├── image_cache.py       # taille bornée et vidage du cache d'images
 ├── config.py            # config.ini (défauts, secret auto-généré)
 ├── database.py          # SQLite + migrations versionnées + maintenance
 ├── auth.py              # logins Jellyfin/local, sessions serveur, rate limit
