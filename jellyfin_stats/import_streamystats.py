@@ -35,7 +35,7 @@ import logging
 import os
 from collections import Counter
 
-from . import database
+from . import database, viewings
 from .activity import TICKS_PER_SECOND, resolution_label, should_record
 from .import_playback import ImportError_, _normalize_date
 from .jellyfin_api import JellyfinError
@@ -241,6 +241,7 @@ def run_import(path: str, api, minimum_duration: int, minimum_percent: int) -> d
             except Exception:
                 logger.exception("Import Streamystats : session en erreur (%s)", s.get("id"))
                 report["errors"] += 1
+        viewings.refresh(conn)
 
     logger.info(
         "Import Streamystats terminé : %(imported)d importées, %(duplicates)d "

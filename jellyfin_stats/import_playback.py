@@ -24,7 +24,7 @@ from collections import Counter
 from datetime import datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from . import database
+from . import database, viewings
 from .activity import should_record
 from .jellyfin_api import JellyfinError
 
@@ -275,6 +275,7 @@ def run_import(path: str, api, minimum_duration: int, minimum_percent: int) -> d
             except (sqlite3.Error, ValueError, KeyError) as exc:
                 logger.warning("Import : entrée en erreur (%r) : %s", dict(row), exc)
                 report["errors"] += 1
+        viewings.refresh(conn)
 
     logger.info(
         "Import Playback Reporting (%(format)s) terminé : %(imported)d importées, "

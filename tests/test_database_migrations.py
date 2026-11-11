@@ -104,6 +104,7 @@ class MigrationTests(unittest.TestCase):
                 row.pop("removed_at", None)
             for row in snapshot["session_history"]:
                 row.pop("series_id", None)
+                row.pop("viewing_id", None)  # donnée dérivée (viewings.py)
 
         self.assertEqual(
             database.query_one("SELECT version FROM schema_version"),
@@ -125,7 +126,8 @@ class MigrationTests(unittest.TestCase):
         database.reset_data()
 
         self.assertIsNone(database.get_sync_health()["last_success_at"])
-        self.assertEqual(database.query("SELECT key FROM sync_state"), [])
+        # Seule reste la version de la règle de regroupement (elle décrit le code).
+        self.assertEqual(database.query("SELECT key FROM sync_state"), [{"key": "viewings_rule"}])
 
 
 class DatabaseV6MigrationTests(unittest.TestCase):

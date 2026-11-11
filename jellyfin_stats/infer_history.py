@@ -25,7 +25,7 @@ Déduplication (exigence : pas de doublon) :
 import json
 import logging
 
-from . import database
+from . import database, viewings
 from .activity import TICKS_PER_SECOND, resolution_label, should_record
 from .import_playback import _normalize_date
 from .jellyfin_api import JellyfinError
@@ -50,12 +50,19 @@ def count_inferred(user_id: str | None = None) -> int:
 
 def delete_inferred(user_id: str | None = None) -> int:
     """Supprime les sessions inférées (toutes, ou d'un utilisateur)."""
-    if user_id:
-        return database.execute(
-            "DELETE FROM session_history WHERE source = 'infer' AND jellyfin_user_id = ?",
-            (user_id,),
+    where, params = (
+        ("source = 'infer' AND jellyfin_user_id = ?", (user_id,))
+        if user_id
+        else (
+            "source = 'infer'",
+            (),
         )
-    return database.execute("DELETE FROM session_history WHERE source = 'infer'")
+    )
+    with database.db() as conn:
+        viewings.invalidate(conn, where, params)
+        deleted = conn.execute(f"DELETE FROM session_history WHERE {where}", params).rowcount
+        viewings.refresh(conn)
+    return deleted
 
 
 def _target_users(user_id: str | None) -> list[dict]:
@@ -122,6 +129,11 @@ def infer_history(
     # Phase écriture : purge des inférées du périmètre puis recréation, dans une
     # transaction unique et courte (un échec laisse l'état d'origine intact).
     with database.db() as conn:
+        viewings.invalidate(
+            conn,
+            "source = 'infer'" + (" AND jellyfin_user_id = ?" if user_id else ""),
+            (user_id,) if user_id else (),
+        )
         if user_id:
             report["deleted"] = conn.execute(
                 "DELETE FROM session_history WHERE source = 'infer' AND jellyfin_user_id = ?",
@@ -233,6 +245,7 @@ def infer_history(
                 except Exception:
                     logger.exception("Inférence : média en erreur (%s)", item.get("Name"))
                     report["errors"] += 1
+        viewings.refresh(conn)
 
     logger.info(
         "Inférence terminée : %(users)d utilisateurs, %(created)d créées, "

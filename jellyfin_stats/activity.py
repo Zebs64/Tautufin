@@ -25,7 +25,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from . import database
+from . import database, viewings
 from .database import now_iso
 
 logger = logging.getLogger(__name__)
@@ -456,6 +456,7 @@ class ActivityMonitor:
                 (now_iso(), tracked.jellyfin_user_id),
             )
             conn.execute("DELETE FROM active_sessions WHERE session_key = ?", (tracked.key,))
+            viewings.refresh(conn)
         logger.info(
             "Session enregistrée : %s par %s (%ds vus, %s)",
             tracked.item_name,

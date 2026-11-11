@@ -12,6 +12,8 @@ import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
 
+from . import viewings
+
 logger = logging.getLogger(__name__)
 
 _db_path: str | None = None
@@ -253,6 +255,15 @@ MIGRATIONS: list[tuple[int, list[str]]] = [
             """,
         ],
     ),
+    (
+        12,
+        [
+            # Visionnage auquel appartient la ligne (id de son premier segment),
+            # donnée dérivée calculée par viewings.py ; NULL = à calculer.
+            "ALTER TABLE session_history ADD COLUMN viewing_id INTEGER",
+            "CREATE INDEX idx_history_viewing ON session_history(viewing_id)",
+        ],
+    ),
 ]
 
 
@@ -319,6 +330,14 @@ def init(path: str) -> None:
                 conn.execute(sql)
             conn.execute("UPDATE schema_version SET version = ?", (version,))
             conn.commit()
+        if _has_viewing_column(conn):
+            viewings.ensure(conn)
+
+
+def _has_viewing_column(conn) -> bool:
+    """La colonne viewing_id existe (schéma >= 12) : toujours vrai après les
+    migrations, sauf pour les tests qui construisent une base intermédiaire."""
+    return any(r[1] == "viewing_id" for r in conn.execute("PRAGMA table_info(session_history)"))
 
 
 @contextmanager
