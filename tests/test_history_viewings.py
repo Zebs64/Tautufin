@@ -142,6 +142,20 @@ class GroupedHistoryTests(unittest.TestCase):
         self.assertIsNone(rows[2]["estimate_hint"])
         self.assertIn("estimée</span>", self._get(ADMIN, "/users/u2").text)
 
+    def test_idle_home_recalls_the_last_play_within_scope(self):
+        admin = self._get(ADMIN, "/api/activity").json()
+        bob = self._get(BOB, "/api/activity").json()
+
+        self.assertEqual(admin["sessions"], [])
+        self.assertEqual(
+            (admin["last_play"]["item_id"], admin["last_play"]["ended_at"]),
+            (DOC, "2026-11-05 21:10:00"),  # import sans fin : début + durée
+        )
+        self.assertEqual(
+            (bob["last_play"]["user_name"], bob["last_play"]["ended_at"]),
+            ("U2", "2026-11-03 21:40:00"),
+        )
+
     def test_csv_export_stays_per_segment(self):
         csv_text = self._get(ADMIN, "/api/history.csv").text
 

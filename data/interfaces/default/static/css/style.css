@@ -118,7 +118,23 @@ h3 { font-size: .98em; margin: .2em 0 .7em; color: var(--text-muted); font-weigh
   grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
 }
 .stats-grid { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
-.activity-grid { grid-template-columns: repeat(auto-fill, minmax(460px, 1fr)); }
+/* Activité : une carte seule reste lisible (pas étirée sur tout l'écran),
+   deux se partagent la ligne, au-delà la grille s'adapte. min(100%, …) évite
+   tout débordement sur téléphone. */
+.activity-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); }
+.activity-grid[data-count="0"], .activity-grid[data-count="1"] {
+  grid-template-columns: minmax(0, 760px);
+}
+.activity-grid[data-count="2"] {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
+}
+.idle-state { display: flex; align-items: center; gap: 16px; padding: 18px 22px; }
+.idle-state strong { display: block; font-size: 1.05em; }
+.idle-detail { display: block; margin-top: 3px; color: var(--text-muted); }
+.idle-icon {
+  flex-shrink: 0; display: grid; place-items: center; width: 44px; height: 44px;
+  border-radius: 50%; background: var(--bg-input-alpha); color: var(--text-muted); font-size: 1.1em;
+}
 .charts-grid { grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); }
 /* Grille forcée à 3 colonnes (page graphs) — plus lisible que l'auto-fill qui
    passe à 4 sur grand écran. minmax(0,1fr) évite les débordements de canvas. */

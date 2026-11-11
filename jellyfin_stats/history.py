@@ -186,6 +186,28 @@ def get_history(
     return {"total": total, "page": page, "page_size": page_size, "rows": rows}
 
 
+def last_play(user_id: str | None = None) -> dict | None:
+    """Dernière lecture terminée (état vide de l'accueil). Vue globale : sans
+    les utilisateurs masqués, comme les statistiques."""
+    where, params = "1=1", []
+    if user_id:
+        where, params = "jellyfin_user_id = ?", [user_id]
+    else:
+        where = "jellyfin_user_id NOT IN (SELECT jellyfin_user_id FROM users WHERE hidden = 1)"
+    return database.query_one(
+        f"""
+        SELECT item_id, item_type, item_name, series_name, season_number, episode_number,
+               user_name,
+               COALESCE(NULLIF(stopped_at, ''),
+                        datetime(started_at, '+' || COALESCE(play_duration, 0) || ' seconds'))
+                   AS ended_at
+        FROM session_history WHERE {where}
+        ORDER BY started_at DESC, id DESC LIMIT 1
+        """,
+        params,
+    )
+
+
 def viewing_segments(viewing_id: int, user_id: str | None = None) -> list[dict]:
     """Segments d'un visionnage, dans l'ordre. ``user_id`` : même isolation
     que la liste (un non-admin ne voit que ses propres lectures)."""

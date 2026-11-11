@@ -124,6 +124,25 @@ function activityCard(s) {
     </div>`;
 }
 
+// État vide : « Rien en cours · dernière lecture il y a 2 h : Titre, par Alice ».
+function idleState(last) {
+  let detail = '';
+  if (last && last.item_name) {
+    const title = last.series_name
+      ? `${last.series_name} · S${last.season_number || 0}E${last.episode_number || 0}`
+      : last.item_name;
+    const link = last.item_id
+      ? `<a href="/media/${encodeURIComponent(last.item_id)}">${esc(title)}</a>`
+      : esc(title);
+    const when = fmtRelative(last.ended_at);
+    detail = `<span class="idle-detail">Dernière lecture ${esc(when)} : ${link}` +
+      (last.user_name ? ` <span class="muted">par ${esc(last.user_name)}</span>` : '') +
+      '</span>';
+  }
+  return `<div class="card idle-state"><span class="idle-icon" aria-hidden="true">⏸</span>` +
+    `<div><strong>Rien en cours</strong>${detail}</div></div>`;
+}
+
 function popoverOpen() {
   return !!activityBox.querySelector('.np-pop:not([hidden])');
 }
@@ -134,9 +153,10 @@ async function refreshActivity() {
   if (popoverOpen()) return;
   try {
     const data = await fetchJSON('/api/activity');
+    activityBox.dataset.count = String(Math.min(data.sessions.length, 3));
     activityBox.innerHTML = data.sessions.length
       ? data.sessions.map(activityCard).join('')
-      : '<p class="muted">Aucune lecture en cours.</p>';
+      : idleState(data.last_play);
   } catch (e) {
     activityBox.innerHTML = `<p class="err">Activité indisponible : ${esc(e.message)}</p>`;
   }

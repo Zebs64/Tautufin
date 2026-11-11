@@ -56,7 +56,9 @@ def register(app: FastAPI, context) -> None:
                 s.pop("is_lan", None)
             if not user.can_view_everyone:  # identité réservée admin/vision
                 s.pop("jellyfin_user_id", None)
-        return {"sessions": sessions}
+        # Rien en cours : rappel de la dernière lecture (état vide de l'accueil).
+        last = None if sessions else history.last_play(scoped_user_id(user, None))
+        return {"sessions": sessions, "last_play": last}
 
     @app.get("/api/history")
     def api_history(
