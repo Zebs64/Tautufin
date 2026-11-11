@@ -45,9 +45,26 @@ poll_interval = 15
 # Intervalle de synchronisation (utilisateurs, bibliothèques, médias), en secondes.
 sync_interval = 3600
 
+# Tolérance (secondes) avant de finaliser une lecture qui disparaît brièvement
+# du polling, pour ne pas la fragmenter. 0 = finalisation immédiate.
+session_grace = 90
+
+[Clients]
+# Lectures sans client identifié (ex. historique Plex synchronisé dans Jellyfin) :
+# les afficher comme « Plex » plutôt que « Inconnu »...
+unknown_as_plex = false
+# ... et/ou les masquer des graphes clients (accueil + graphiques).
+hide_unknown_clients = true
+
 [UI]
 # Autoriser les utilisateurs non-admin à consulter les pages Bibliothèques.
 allow_user_library_pages = true
+
+[Energy]
+# Base de l'estimation du coût électrique du transcodage (page Graphiques) :
+# surconsommation pendant un transcodage (watts) et prix du kWh.
+transcode_watts = 50
+electricity_price = 0.27
 
 [Database]
 # Chemin du fichier SQLite (relatif au dossier du config.ini si non absolu).

@@ -25,6 +25,7 @@ utilisateurs, auto-hébergé.
 - [Maintenance](#maintenance)
 - [Configuration](#configuration-configini)
 - [Architecture](#architecture)
+- [Développement](#développement)
 
 ---
 
@@ -284,6 +285,11 @@ synchronisation), **Apparence**, **Accès & utilisateurs**, et **Maintenance**.
   non lié (admin technique, compte de secours).
 
 Reset d'un mot de passe local (CLI) : `python main.py --reset-password <username>`.
+Avec Docker, préciser le fichier de configuration du volume :
+
+```bash
+docker compose exec tautufin python main.py --config /config/config.ini --reset-password <username>
+```
 
 ### Rôles & droits
 
@@ -329,6 +335,15 @@ début)`, index SQL unique.
 > timestamps UTC vers le fuseau défini par la variable `TZ` (défaut `Europe/Paris`)
 > à l'import, pour éviter les doublons décalés d'1–2 h entre deux sources. Veillez
 > donc à régler `TZ` sur le fuseau de votre serveur Jellyfin.
+
+### Inférence depuis le statut « Lu »
+
+Pour les visionnages antérieurs à Tautufin (ou survenus pendant un arrêt), la
+page *Import* peut aussi reconstituer une lecture par média marqué « Lu » dans
+Jellyfin (date = dernière lecture, durée = durée du média). Ni le client, ni le
+transcodage, ni les visionnages multiples ne sont récupérables. Ces sessions
+sont marquées comme inférées, ne doublent pas une lecture déjà enregistrée à
+±24 h, et peuvent être purgées depuis la même page.
 
 ---
 
@@ -395,6 +410,8 @@ jellyfin_stats/
 ├── wrapped.py           # rétrospective annuelle
 ├── import_playback.py   # import Playback Reporting (+ normalisation TZ)
 ├── import_streamystats.py
+├── infer_history.py     # sessions inférées depuis le statut « Lu »
+├── media.py             # fiche média (page /media)
 └── scheduler.py         # polling /Sessions, sync périodique, purge sessions
 data/interfaces/default/ # templates Jinja2 + static (thème sombre)
 ```
@@ -412,5 +429,24 @@ contient qu'un token signé (`itsdangerous`), `HttpOnly` + `SameSite=Lax`.
 | `GET /Users`                      | Synchronisation des utilisateurs   |
 | `GET /Sessions`                   | Activité en cours (polling)        |
 | `GET /Library/VirtualFolders`     | Bibliothèques                      |
-| `GET /Items`                      | Médias (genres, codecs, durées)    |
-| `GET /Items/{id}/Images/*`        | Posters & avatars (proxy + cache)  |
+| `GET /Items`                      | Médias (inventaire par ETag, puis genres, codecs, durées) ; statut « Lu » (`IsPlayed`) pour l'inférence |
+| `GET /Items/{id}/Images/*`, `GET /UserImage` | Posters & avatars (proxy + cache) |
+
+---
+
+## Développement
+
+```bash
+pip install -r requirements-dev.txt
+pytest                      # suite de tests (tests/)
+ruff check . && ruff format --check .
+```
+
+La CI GitHub lance le lint et les tests avant de construire l'image.
+Un hook `pre-push` refuse un push qui contiendrait des identifiants privés ; les
+motifs restent dans la config git locale, jamais dans le dépôt :
+
+```bash
+git config core.hooksPath .githooks
+git config --add leakguard.pattern 'mon-domaine\.example'
+```
