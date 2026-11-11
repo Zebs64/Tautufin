@@ -11,7 +11,13 @@ def list_libraries_with_stats() -> list[dict]:
         f"""
         SELECT l.library_id, l.name, l.collection_type, l.item_count, l.updated_at,
                {database.plays_sql("h")} AS total_plays,
-               COALESCE(SUM(h.play_duration), 0) AS total_duration
+               COALESCE(SUM(h.play_duration), 0) AS total_duration,
+               -- Visuel de la carte : le titre le plus regardé (fond sans
+               -- texte), l'image Jellyfin de la bibliothèque contenant
+               -- déjà son nom, affiché sous l'image.
+               (SELECT COALESCE(c.series_id, c.item_id) FROM session_history c
+                WHERE c.library_id = l.library_id AND c.item_type IN ('Movie', 'Episode')
+                GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 1) AS cover_id
         FROM libraries l
         LEFT JOIN session_history h ON h.library_id = l.library_id
         WHERE COALESCE(l.collection_type, '') != 'boxsets'

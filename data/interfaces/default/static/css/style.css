@@ -230,7 +230,8 @@ h3 { font-size: .98em; margin: .2em 0 .7em; color: var(--text-muted); font-weigh
   background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg);
   overflow: hidden; box-shadow: var(--shadow); transition: border-color .15s, transform .15s; }
 .lib-card:hover { border-color: var(--accent); transform: translateY(-2px); }
-.lib-card-img { position: relative; aspect-ratio: 16 / 9; background: var(--darker); }
+/* Hauteur fixe : toutes les cartes s'alignent quelles que soient les images. */
+.lib-card-img { position: relative; height: 150px; overflow: hidden; background: var(--darker); }
 .lib-card-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .lib-card-icon { position: absolute; bottom: 8px; right: 8px; font-size: 1.4em;
   line-height: 1; padding: 4px 6px; border-radius: var(--radius-sm);
