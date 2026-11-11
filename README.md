@@ -10,7 +10,8 @@ utilisateurs, auto-hébergé.
 
 ![Accueil](docs/screenshots/accueil.png)
 
-> Les captures de ce README utilisent des **noms d'utilisateurs anonymisés**.
+> Les captures de ce README proviennent d'une base de démonstration : **noms
+> d'utilisateurs, appareils et adresses IP sont fictifs**.
 
 ---
 
