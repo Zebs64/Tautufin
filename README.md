@@ -374,6 +374,19 @@ Section *Réglages → Maintenance* (admin) :
   sont conservés** ; les données Jellyfin sont repeuplées à la synchro suivante.
   Action irréversible — exportez un backup d'abord.
 
+### Mise à niveau vers v0.3.2
+
+Sans changement de schéma : l'image `v0.3.2` démarre sur une base v0.3.x, et un
+retour à v0.3.1 reste possible.
+
+- **Reverse proxy de confiance** réglable dans *Réglages → Accès & utilisateurs*,
+  pris en compte sans redémarrage ; la saisie est validée (IP ou réseaux).
+- **Cache d'images** limité à 500 Mo (les plus anciennes images sont supprimées
+  chaque heure) ; bouton « Vider le cache d'images » dans Maintenance.
+- **Export CSV** de l'historique filtré depuis la page Historique.
+- Installation manuelle : `uvicorn` 0.31 minimum (`pip install -r
+  requirements.txt` le met à jour ; l'image Docker est déjà à jour).
+
 ### Mise à niveau vers v0.3.1
 
 Sans changement de schéma : l'image `v0.3.1` démarre sur une base v0.3.0, et un

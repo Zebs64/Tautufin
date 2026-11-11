@@ -32,7 +32,7 @@ sont ailleurs :
 | 2 | ✅ v0.2.3 — Authentifier `POST /webhook` | Sécurité | Haute | S |
 | 3 | ✅ v0.2.3 — Migrations atomiques | Robustesse | Haute | S |
 | 4 | ✅ v0.3.1 — Filtres de date exploitant les index | Perf | Moyenne | S |
-| 5 | ✅ v0.2.3 + suite — Cache d'images : négatif qui expire, taille bornée | Robustesse | Moyenne | S |
+| 5 | ✅ v0.3.2 — Cache d'images : négatif qui expire, taille bornée | Robustesse | Moyenne | S |
 | 6 | ✅ v0.2.3 — Mots de passe de plus de 72 octets (bcrypt 5) | Robustesse | Moyenne | S |
 | 7 | ✅ v0.3.1 — Derrière un reverse proxy : IP réelle, cookie `Secure` | Sécurité | Moyenne | S |
 | 8 | ✅ v0.2.3 — Servir Chart.js localement | Robustesse | Moyenne | S |
@@ -42,9 +42,9 @@ sont ailleurs :
 | 12 | ✅ v0.3.1 — Dédoublonnage tolérant entre imports et capture live | Données | Haute | M |
 | 13 | ✅ v0.3.0 — Retirer du catalogue les médias supprimés de Jellyfin | Données | Moyenne | M |
 | 14 | ✅ v0.3.1 — Contrôle d'origine (CSRF) et logout en POST | Sécurité | Moyenne | S |
-| 15 | Notifications sortantes (ntfy, Discord, webhook) | Fonctionnel | Haute | M |
-| 16 | ✅ — Export CSV de l'historique | Fonctionnel | Moyenne | S |
-| 17 | API en lecture seule par jeton (widgets de tableau de bord) | Fonctionnel | Moyenne | M |
+| 15 | ✗ écarté — Notifications sortantes (ntfy, Discord, webhook) | Fonctionnel | Haute | M |
+| 16 | ✅ v0.3.2 — Export CSV de l'historique | Fonctionnel | Moyenne | S |
+| 17 | ✗ écarté — API en lecture seule par jeton (widgets de tableau de bord) | Fonctionnel | Moyenne | M |
 | 18 | Simplifier le curseur de synchronisation | Dette | Moyenne | S |
 | 19 | Découper `main.py` en routeurs | Dette | Moyenne | M |
 | 20 | Sortir le JS inline des templates | Dette | Faible | M |
@@ -52,8 +52,9 @@ sont ailleurs :
 | 22 | Horodatages locaux naïfs (heure d'été) | Données | Faible | L |
 
 Faits : n° 1, 2, 3, 6 et 8 en v0.2.3 (n° 5 en partie), n° 10, 11 et 13 en
-v0.3.0, n° 4, 7, 12 et 14 en v0.3.1. Le n° 15 (notifications) est écarté pour
-l'instant : pas de besoin côté utilisateur.
+v0.3.0, n° 4, 7, 12 et 14 en v0.3.1, n° 5 et 16 en v0.3.2. Les n° 15
+(notifications) et 17 (API) sont écartés : pas de besoin, on reste simple.
+Restent la dette technique (n° 18 à 22).
 
 ---
 
@@ -169,7 +170,7 @@ catalogues filtrent `removed_at IS NULL`, et l'historique garde le nom.
 
 ### 5. Cache d'images : négatif qui expire, taille bornée — valeur moyenne, S
 
-**Statut : fait** (le négatif expire après 24 h depuis la v0.2.3 ; cache borné
+**Statut : fait en v0.3.2** (le négatif expire après 24 h depuis la v0.2.3 ; cache borné
 à 500 Mo par la boucle horaire, les plus anciens d'abord, et bouton « Vider le
 cache d'images » dans Maintenance).
 
@@ -421,7 +422,7 @@ fixe et documenté.
 
 ### 16. Export CSV de l'historique — valeur moyenne, S
 
-**Statut : fait** (`/api/history.csv`, mêmes filtres et mêmes droits que
+**Statut : fait en v0.3.2** (`/api/history.csv`, mêmes filtres et mêmes droits que
 l'historique, IP réservées aux admins, cellules de type formule neutralisées).
 
 Une route `/api/history.csv` qui réutilise `history.get_history` avec les mêmes
@@ -431,6 +432,8 @@ autrement qu'avec un backup SQLite.
 **Fichiers.** `main.py`, `history.py`, `history.html` (bouton d'export).
 
 ### 17. API en lecture seule par jeton — valeur moyenne, M
+
+**Statut : écarté** (pas de besoin, on reste simple ; novembre 2026).
 
 Les tableaux de bord d'auto-hébergement (Homepage, Homarr…) ont des widgets
 Tautulli qui interrogent son API. Un jeton d'API admin (`[Auth] api_token`) et
