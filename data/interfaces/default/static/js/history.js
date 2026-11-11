@@ -181,14 +181,47 @@ function renderChips() {
   });
 }
 
+const WEEKDAYS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+const MONTHS_LONG = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet',
+                     'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+
+// Séparateur de jour : « Aujourd'hui », « Hier », « Lundi 9 novembre [2025] ».
+function dayLabel(value) {
+  const d = parseLocalDate(value);
+  if (!d) return '—';
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const day = new Date(d); day.setHours(0, 0, 0, 0);
+  const diff = Math.round((today - day) / 86400000);
+  if (diff === 0) return 'Aujourd’hui';
+  if (diff === 1) return 'Hier';
+  const date = d.getDate() === 1 ? '1er' : String(d.getDate());
+  const year = d.getFullYear() !== today.getFullYear() ? ` ${d.getFullYear()}` : '';
+  return `${WEEKDAYS[d.getDay()]} ${date} ${MONTHS_LONG[d.getMonth()]}${year}`;
+}
+
+// Heure seule (les lignes sont groupées sous leur jour), date exacte en infobulle.
+function timeCell(value) {
+  const exact = esc(String(value || '').slice(0, 16));
+  return `<time datetime="${exact}" title="${exact}">${esc(exact.slice(11, 16))}</time>`;
+}
+
 function renderRows(rows) {
   if (!rows.length) {
     tbody.innerHTML = `<tr><td colspan="${columnsCount()}" class="table-state muted">Aucune lecture trouvée.</td></tr>`;
     return;
   }
-  tbody.innerHTML = rows.map(r => `
+  // Tri par date : un séparateur par jour et l'heure seule dans la colonne Date.
+  const byDay = state.sort === 'date';
+  let currentDay = null;
+  tbody.innerHTML = rows.map(r => {
+    const day = String(r.started_at || '').slice(0, 10);
+    const separator = byDay && day !== currentDay
+      ? `<tr class="day-separator"><th colspan="${columnsCount()}" scope="rowgroup">${esc(dayLabel(r.started_at))}</th></tr>`
+      : '';
+    currentDay = day;
+    return separator + `
     <tr>
-      <td>${dateCell(r.started_at)}</td>
+      <td>${byDay && r.started_at ? timeCell(r.started_at) : dateCell(r.started_at)}</td>
       ${canView ? `<td><span class="cell-user"><img class="avatar" loading="lazy" alt=""
           src="/image/user/${encodeURIComponent(r.jellyfin_user_id)}"><a
           href="/users/${encodeURIComponent(r.jellyfin_user_id)}">${esc(r.user_name)}</a></span></td>` : ''}
@@ -198,7 +231,8 @@ function renderRows(rows) {
       <td>${percentText(r.percent_complete)}</td>
       <td>${clientCell(r)}</td>
       ${isAdmin ? `<td>${esc(r.ip_address || '—')}</td>` : ''}
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 
 async function load(urlMode = 'push') {
