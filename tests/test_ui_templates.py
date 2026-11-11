@@ -33,9 +33,8 @@ class ReliabilityUIContractTests(unittest.TestCase):
 
     def test_user_visible_graph_and_health_loads_have_no_silent_catch(self):
         sources = [
-            (STATIC / "js" / "graphs.js").read_text(encoding="utf-8"),
-            (TEMPLATES / "user.html").read_text(encoding="utf-8"),
-            (TEMPLATES / "settings.html").read_text(encoding="utf-8"),
+            (STATIC / "js" / name).read_text(encoding="utf-8")
+            for name in ("graphs.js", "user.js", "settings.js")
         ]
 
         for source in sources:

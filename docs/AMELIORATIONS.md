@@ -47,7 +47,7 @@ sont ailleurs :
 | 17 | ✗ écarté — API en lecture seule par jeton (widgets de tableau de bord) | Fonctionnel | Moyenne | M |
 | 18 | ✅ — Simplifier le curseur de synchronisation | Dette | Moyenne | S |
 | 19 | ✅ — Découper `main.py` en routeurs | Dette | Moyenne | M |
-| 20 | Sortir le JS inline des templates | Dette | Faible | M |
+| 20 | ✅ — Sortir le JS inline des templates | Dette | Faible | M |
 | 21 | Divers (code mort, tests de chaînes, SVG, setup) | Dette | Faible | S |
 | 22 | Horodatages locaux naïfs (heure d'été) | Données | Faible | L |
 
@@ -506,6 +506,13 @@ injectées via `app.state`, sans changer le comportement.
 appellent `create_app`.
 
 ### 20. JS front — valeur faible, M
+
+**Statut : fait pour le JS inline.** Les scripts de `settings.html`,
+`import.html`, `library.html`, `login.html` et `user.html` sont dans
+`static/js/` (l'identifiant du profil passe par un attribut `data-user-id`) ;
+seules restent inline les deux lignes de `media.html` qui injectent des
+données. Le passage aux modules ES n'est pas fait : pas nécessaire à cette
+taille.
 
 - `settings.html` et `import.html` contiennent respectivement 146 et 122
   lignes de JS inline, qui ne bénéficient ni du cache, ni d'une éventuelle CSP,
