@@ -592,7 +592,10 @@ body:has(.page-ambient) { background-attachment: fixed; }
 }
 
 /* --- Calendrier d'activité (profil, Wrapped) ----------------------------------- */
-.heatmap-scroll { overflow-x: auto; scrollbar-width: thin; }
+/* Marge interne (compensée) : la case agrandie au survol reste dans le cadre,
+   sans faire apparaître de barre de défilement verticale. */
+.heatmap-scroll { overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
+  padding: 6px; margin: -6px; }
 .heatmap { margin: 0; min-width: 640px; display: grid; gap: 4px 6px;
   grid-template-columns: auto minmax(0, 1fr); grid-template-areas: ". months" "days grid"; }
 .heatmap-months, .heatmap-grid { display: grid; gap: 3px;
