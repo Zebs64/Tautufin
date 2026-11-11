@@ -160,6 +160,18 @@ def run_import(path: str, api, minimum_duration: int, minimum_percent: int) -> d
                     else cached.get("runtime_seconds")
                 )
                 play_duration = int(s.get("playDuration") or 0)
+                # Streamystats renvoie pour certaines sessions réelles une durée
+                # de média (et une position) égales au temps vu, avec 100 % :
+                # valeurs inutilisables. On prend la durée du catalogue et on
+                # recalcule le %. Les sessions estimées (isInferred) supposent
+                # par construction un visionnage complet : inchangées.
+                suspicious = (
+                    not s.get("isInferred")
+                    and runtime_seconds
+                    and abs(runtime_seconds - play_duration) <= 1
+                )
+                if suspicious:
+                    runtime_seconds = cached.get("runtime_seconds") or None
 
                 record, reason = should_record(
                     play_duration, runtime_seconds, minimum_duration, minimum_percent
@@ -172,7 +184,7 @@ def run_import(path: str, api, minimum_duration: int, minimum_percent: int) -> d
                     report["duplicates"] += 1  # déjà capturée en live
                     continue
 
-                percent = s.get("percentComplete")
+                percent = None if suspicious else s.get("percentComplete")
                 if percent is None and runtime_seconds:
                     percent = min(100.0, play_duration / runtime_seconds * 100)
 

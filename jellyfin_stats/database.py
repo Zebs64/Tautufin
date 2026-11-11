@@ -229,6 +229,30 @@ MIGRATIONS: list[tuple[int, list[str]]] = [
             "ALTER TABLE items ADD COLUMN removed_at DATETIME",
         ],
     ),
+    (
+        11,
+        [
+            # Les backups Streamystats donnent, pour une partie des sessions
+            # réelles, une durée de média égale au temps vu (et 100 %). On
+            # reprend la durée du catalogue quand elle est connue, sinon on
+            # efface durée et % (affichés « — ») plutôt qu'un faux 100 %.
+            # Sessions estimées (début = fin) non concernées.
+            """
+            UPDATE session_history
+            SET runtime_seconds = (
+                    SELECT i.runtime_seconds FROM items i
+                    WHERE i.item_id = session_history.item_id AND i.runtime_seconds > 0
+                ),
+                percent_complete = MIN(100.0, play_duration * 100.0 / (
+                    SELECT i.runtime_seconds FROM items i
+                    WHERE i.item_id = session_history.item_id AND i.runtime_seconds > 0
+                ))
+            WHERE source = 'import'
+              AND stopped_at > started_at
+              AND ABS(runtime_seconds - play_duration) <= 1
+            """,
+        ],
+    ),
 ]
 
 
