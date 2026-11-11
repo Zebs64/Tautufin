@@ -377,6 +377,21 @@ Section *Réglages → Maintenance* (admin) :
   sont conservés** ; les données Jellyfin sont repeuplées à la synchro suivante.
   Action irréversible — exportez un backup d'abord.
 
+### Mise à niveau vers v0.3.3
+
+Version de maintenance, sans changement de schéma : l'image `v0.3.3` démarre sur
+une base v0.3.x, et un retour à v0.3.2 reste possible (il reste incrémental).
+
+- **Réglages** : la mention « Curseur préservé » disparaît de l'état de la
+  synchronisation ; le mode (complet ou incrémental) se déduit désormais du
+  dernier succès.
+- **Logo et favicon** sont servis avec une politique de sécurité qui interdit
+  tout script (un SVG piégé ne peut plus s'exécuter s'il est ouvert directement).
+- **Journaux** : les messages des routes portent désormais le nom
+  `jellyfin_stats.web.*` (au lieu de `jellyfin_stats.main`).
+- **Interne** : routes réparties en modules, JS sorti des templates, URL des
+  ressources versionnées (pas d'ancien script gardé en cache après une mise à jour).
+
 ### Mise à niveau vers v0.3.2
 
 Sans changement de schéma : l'image `v0.3.2` démarre sur une base v0.3.x, et un

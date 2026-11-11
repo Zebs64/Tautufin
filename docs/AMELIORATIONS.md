@@ -45,16 +45,17 @@ sont ailleurs :
 | 15 | ✗ écarté — Notifications sortantes (ntfy, Discord, webhook) | Fonctionnel | Haute | M |
 | 16 | ✅ v0.3.2 — Export CSV de l'historique | Fonctionnel | Moyenne | S |
 | 17 | ✗ écarté — API en lecture seule par jeton (widgets de tableau de bord) | Fonctionnel | Moyenne | M |
-| 18 | ✅ — Simplifier le curseur de synchronisation | Dette | Moyenne | S |
-| 19 | ✅ — Découper `main.py` en routeurs | Dette | Moyenne | M |
-| 20 | ✅ — Sortir le JS inline des templates | Dette | Faible | M |
-| 21 | ✅ — Divers (code mort, tests de chaînes, SVG, setup) | Dette | Faible | S |
+| 18 | ✅ v0.3.3 — Simplifier le curseur de synchronisation | Dette | Moyenne | S |
+| 19 | ✅ v0.3.3 — Découper `main.py` en routeurs | Dette | Moyenne | M |
+| 20 | ✅ v0.3.3 — Sortir le JS inline des templates | Dette | Faible | M |
+| 21 | ✅ v0.3.3 — Divers (code mort, tests de chaînes, SVG, setup) | Dette | Faible | S |
 | 22 | Horodatages locaux naïfs (heure d'été) | Données | Faible | L |
 
 Faits : n° 1, 2, 3, 6 et 8 en v0.2.3 (n° 5 en partie), n° 10, 11 et 13 en
 v0.3.0, n° 4, 7, 12 et 14 en v0.3.1, n° 5 et 16 en v0.3.2. Les n° 15
 (notifications) et 17 (API) sont écartés : pas de besoin, on reste simple.
-Restent la dette technique (n° 18 à 22).
+Dette technique traitée en v0.3.3 (n° 18 à 21) ; le n° 22 est laissé
+volontairement.
 
 ---
 
@@ -460,7 +461,7 @@ Les routes actuelles sont internes à l'UI et exigent le cookie.
 
 ### 18. Simplifier le curseur de synchronisation — valeur moyenne, S
 
-**Statut : fait.** Le mode se déduit de `last_success_at` ; curseur, contrôle
+**Statut : fait en v0.3.3.** Le mode se déduit de `last_success_at` ; curseur, contrôle
 de validité et « Curseur préservé » supprimés. L'ancienne clé reste en base
 (seule la réinitialisation l'efface) pour qu'un retour à v0.3.2 reste
 incrémental.
@@ -489,7 +490,7 @@ moins de concepts à expliquer.
 
 ### 19. Découper `main.py` — valeur moyenne, M
 
-**Statut : fait.** `main.py` passe de 1 527 à ~210 lignes (application, middlewares,
+**Statut : fait en v0.3.3.** `main.py` passe de 1 527 à ~210 lignes (application, middlewares,
 CLI) ; les routes sont réparties dans `jellyfin_stats/web/` (un module par
 domaine, `register(app, context)`), avec un contexte partagé pour les services
 et dépendances. Corps des routes déplacés tels quels : table des routes
@@ -507,7 +508,8 @@ appellent `create_app`.
 
 ### 20. JS front — valeur faible, M
 
-**Statut : fait pour le JS inline.** Les scripts de `settings.html`,
+**Statut : fait en v0.3.3 pour le JS inline**, avec des URL de ressources
+versionnées (`?v=<version>`). Les scripts de `settings.html`,
 `import.html`, `library.html`, `login.html` et `user.html` sont dans
 `static/js/` (l'identifiant du profil passe par un attribut `data-user-id`) ;
 seules restent inline les deux lignes de `media.html` qui injectent des
@@ -532,7 +534,7 @@ taille.
 
 ### 21. Divers — valeur faible, S
 
-**Statut : fait** (`get_user` retiré ; CSP sur `/branding/*` ; setup ouvert et
+**Statut : fait en v0.3.3** (`get_user` retiré ; CSP sur `/branding/*` ; setup ouvert et
 processus unique documentés dans le README). Laissés tels quels, en
 connaissance de cause : les tests de chaînes de `test_ui_templates.py` (filet
 utile, à remplacer seulement si une page casse sans qu'ils le voient),
