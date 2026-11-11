@@ -145,6 +145,7 @@ function areaFrom(data, canvasId) {
       };
     }),
   }, {
+    ...riseAnimation((data.categories || []).length),
     interaction: {intersect: false, mode: 'index'},
     plugins: {
       legend: {display: series.length > 1},

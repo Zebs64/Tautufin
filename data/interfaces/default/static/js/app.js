@@ -186,6 +186,24 @@ function themeColor(name, alpha) {
   return alpha === undefined ? `rgb(${rgb})` : `rgb(${rgb} / ${alpha})`;
 }
 
+// Apparition des courbes : chaque point monte depuis l'axe, de gauche à droite
+// (rien si le système demande moins d'animations). À passer dans les options
+// d'un graphique en ligne : {...riseAnimation(nombreDePoints)}.
+function riseAnimation(points) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return {animation: false};
+  const step = Math.min(28, 900 / Math.max(1, points));
+  return {
+    animation: {
+      duration: 650, easing: 'easeOutCubic',
+      delay: ctx => (ctx.type === 'data' && ctx.mode === 'default'
+        ? ctx.dataIndex * step + ctx.datasetIndex * 140 : 0),
+    },
+    animations: {
+      y: {from: ctx => (ctx.chart.scales.y ? ctx.chart.scales.y.getPixelForValue(0) : undefined)},
+    },
+  };
+}
+
 // Radar des genres (profil de goûts) — polygone accent rempli.
 function radarChart(canvasId, labels, data) {
   const el = document.getElementById(canvasId);
@@ -251,6 +269,7 @@ function areaTimeline(canvasId, labels, data) {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      ...riseAnimation(labels.length),
       interaction: {intersect: false, mode: 'index'},
       plugins: {legend: {display: false},
                 tooltip: {callbacks: {label: c => playsLabel(c.parsed.y)}}},
