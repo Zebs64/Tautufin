@@ -3,61 +3,58 @@
 {% block content %}
 <div class="page-head">
   <h1>Import d'historique</h1>
-  <p class="muted">Migre un historique de lecture existant vers la base interne.
-    Trois formats acceptés (<b>détection automatique</b>) :</p>
-  <ul class="muted">
-    <li>la base du plugin Jellyfin
-      <a href="https://github.com/jellyfin/jellyfin-plugin-playbackreporting"
-         target="_blank" rel="noopener">Playback Reporting</a>
-      (<code>playback_reporting.db</code>) ;</li>
-    <li>un backup de ce plugin
-      (<code>PlaybackReportingBackup-AAAAMMJJ-HHMMSS.tsv</code>) ;</li>
-    <li>un backup <a href="https://github.com/fredrikburmester/streamystats"
-         target="_blank" rel="noopener">Streamystats</a> (fichier
-      <code>.json</code> « Backup »).</li>
-  </ul>
-  <p class="muted">L'import est idempotent : relancer ne crée pas de doublons
-    (clé de déduplication : date + utilisateur + média), y compris entre les
-    différents formats.</p>
-</div>
-
-<div class="card">
-  <h2>1. Choisir la source</h2>
-  <div class="form-grid">
-    <div>
-      <label>Uploader le fichier depuis ce poste
-        <input type="file" id="import-file" accept=".tsv,.db,.json">
-      </label>
-      <div class="actions">
-        <button class="btn" id="btn-upload" disabled>{{ icon('upload') }} Envoyer le fichier</button>
-        <span id="upload-result"></span>
-      </div>
-    </div>
-    <div>
-      <label>… ou chemin d'un fichier déjà présent sur le serveur
-        <input type="text" id="import-path" placeholder="/var/lib/jellyfin/data/playback_reporting.db"
-               value="">
-      </label>
-      <p class="muted">Base <code>playback_reporting.db</code>, backup
-        <code>PlaybackReportingBackup-*.tsv</code> ou backup Streamystats
-        <code>*.json</code> (détection automatique).</p>
-    </div>
+  <p class="muted">Migre un historique de lecture existant vers la base interne,
+    sans doublon : relancer un import, même depuis un autre format, ne recrée pas
+    les lectures déjà connues (clé : date + utilisateur + média).</p>
+  <div class="format-chips" aria-label="Formats acceptés (détection automatique)">
+    <a class="format-chip" href="https://github.com/jellyfin/jellyfin-plugin-playbackreporting"
+       target="_blank" rel="noopener">{{ icon('storage') }}<span><b>Playback Reporting</b>
+       <code>playback_reporting.db</code></span></a>
+    <span class="format-chip">{{ icon('description') }}<span><b>Backup du plugin</b>
+       <code>PlaybackReportingBackup-*.tsv</code></span></span>
+    <a class="format-chip" href="https://github.com/fredrikburmester/streamystats"
+       target="_blank" rel="noopener">{{ icon('upload_file') }}<span><b>Streamystats</b>
+       <code>backup .json</code></span></a>
   </div>
 </div>
 
-<div class="card">
-  <h2>2. Analyser puis importer</h2>
-  <p class="muted">Les filtres de durée minimale actuels s'appliqueront :
-    minimum_duration = <b>{{ minimum_duration }}s</b>,
-    minimum_percent = <b>{{ minimum_percent }}%</b>.</p>
-  <div class="actions">
-    <button class="btn" id="btn-analyze">Analyser</button>
-    <button class="btn btn-primary" id="btn-import" disabled>Importer</button>
+<div class="import-steps">
+  <div class="card import-step">
+    <h2><span class="step-num">1</span> Choisir la source</h2>
+    <div class="form-grid">
+      <div>
+        <label>Envoyer un fichier depuis ce poste
+          <input type="file" id="import-file" class="dropzone" accept=".tsv,.db,.json">
+        </label>
+        <div class="actions">
+          <button class="btn" id="btn-upload" disabled>{{ icon('upload') }} Envoyer le fichier</button>
+          <span id="upload-result"></span>
+        </div>
+      </div>
+      <div>
+        <label>… ou chemin d'un fichier déjà présent sur le serveur
+          <input type="text" id="import-path" placeholder="/var/lib/jellyfin/data/playback_reporting.db"
+                 value="">
+        </label>
+        <p class="muted">Le format est détecté automatiquement.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card import-step">
+    <h2><span class="step-num">2</span> Analyser puis importer</h2>
+    <p class="muted">Les filtres de durée minimale actuels s'appliqueront :
+      <span class="pill">{{ icon('timer') }} {{ minimum_duration }} s minimum</span>
+      <span class="pill">{{ icon('task_alt') }} {{ minimum_percent }} % minimum</span></p>
+    <div class="actions">
+      <button class="btn" id="btn-analyze">{{ icon('fact_check') }} Analyser</button>
+      <button class="btn btn-primary" id="btn-import" disabled>{{ icon('save_alt') }} Importer</button>
+    </div>
   </div>
 </div>
 
 <div class="card hidden" id="analyze-result">
-  <h2>Analyse</h2>
+  <h2>{{ icon('fact_check') }} Analyse</h2>
   <ul class="kv">
     <li><span>Format détecté</span><b id="an-format"></b></li>
     <li><span>Entrées détectées</span><b id="an-entries"></b></li>
@@ -73,59 +70,64 @@
 </div>
 
 <div class="card hidden" id="import-result">
-  <h2>Rapport d'import</h2>
+  <h2>{{ icon('check_circle') }} Rapport d'import</h2>
   <ul class="kv">
     <li><span>{{ icon('check_circle') }} Entrées importées</span><b id="imp-imported"></b></li>
-    <li><span>↩️ Doublons ignorés</span><b id="imp-duplicates"></b></li>
+    <li><span>{{ icon('content_copy') }} Doublons ignorés</span><b id="imp-duplicates"></b></li>
     <li><span>{{ icon('timer') }} Filtrées par durée minimum</span><b id="imp-filtered"></b></li>
     <li><span>{{ icon('warning') }} Erreurs</span><b id="imp-errors"></b></li>
   </ul>
 </div>
 
-<div class="page-head" style="margin-top:2rem">
-  <h1>Inférer l'historique depuis Jellyfin</h1>
-  <p class="muted">Pour les visionnages jamais capturés en direct (avant la mise
-    en service de Tautufin, ou pendant un arrêt), Jellyfin sait quels médias
-    chaque utilisateur a <b>marqués comme lus</b>. On reconstitue une session
-    « inférée » par média lu : date = dernière lecture connue, durée = durée
-    totale du média (hypothèse 100 % vu). Le client, le transcodage et les
-    visionnages multiples ne sont pas récupérables.</p>
-  <p class="muted">Sans danger : ces sessions sont marquées <b>inférées</b> et
-    supprimables d'un clic. Relancer ne crée pas de doublon (les inférées du
-    périmètre sont régénérées) et n'écrase jamais une lecture réelle déjà
-    enregistrée à la même date.</p>
-</div>
+<section class="import-infer">
+  <div class="section-head">
+    <h2>{{ icon('auto_awesome') }} Inférer l'historique depuis Jellyfin</h2>
+    <p class="muted">Pour les visionnages jamais capturés en direct (avant la mise en
+      service de Tautufin, ou pendant un arrêt).</p>
+  </div>
 
-<div class="card">
-  <h2>Inférence</h2>
-  <p class="muted">Sessions inférées actuellement en base :
-    <b id="inf-count">{{ inferred_count }}</b>.
-    Filtres de durée minimale appliqués comme pour l'import.</p>
-  <div class="form-grid">
-    <div>
-      <label>Périmètre
-        <select id="infer-user">
-          <option value="">Tous les utilisateurs</option>
-          {% for u in jf_users %}
-          <option value="{{ u.jellyfin_user_id }}">{{ u.username }}</option>
-          {% endfor %}
-        </select>
-      </label>
+  <div class="card">
+    <div class="callout">
+      {{ icon('info') }}
+      <div>
+        <p>Jellyfin sait quels médias chaque utilisateur a <b>marqués comme lus</b>.
+          Tautufin reconstitue une lecture par média lu : date = dernière lecture connue,
+          durée = durée totale du média (100 % vu supposé). Le client, le transcodage et
+          les visionnages multiples ne sont pas récupérables.</p>
+        <p>Sans danger : ces lectures portent le badge « estimée » et se suppriment d'un
+          clic. Relancer ne crée pas de doublon (les estimées du périmètre sont
+          régénérées) et n'écrase jamais une lecture réelle enregistrée à la même date.</p>
+      </div>
+    </div>
+    <p class="muted">Sessions inférées actuellement en base :
+      <b id="inf-count">{{ inferred_count }}</b>.
+      Filtres de durée minimale appliqués comme pour l'import.</p>
+    <div class="form-grid">
+      <div>
+        <label>Périmètre
+          <select id="infer-user">
+            <option value="">Tous les utilisateurs</option>
+            {% for u in jf_users %}
+            <option value="{{ u.jellyfin_user_id }}">{{ u.username }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" id="btn-infer">{{ icon('auto_awesome') }} Inférer l'historique</button>
+      <button class="btn btn-danger" id="btn-infer-clean">{{ icon('delete') }} Supprimer les sessions inférées</button>
+      <span id="infer-clean-result"></span>
     </div>
   </div>
-  <div class="actions">
-    <button class="btn btn-primary" id="btn-infer">Inférer l'historique</button>
-    <button class="btn" id="btn-infer-clean">{{ icon('delete') }} Supprimer les sessions inférées</button>
-    <span id="infer-clean-result"></span>
-  </div>
-</div>
+</section>
 
 <div class="card hidden" id="infer-result">
-  <h2>Rapport d'inférence</h2>
+  <h2>{{ icon('check_circle') }} Rapport d'inférence</h2>
   <ul class="kv">
     <li><span>{{ icon('person') }} Utilisateurs traités</span><b id="inf-users"></b></li>
     <li><span>{{ icon('check_circle') }} Sessions créées</span><b id="inf-created"></b></li>
-    <li><span>↩️ Doublons ignorés (lecture déjà connue)</span><b id="inf-duplicates"></b></li>
+    <li><span>{{ icon('content_copy') }} Doublons ignorés (lecture déjà connue)</span><b id="inf-duplicates"></b></li>
     <li><span>{{ icon('timer') }} Filtrées par durée minimum</span><b id="inf-filtered"></b></li>
     <li><span>{{ icon('event_busy') }} Sans date de lecture</span><b id="inf-no_date"></b></li>
     <li><span>{{ icon('autorenew') }} Inférées régénérées</span><b id="inf-deleted"></b></li>

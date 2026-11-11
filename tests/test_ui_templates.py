@@ -85,7 +85,9 @@ class ReliabilityUIContractTests(unittest.TestCase):
 class IconSpriteTests(unittest.TestCase):
     """Icônes SVG du sprite Material : aucune référence cassée, plus d'émoji."""
 
-    EMOJI = re.compile("[\U0001f300-\U0001faff\u2600-\u27bf\u2b50\u23e9-\u23fa\u2630]")
+    # Plages d'\u00e9mojis, plus tout caract\u00e8re suivi du s\u00e9lecteur de pr\u00e9sentation
+    # \u00e9moji (U+FE0F), comme \u00ab \u21a9\ufe0f \u00bb.
+    EMOJI = re.compile("[\U0001f300-\U0001faff\u2600-\u27bf\u2b50\u23e9-\u23fa\u2630]|.\ufe0f")
 
     @staticmethod
     def _arguments(source, start):

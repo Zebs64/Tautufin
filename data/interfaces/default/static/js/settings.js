@@ -150,3 +150,21 @@ document.getElementById('clear-image-cache').addEventListener('click', async () 
     showStatus(out, true, `${r.files} fichier(s) supprimé(s), ${mb} Mo libérés`, 'maint-result');
   } catch (e) { showStatus(out, false, e.message, 'maint-result'); }
 });
+
+// Navigation de sections : met en avant la section affichée à l'écran.
+(() => {
+  const links = [...document.querySelectorAll('.settings-nav a')];
+  if (!links.length || !('IntersectionObserver' in window)) return;
+  const byId = Object.fromEntries(links.map(a => [a.getAttribute('href').slice(1), a]));
+  const visible = new Map();
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => visible.set(e.target.id, e.isIntersecting ? e.intersectionRatio : 0));
+    const current = [...visible.entries()].sort((a, b) => b[1] - a[1])[0];
+    links.forEach(a => a.classList.toggle('active', current && current[1] > 0
+      && byId[current[0]] === a));
+  }, {rootMargin: '-120px 0px -45% 0px', threshold: [0, 0.1, 0.25, 0.5, 0.75, 1]});
+  Object.keys(byId).forEach(id => {
+    const section = document.getElementById(id);
+    if (section) observer.observe(section);
+  });
+})();

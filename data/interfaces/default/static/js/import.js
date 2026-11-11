@@ -59,7 +59,7 @@ btnAnalyze.addEventListener('click', async () => {
     document.getElementById('analyze-result').classList.remove('hidden');
     btnImport.disabled = r.entries === 0;
   } catch (e) { alert('Analyse impossible : ' + e.message); }
-  finally { btnAnalyze.disabled = false; btnAnalyze.textContent = 'Analyser'; }
+  finally { btnAnalyze.disabled = false; setButtonLabel(btnAnalyze, 'fact_check', 'Analyser'); }
 });
 
 btnImport.addEventListener('click', async () => {
@@ -70,7 +70,7 @@ btnImport.addEventListener('click', async () => {
       document.getElementById('imp-' + k).textContent = r[k];
     document.getElementById('import-result').classList.remove('hidden');
   } catch (e) { alert('Import impossible : ' + e.message); }
-  finally { btnImport.disabled = false; btnImport.textContent = 'Importer'; }
+  finally { btnImport.disabled = false; setButtonLabel(btnImport, 'save_alt', 'Importer'); }
 });
 
 // --- Inférence depuis le statut « Lu » de Jellyfin ---
@@ -94,7 +94,7 @@ btnInfer.addEventListener('click', async () => {
   } catch (e) { alert('Inférence impossible : ' + e.message); }
   finally {
     btnInfer.disabled = false; btnInferClean.disabled = false;
-    btnInfer.textContent = "Inférer l'historique";
+    setButtonLabel(btnInfer, 'auto_awesome', "Inférer l'historique");
   }
 });
 
