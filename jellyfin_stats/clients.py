@@ -48,7 +48,8 @@ def _distribution(
         SELECT COALESCE(NULLIF(TRIM({column}), ''), ?) AS label,
                {_PLAYS} AS value
         FROM session_history WHERE {where}
-        GROUP BY label ORDER BY value DESC, label ASC LIMIT {int(limit)}
+        GROUP BY label HAVING value > 0
+        ORDER BY value DESC, label ASC LIMIT {int(limit)}
         """,
         [unknown, *params],
     )
@@ -210,7 +211,11 @@ def build(
             }
         )
 
-    categories = [row["client"] for row in client_rows]
+    # Graphiques en lectures : sans les clients qui n'ont servi qu'à
+    # poursuivre un visionnage (0 lecture ; ils restent dans le tableau avec
+    # leur temps vu).
+    charted = [row for row in client_rows if row["plays"]]
+    categories = [row["client"] for row in charted]
     return {
         "summary": summary,
         "methods": method_counts,
@@ -218,21 +223,21 @@ def build(
         "charts": {
             "usage": {
                 "categories": categories,
-                "series": [{"name": "Lectures", "data": [row["plays"] for row in client_rows]}],
+                "series": [{"name": "Lectures", "data": [row["plays"] for row in charted]}],
             },
             "methods_by_client": {
                 "categories": categories,
                 "series": [
                     {
                         "name": "Lecture directe",
-                        "data": [row["direct_play"] for row in client_rows],
+                        "data": [row["direct_play"] for row in charted],
                     },
                     {
                         "name": "Remux direct",
-                        "data": [row["direct_stream"] for row in client_rows],
+                        "data": [row["direct_stream"] for row in charted],
                     },
-                    {"name": "Transcodage", "data": [row["transcode"] for row in client_rows]},
-                    {"name": "Inconnu", "data": [row["unknown"] for row in client_rows]},
+                    {"name": "Transcodage", "data": [row["transcode"] for row in charted]},
+                    {"name": "Inconnu", "data": [row["unknown"] for row in charted]},
                 ],
             },
             "resolutions": resolutions,

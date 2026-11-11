@@ -303,6 +303,16 @@ class ViewingCountsTests(unittest.TestCase):
         year = wrapped.build("u1", 2025)
         self.assertEqual((year["totals"]["plays"], year["totals"]["episodes"]), (2, 1))
 
+    def test_a_client_used_only_to_finish_a_viewing_has_no_play_slice(self):
+        # « Phone » n'a servi qu'à la fin du film : du temps vu, aucune lecture.
+        self.assertNotIn("Phone", graphs.by_client(days=None)["categories"])
+        self.assertIn("Phone", graphs.by_client(days=None, metric="duration")["categories"])
+        self.assertNotIn("Phone", [c["client"] for c in users.user_overview("u1")["top_clients"]])
+        summary = clients.build(days=None)
+        self.assertNotIn("Phone", summary["charts"]["usage"]["categories"])
+        phone = next(r for r in summary["clients"] if r["client"] == "Phone")
+        self.assertEqual((phone["plays"], phone["duration_seconds"]), (0, 600))
+
     def test_durations_stay_per_segment_at_their_real_moment(self):
         self.assertEqual(self._total(graphs.by_user(days=None, metric="duration")), 8400)
         by_dow = graphs.by_day_of_week(days=None, metric="duration")

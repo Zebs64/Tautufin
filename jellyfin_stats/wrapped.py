@@ -113,7 +113,7 @@ def build(jellyfin_user_id: str, year: int) -> dict:
         SELECT item_name AS label, {database.plays_sql()} AS plays,
                COALESCE(SUM(play_duration), 0) AS duration, MAX(item_id) AS item_id
         FROM session_history WHERE {base} AND item_type = 'Movie'
-        GROUP BY item_name ORDER BY duration DESC LIMIT 5
+        GROUP BY item_name HAVING plays > 0 ORDER BY duration DESC LIMIT 5
         """,
         p,
     )
@@ -130,7 +130,7 @@ def build(jellyfin_user_id: str, year: int) -> dict:
         FROM session_history sh
         WHERE sh.jellyfin_user_id = ? AND sh.started_at >= ? AND sh.started_at < ?
           AND sh.item_type = 'Episode' AND sh.series_name IS NOT NULL
-        GROUP BY sh.series_name ORDER BY duration DESC LIMIT 5
+        GROUP BY sh.series_name HAVING plays > 0 ORDER BY duration DESC LIMIT 5
         """,
         p,
     )
@@ -140,7 +140,7 @@ def build(jellyfin_user_id: str, year: int) -> dict:
         SELECT je.value AS label, {database.plays_sql("session_history")} AS plays
         FROM session_history, json_each(session_history.genres) AS je
         WHERE {base} AND genres IS NOT NULL
-        GROUP BY je.value ORDER BY plays DESC LIMIT 8
+        GROUP BY je.value HAVING plays > 0 ORDER BY plays DESC LIMIT 8
         """,
         p,
     )
@@ -188,7 +188,7 @@ def build(jellyfin_user_id: str, year: int) -> dict:
         SELECT client_name AS label, {database.plays_sql()} AS plays
         FROM session_history
         WHERE {base} AND client_name IS NOT NULL AND client_name != ''
-        GROUP BY client_name ORDER BY plays DESC LIMIT 1
+        GROUP BY client_name HAVING plays > 0 ORDER BY plays DESC LIMIT 1
         """,
         p,
     )

@@ -38,6 +38,13 @@ def _metric_sql(metric: str, alias: str = "") -> str:
     return database.plays_sql(alias)
 
 
+def _having(metric: str) -> str:
+    """Classements en lectures : écarte les groupes à 0 lecture. Un client, une
+    méthode ou une période qui n'a vu que la suite d'un visionnage commencé
+    ailleurs y a du temps vu mais aucune lecture."""
+    return "" if metric == "duration" else "HAVING value > 0"
+
+
 def _base_where(days, user_id: str | None, year: int | None = None) -> tuple[str, list]:
     where, params = ["1=1"], []
     if year:
@@ -138,6 +145,7 @@ def _grouped(
         FROM session_history
         WHERE {where} {extra_where}
         GROUP BY {group_expr}
+        {_having(metric)}
         ORDER BY value DESC
         LIMIT {int(limit)}
         """,
@@ -270,6 +278,7 @@ def by_genre(days=30, metric: str = "plays", user_id=None, year=None) -> dict:
         FROM session_history, json_each(session_history.genres) AS je
         WHERE {where} AND genres IS NOT NULL
         GROUP BY je.value
+        {_having(metric)}
         ORDER BY value DESC
         LIMIT 10
         """,
@@ -299,7 +308,7 @@ def top_people(
         JOIN json_each(i.people) AS p
         WHERE {where} AND i.people IS NOT NULL
           AND json_extract(p.value, '$.Type') = ?
-        GROUP BY label ORDER BY value DESC LIMIT {int(limit)}
+        GROUP BY label {_having(metric)} ORDER BY value DESC LIMIT {int(limit)}
         """,
         params + [person_type],
     )
@@ -338,7 +347,7 @@ def top_media(
                    MAX(sh.item_id) AS fallback_id
             FROM session_history sh
             WHERE {where} AND sh.item_type = 'Episode' AND sh.series_name IS NOT NULL
-            GROUP BY sh.series_name ORDER BY value DESC LIMIT {int(limit)}
+            GROUP BY sh.series_name {_having(metric)} ORDER BY value DESC LIMIT {int(limit)}
             """,
             params,
         )
@@ -350,7 +359,7 @@ def top_media(
                    NULL AS fallback_id
             FROM session_history
             WHERE {where} AND item_type = 'Movie'
-            GROUP BY item_name ORDER BY value DESC LIMIT {int(limit)}
+            GROUP BY item_name {_having(metric)} ORDER BY value DESC LIMIT {int(limit)}
             """,
             params,
         )
@@ -483,7 +492,7 @@ def top_libraries(
                 WHERE l.name = sh.library_name LIMIT 1) AS collection_type
         FROM session_history sh
         WHERE {where} AND sh.library_name IS NOT NULL
-        GROUP BY label ORDER BY value DESC LIMIT {int(limit)}
+        GROUP BY label {_having(metric)} ORDER BY value DESC LIMIT {int(limit)}
         """,
         params,
     )
@@ -497,7 +506,7 @@ def top_users(days=30, metric: str = "plays", limit: int = 10) -> list[dict]:
         SELECT MAX(user_name) AS label, jellyfin_user_id AS user_id,
                {_metric_sql(metric)} AS value
         FROM session_history WHERE {where}
-        GROUP BY jellyfin_user_id ORDER BY value DESC LIMIT {int(limit)}
+        GROUP BY jellyfin_user_id {_having(metric)} ORDER BY value DESC LIMIT {int(limit)}
         """,
         params,
     )

@@ -88,7 +88,7 @@ def user_overview(jellyfin_user_id: str) -> dict:
         SELECT COALESCE(NULLIF(client_name, ''), 'Inconnu') AS client,
                {database.plays_sql()} AS plays
         FROM session_history WHERE jellyfin_user_id = ?
-        GROUP BY client ORDER BY plays DESC LIMIT 5
+        GROUP BY client HAVING plays > 0 ORDER BY plays DESC LIMIT 5
         """,
         (jellyfin_user_id,),
     )
