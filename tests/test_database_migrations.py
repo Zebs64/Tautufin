@@ -2,6 +2,7 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from jellyfin_stats import database
 
@@ -210,6 +211,48 @@ class DatabaseV7MigrationTests(unittest.TestCase):
         self.assertEqual(database.get_sync_cursor(), "2026-08-01T10:00:00Z")
         self.assertEqual(database.get_sync_health()["items_enriched"], 12)
         self.assertTrue(database.integrity_check()["ok"])
+
+
+class AtomicMigrationTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.db_path = str(Path(self.tmp.name) / "tautufin.db")
+        database.init(self.db_path)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_failed_migration_leaves_no_partial_schema_and_can_be_replayed(self):
+        current = database.MIGRATIONS[-1][0]
+        broken = database.MIGRATIONS + [
+            (
+                current + 1,
+                [
+                    "CREATE TABLE partial (x INTEGER)",
+                    "ALTER TABLE items ADD COLUMN partial_flag INTEGER",
+                    "THIS IS NOT SQL",
+                ],
+            )
+        ]
+        with patch.object(database, "MIGRATIONS", broken):
+            with self.assertRaises(sqlite3.OperationalError):
+                database.init(self.db_path)
+
+        self.assertEqual(
+            database.query_one("SELECT version FROM schema_version"), {"version": current}
+        )
+        self.assertIsNone(
+            database.query_one("SELECT name FROM sqlite_master WHERE name = 'partial'")
+        )
+        columns = [row["name"] for row in database.query("PRAGMA table_info(items)")]
+        self.assertNotIn("partial_flag", columns)
+
+        fixed = broken[:-1] + [(current + 1, broken[-1][1][:2])]
+        with patch.object(database, "MIGRATIONS", fixed):
+            database.init(self.db_path)
+        self.assertEqual(
+            database.query_one("SELECT version FROM schema_version"), {"version": current + 1}
+        )
 
 
 if __name__ == "__main__":

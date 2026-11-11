@@ -212,13 +212,19 @@ def init(path: str) -> None:
         current = row["version"] if row else 0
         if row is None:
             conn.execute("INSERT INTO schema_version (version) VALUES (0)")
+        conn.commit()
+        # Une transaction explicite par migration : le module sqlite3 n'en
+        # ouvre pas avant un CREATE/ALTER, et une migration interrompue
+        # laisserait sinon un schéma partiel impossible à rejouer.
         for version, statements in MIGRATIONS:
             if version <= current:
                 continue
             logger.info("Migration du schéma vers la version %d", version)
+            conn.execute("BEGIN")
             for sql in statements:
                 conn.execute(sql)
             conn.execute("UPDATE schema_version SET version = ?", (version,))
+            conn.commit()
 
 
 @contextmanager
