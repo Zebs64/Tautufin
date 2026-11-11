@@ -17,7 +17,7 @@ sont ailleurs :
 1. **La capture d'activité vit uniquement en mémoire.** Un redémarrage de
    l'appli coupe ou perd les lectures en cours. C'est le défaut de conception le
    plus coûteux pour un outil dont le seul travail est d'enregistrer des
-   lectures.
+   lectures. *Corrigé en v0.3.0.*
 2. **Les sessions HTTP ne sont jamais révoquées** quand un compte local est
    supprimé ou que son mot de passe change, et le rôle est figé au login. *Corrigé
    en v0.2.3.*
@@ -51,8 +51,9 @@ sont ailleurs :
 | 21 | Divers (code mort, tests de chaînes, SVG, setup) | Dette | Faible | S |
 | 22 | Horodatages locaux naïfs (heure d'été) | Données | Faible | L |
 
-Les n° 1, 2, 3, 6 et 8 sont faits en v0.2.3, le n° 5 en partie. Prochaine
-étape conseillée : le n° 10, qui a le plus de valeur malgré son effort moyen.
+Faits : n° 1, 2, 3, 6 et 8 en v0.2.3 (n° 5 en partie), n° 10, 11 et 13 en
+v0.3.0. Prochaines étapes conseillées : n° 4 (filtres de date), 12
+(dédoublonnage des imports) et 15 (notifications).
 
 ---
 

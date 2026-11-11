@@ -362,6 +362,26 @@ Section *Réglages → Maintenance* (admin) :
   sont conservés** ; les données Jellyfin sont repeuplées à la synchro suivante.
   Action irréversible — exportez un backup d'abord.
 
+### Mise à niveau vers v0.3.0
+
+L'image `v0.3.0` démarre sur une base v0.2.x : le schéma passe en **version 10**
+(trois migrations atomiques, instantanées sur une base de 9 000 lectures).
+
+- **Lectures en cours** : elles sont enregistrées à chaque cycle de polling et
+  reprises au redémarrage (mise à jour de l'image, crash) au lieu d'être coupées
+  en deux ou perdues. L'heure de fin enregistrée est la dernière présence dans
+  le polling.
+- **Séries** : les lectures d'épisodes sont rattachées à leur série par
+  identifiant (bonne affiche même si deux séries portent le même nom). Le
+  **premier cycle de synchronisation réenrichit une fois tous les épisodes** et
+  dure donc plus longtemps que d'habitude.
+- **Médias supprimés de Jellyfin** : ils disparaissent des catalogues, des
+  répartitions et des « jamais vus » dès la première synchronisation ; leur
+  historique est conservé.
+- **Retour à v0.2.3** : possible (les nouvelles colonnes sont ignorées), mais les
+  lectures en cours au moment du retour sont perdues, car v0.2.3 ne lit pas la
+  table `active_sessions`.
+
 ### Mise à niveau vers v0.2.3
 
 Version corrective, sans changement de schéma : l'image `v0.2.3` démarre sur une
