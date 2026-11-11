@@ -178,7 +178,9 @@ def build(
         diagnostics.append(
             {
                 "kind": "direct_play",
-                "text": f"Excellent taux de lecture directe : {summary['direct_play_percent']:.1f} %.",
+                "text": (
+                    f"Excellent taux de lecture directe : {summary['direct_play_percent']:.1f} %."
+                ),
             }
         )
     four_k = database.query_one(
@@ -211,7 +213,10 @@ def build(
             "methods_by_client": {
                 "categories": categories,
                 "series": [
-                    {"name": "Lecture directe", "data": [row["direct_play"] for row in client_rows]},
+                    {
+                        "name": "Lecture directe",
+                        "data": [row["direct_play"] for row in client_rows],
+                    },
                     {
                         "name": "Remux direct",
                         "data": [row["direct_stream"] for row in client_rows],
