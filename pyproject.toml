@@ -1,0 +1,21 @@
+# Configuration des outils de développement (l'appli s'installe toujours via
+# requirements.txt ; outils : pip install -r requirements-dev.txt).
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = ["tautulli_ref", "qa-artifacts"]
+
+[tool.ruff.lint]
+# pycodestyle, pyflakes, imports triés, bugbear
+select = ["E", "W", "F", "I", "B"]
+
+[tool.ruff.lint.flake8-bugbear]
+# Dépendances FastAPI déclarées en valeur par défaut : idiome du framework.
+extend-immutable-calls = [
+    "fastapi.Depends", "fastapi.File", "fastapi.Form", "fastapi.Query",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
