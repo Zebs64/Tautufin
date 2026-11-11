@@ -333,6 +333,128 @@ h2 > .icon, h3 > .icon { color: var(--accent); margin-right: .2em; }
 .wrapped-mini-val { display: block; margin-top: 8px; font-weight: 800; font-size: 1.15em; }
 .wrapped-mini-lab { display: block; margin-top: 2px; font-size: .82em; color: var(--text-muted); }
 
+/* --- Wrapped : décor et animations ------------------------------------------------ */
+.wrapped-hero { isolation: isolate; padding: 38px 28px 44px; }
+.wrapped-hero > :not([aria-hidden]) { position: relative; z-index: 2; }
+.wrapped-hero h1 {
+  background: linear-gradient(180deg, #fff 30%, #d9d0ff 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: none; filter: drop-shadow(0 6px 30px rgba(119, 91, 244, .55));
+  animation: wrapped-pop .9s cubic-bezier(.2, .9, .3, 1.25) both;
+}
+.wrapped-eyebrow, .wrapped-sub { animation: wrapped-rise .8s ease-out both; }
+.wrapped-sub { animation-delay: .25s; }
+/* Halo : trois taches de couleur floues qui dérivent lentement. */
+.wrapped-hero-glow { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.wrapped-hero-glow span {
+  position: absolute; width: 46%; aspect-ratio: 1; border-radius: 50%;
+  filter: blur(60px); opacity: .55; mix-blend-mode: screen;
+  animation: wrapped-drift 18s ease-in-out infinite alternate;
+}
+.wrapped-hero-glow span:nth-child(1) { background: #9b6bff; top: -30%; left: -10%; }
+.wrapped-hero-glow span:nth-child(2) { background: #00a4dc; bottom: -40%; right: -12%; animation-delay: -6s; }
+.wrapped-hero-glow span:nth-child(3) { background: #e04fa3; top: 10%; right: 25%; width: 30%; animation-delay: -12s; opacity: .35; }
+/* Mosaïque des affiches de l'année, inclinée et estompée derrière le titre. */
+.wrapped-hero-collage {
+  position: absolute; inset: -30% -10%; z-index: 1; pointer-events: none;
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; align-content: center;
+  transform: rotate(-9deg); opacity: .16;
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
+  mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
+}
+.wrapped-hero-collage img {
+  width: 100%; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 10px;
+  animation: wrapped-float 14s ease-in-out infinite alternate;
+}
+.wrapped-hero-collage img:nth-child(even) { animation-delay: -7s; transform: translateY(18%); }
+/* Scintillements. */
+.wrapped-hero-sparkles { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.wrapped-hero-sparkles i {
+  position: absolute; width: 4px; height: 4px; border-radius: 50%; background: #fff;
+  box-shadow: 0 0 8px 2px rgba(255, 255, 255, .7);
+  left: calc(4% + var(--i) * 6.8%); top: calc(10% + mod(var(--i) * 37, 76) * 1%);
+  opacity: 0; animation: wrapped-twinkle 3.2s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -0.45s);
+}
+/* Écran « rendez-vous » : cadeau qui se balance et compte à rebours. */
+.wrapped-gift { font-size: 3.4em; margin: 18px 0 4px; color: #fff;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, .45));
+  animation: wrapped-wiggle 2.8s ease-in-out infinite; }
+.wrapped-countdown { margin: 4px 0 0; color: rgba(255, 255, 255, .85); }
+.wrapped-countdown-num { display: inline-block; margin-right: 6px; padding: 2px 12px;
+  border-radius: 3em; font-weight: 800; letter-spacing: .04em; color: #fff;
+  background: rgba(0, 0, 0, .3); border: 1px solid rgba(255, 255, 255, .3); }
+
+/* Chiffres clés : verre dépoli et léger reflet. */
+.wrapped-stat, .wrapped-mini {
+  position: relative; overflow: hidden;
+  transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease;
+}
+.wrapped-stat::after, .wrapped-mini::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, .07) 50%, transparent 65%);
+  transform: translateX(-120%); transition: transform .8s ease;
+}
+.wrapped-stat:hover, .wrapped-mini:hover {
+  transform: translateY(-4px); border-color: rgba(119, 91, 244, .6);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .35), 0 0 0 1px rgba(119, 91, 244, .25);
+}
+.wrapped-stat:hover::after, .wrapped-mini:hover::after { transform: translateX(120%); }
+.wrapped-stat-val {
+  background: linear-gradient(90deg, #b7a6ff, var(--accent) 60%, #00a4dc);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  font-variant-numeric: tabular-nums;
+}
+/* Phrases clés : bordure dégradée. */
+.wrapped-fact { position: relative; border: 1px solid transparent;
+  background: linear-gradient(135deg, rgba(119, 91, 244, .18), rgba(0, 164, 220, .06)) padding-box,
+              linear-gradient(135deg, rgba(155, 107, 255, .7), rgba(0, 164, 220, .35), rgba(224, 79, 163, .5)) border-box; }
+/* Affiches : inclinaison 3D (wrapped.js) et médailles du podium. */
+.wrapped-poster-wrap { perspective: 700px; }
+.wrapped-poster-wrap a { display: block; transform-style: preserve-3d;
+  transform: rotateX(var(--tilt-x, 0)) rotateY(var(--tilt-y, 0));
+  transition: transform .2s ease-out; }
+.wrapped-poster-wrap:hover .poster { box-shadow: 0 18px 36px rgba(0, 0, 0, .55); }
+.wrapped-rank.rank-1 { background: linear-gradient(135deg, #ffe08a, #e0a422); color: #3a2600; }
+.wrapped-rank.rank-2 { background: linear-gradient(135deg, #f1f3f6, #9aa3ae); color: #23272d; }
+.wrapped-rank.rank-3 { background: linear-gradient(135deg, #f0b27a, #a8602c); color: #2e1606; }
+.wrapped-month.is-peak .wrapped-month-lab { color: var(--accent); font-weight: 700; }
+.wrapped-month-bar span { background: linear-gradient(180deg, rgba(155, 134, 255, .55), rgba(119, 91, 244, .18)); }
+.wrapped-month.is-peak .wrapped-month-bar span { box-shadow: 0 0 18px rgba(119, 91, 244, .6); }
+.wrapped-mini-icon.delta-up { color: var(--ok); }
+.wrapped-mini-icon.delta-down { color: var(--err); }
+
+/* Apparition au défilement (classe posée par wrapped.js uniquement). */
+.wrapped-animate .reveal { opacity: 0; transform: translateY(26px);
+  transition: opacity .7s ease, transform .7s cubic-bezier(.2, .8, .2, 1); }
+.wrapped-animate .reveal.is-visible { opacity: 1; transform: none; }
+.wrapped-animate .reveal :is(.wrapped-stat, .wrapped-mini, .wrapped-top-item, .wrapped-genre) {
+  opacity: 0; transform: translateY(18px) scale(.97);
+  transition: opacity .6s ease, transform .6s cubic-bezier(.2, .8, .2, 1);
+  transition-delay: calc(var(--i, 0) * 90ms + 120ms);
+}
+.wrapped-animate .reveal.is-visible :is(.wrapped-stat, .wrapped-mini, .wrapped-top-item, .wrapped-genre) {
+  opacity: 1; transform: none;
+}
+.wrapped-animate .reveal .wrapped-bar span { transform: scaleX(0); transform-origin: left;
+  transition: transform 1s cubic-bezier(.2, .8, .2, 1); transition-delay: calc(var(--i, 0) * 90ms + 250ms); }
+.wrapped-animate .reveal .wrapped-month-bar span { transform: scaleY(0); transform-origin: bottom;
+  transition: transform .9s cubic-bezier(.2, .8, .2, 1); transition-delay: calc(var(--i, 0) * 55ms + 200ms); }
+.wrapped-animate .reveal.is-visible :is(.wrapped-bar span, .wrapped-month-bar span) { transform: none; }
+
+@keyframes wrapped-pop { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: none; } }
+@keyframes wrapped-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes wrapped-drift { from { transform: translate(0, 0) scale(1); } to { transform: translate(18%, 12%) scale(1.25); } }
+@keyframes wrapped-float { from { translate: 0 -4%; } to { translate: 0 4%; } }
+@keyframes wrapped-twinkle { 0%, 100% { opacity: 0; transform: scale(.4); } 50% { opacity: .9; transform: scale(1); } }
+@keyframes wrapped-wiggle { 0%, 100% { transform: rotate(0); } 10% { transform: rotate(-12deg); }
+  20% { transform: rotate(10deg); } 30% { transform: rotate(-6deg); } 40% { transform: rotate(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .wrapped-hero *, .wrapped-hero h1 { animation: none !important; }
+  .wrapped-poster-wrap a { transform: none; }
+}
+
 @media (max-width: 760px) {
   .wrapped-stats, .wrapped-cards { grid-template-columns: repeat(2, 1fr); }
   .wrapped-top { grid-template-columns: repeat(3, minmax(0, 1fr)); }

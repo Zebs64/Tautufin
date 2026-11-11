@@ -43,6 +43,11 @@ def opening_label(year: int) -> str:
     return f"{d.day} {MONTHS_FR[d.month - 1].lower()}"
 
 
+def days_until_opening(year: int) -> int:
+    """Jours restants avant l'ouverture (0 le jour même ou après)."""
+    return max(0, (opening_date(year) - _today()).days)
+
+
 def is_open(year: int) -> bool:
     return _today() >= opening_date(year)
 

@@ -156,6 +156,7 @@ def register(app: FastAPI, context) -> None:
             upcoming_year=upcoming,
             show_upcoming=show_upcoming,
             opening_label=wrapped_mod.opening_label(upcoming) if upcoming else None,
+            opening_in_days=wrapped_mod.days_until_opening(upcoming) if upcoming else None,
         )
 
     @app.get("/profile")

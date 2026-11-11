@@ -67,9 +67,14 @@ class WrappedOpeningTests(unittest.TestCase):
         self.assertIn("<h1>2025</h1>", page.text)
         self.assertNotIn('<option value="2026"', page.text)
         self.assertIn("disponible le <strong>31 décembre</strong>", direct.text)
+        self.assertIn("J-50", direct.text)  # compte à rebours
+        self.assertNotIn("J-", opened.text)
         self.assertNotIn("de visionnage", direct.text)  # aucun chiffre
         self.assertIn("<h1>2026</h1>", opened.text)
         self.assertIn("jours de visionnage cumulés", opened.text)
+        # Valeurs finales dans le HTML, animées ensuite par wrapped.js.
+        self.assertIn('data-count-duration="3600">1h', opened.text)
+        self.assertIn("/static/js/wrapped.js", opened.text)
         self.assertNotIn("non-stop", opened.text)
         self.assertNotIn("disponible le", opened.text)
 
