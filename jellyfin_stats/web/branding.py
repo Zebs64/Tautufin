@@ -9,6 +9,7 @@ from fastapi.responses import (
 )
 
 from ..auth import CurrentUser
+from ..config import ACCENT_COLORS
 from .helpers import (
     BRANDING_EXTS,
     BRANDING_HEADERS,
@@ -18,6 +19,7 @@ from .helpers import (
 
 
 def register(app: FastAPI, context) -> None:
+    config = context.config
     _render_settings = context._render_settings
     branding_dir = context.branding_dir
     require_admin = context.require_admin
@@ -66,7 +68,11 @@ def register(app: FastAPI, context) -> None:
         user: CurrentUser = Depends(require_admin),
         logo: UploadFile = File(None),
         favicon: UploadFile = File(None),
+        accent: str | None = Form(None),
     ):
+        if accent in ACCENT_COLORS and accent != config.accent:
+            config.set("UI", "accent", accent)
+            config.save()
         errors = []
         for name, upload in (("logo", logo), ("favicon", favicon)):
             if upload and upload.filename:

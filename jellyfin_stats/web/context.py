@@ -18,7 +18,7 @@ from .. import users as users_mod
 from .. import wrapped as wrapped_mod
 from ..activity import ActivityMonitor
 from ..auth import CurrentUser, RateLimiter
-from ..config import Config
+from ..config import ACCENT_COLORS, Config
 from ..jellyfin_api import JellyfinAPI
 from ..scheduler import Scheduler
 from .helpers import (
@@ -129,6 +129,7 @@ def make_context(config: Config) -> SimpleNamespace:
             jellyfin_configured=config.jellyfin_configured,
             logo_ver=int(logo.stat().st_mtime) if logo else 0,
             has_logo=logo is not None,
+            accent=config.accent,
         )
         return templates.TemplateResponse(request, template, ctx)
 
@@ -154,6 +155,7 @@ def make_context(config: Config) -> SimpleNamespace:
                 "SELECT jellyfin_user_id, username FROM users ORDER BY username"
             ),
             jf_users_admin=users_mod.list_users_for_admin(),
+            accent_colors=ACCENT_COLORS,
             **ctx,
         )
 

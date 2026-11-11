@@ -177,6 +177,15 @@
       <label>Nouveau favicon <span class="muted">(ico, png, svg — max 2 Mo)</span>
         <input type="file" name="favicon" accept=".ico,.png,.svg,.jpg,.webp,.gif">
       </label>
+      <fieldset class="accent-picker">
+        <legend>Couleur d'accent <span class="muted">(boutons, liens, graphiques, Wrapped)</span></legend>
+        {% for key, label in accent_colors.items() %}
+        <label class="accent-swatch" data-accent-preview="{{ key }}">
+          <input type="radio" name="accent" value="{{ key }}" {{ 'checked' if key == accent }}>
+          <span class="accent-dot"></span> {{ label }}
+        </label>
+        {% endfor %}
+      </fieldset>
       <div class="branding-submit"><button type="submit" class="btn btn-primary">Mettre à jour l'apparence</button></div>
     </form>
   </div>

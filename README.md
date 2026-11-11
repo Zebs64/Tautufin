@@ -539,7 +539,7 @@ sections :
 | `[Monitoring]` | `minimum_duration` (s), `minimum_percent` (% — **condition OR** avec la durée, comme Tautulli), `poll_interval`, `sync_interval`, `session_grace`, `webhook_token` |
 | `[Clients]`    | `unknown_as_plex`, `hide_unknown_clients` (lectures importées sans client identifié — ex. historique Plex) |
 | `[Energy]`     | `transcode_watts`, `electricity_price` (base de l'estimation de conso transcodage) |
-| `[UI]`         | `allow_user_library_pages` |
+| `[UI]`         | `allow_user_library_pages`, `accent` (couleur d'accent : violet, blue, green, orange, pink — modifiable dans Réglages → Apparence) |
 | `[Web]`        | `host`, `port`, `trusted_proxies` (reverse proxy dont les en-têtes `X-Forwarded-*` sont crus) |
 | `[Database]`   | chemin SQLite |
 

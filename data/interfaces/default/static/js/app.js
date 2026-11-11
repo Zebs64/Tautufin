@@ -173,6 +173,14 @@ if (window.Chart) {
   Chart.defaults.plugins.tooltip.boxPadding = 6;
 }
 
+// Couleur d'accent du thème (réglage « Couleur d'accent »), lue dans le CSS.
+// name : 'accent' | 'accent-deep' | 'accent-light' ; alpha optionnelle.
+function themeColor(name, alpha) {
+  const rgb = getComputedStyle(document.documentElement)
+    .getPropertyValue(`--${name}-rgb`).trim() || '119 91 244';
+  return alpha === undefined ? `rgb(${rgb})` : `rgb(${rgb} / ${alpha})`;
+}
+
 // Radar des genres (profil de goûts) — polygone accent rempli.
 function radarChart(canvasId, labels, data) {
   const el = document.getElementById(canvasId);
@@ -188,9 +196,9 @@ function radarChart(canvasId, labels, data) {
       labels,
       datasets: [{
         label: 'Genres', data,
-        backgroundColor: 'rgba(119, 91, 244, 0.32)',
-        borderColor: '#9b86ff', borderWidth: 2,
-        pointBackgroundColor: '#9b86ff', pointBorderColor: '#fff',
+        backgroundColor: themeColor('accent', 0.32),
+        borderColor: themeColor('accent-light'), borderWidth: 2,
+        pointBackgroundColor: themeColor('accent-light'), pointBorderColor: '#fff',
         pointBorderWidth: 1, pointRadius: 3, pointHoverRadius: 5,
       }],
     },
@@ -220,8 +228,8 @@ function areaTimeline(canvasId, labels, data) {
   }
   const ctx = el.getContext('2d');
   const grad = ctx.createLinearGradient(0, 0, 0, el.offsetHeight || 260);
-  grad.addColorStop(0, 'rgba(119, 91, 244, 0.45)');
-  grad.addColorStop(1, 'rgba(119, 91, 244, 0.02)');
+  grad.addColorStop(0, themeColor('accent', 0.45));
+  grad.addColorStop(1, themeColor('accent', 0.02));
   // Point unique : un marqueur isolé ne se voit pas → on force son affichage.
   const single = data.filter(v => v > 0).length <= 1;
   return new Chart(el, {
@@ -230,10 +238,10 @@ function areaTimeline(canvasId, labels, data) {
       labels,
       datasets: [{
         label: 'Lectures', data,
-        borderColor: '#9b86ff', borderWidth: 2,
+        borderColor: themeColor('accent-light'), borderWidth: 2,
         backgroundColor: grad, fill: 'origin',
         cubicInterpolationMode: 'monotone', pointRadius: single ? 4 : 0, pointHoverRadius: 5,
-        pointBackgroundColor: '#9b86ff', pointBorderColor: '#fff', pointBorderWidth: 1,
+        pointBackgroundColor: themeColor('accent-light'), pointBorderColor: '#fff', pointBorderWidth: 1,
       }],
     },
     options: {

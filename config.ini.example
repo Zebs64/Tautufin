@@ -68,6 +68,8 @@ hide_unknown_clients = true
 [UI]
 # Autoriser les utilisateurs non-admin à consulter les pages Bibliothèques.
 allow_user_library_pages = true
+# Couleur d'accent de l'interface : violet, blue, green, orange ou pink.
+accent = violet
 
 [Energy]
 # Base de l'estimation du coût électrique du transcodage (page Graphiques) :

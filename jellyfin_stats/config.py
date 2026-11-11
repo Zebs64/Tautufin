@@ -41,7 +41,7 @@ DEFAULTS = {
         "unknown_as_plex": "false",
         "hide_unknown_clients": "true",
     },
-    "UI": {"allow_user_library_pages": "true"},
+    "UI": {"allow_user_library_pages": "true", "accent": "violet"},
     "Energy": {
         # Base de l'estimation du coût électrique du transcodage (page graphs) :
         # surconsommation supposée pendant un transcodage vidéo et prix du kWh.
@@ -49,6 +49,17 @@ DEFAULTS = {
         "electricity_price": "0.27",
     },
     "Database": {"path": "data/jellyfin_stats.db"},
+}
+
+
+# Couleurs d'accent proposées (Réglages > Apparence) : clé -> libellé. Les
+# teintes sont définies dans style.css (:root[data-accent="…"]).
+ACCENT_COLORS = {
+    "violet": "Violet",
+    "blue": "Bleu Jellyfin",
+    "green": "Vert",
+    "orange": "Orange",
+    "pink": "Rose",
 }
 
 
@@ -190,6 +201,11 @@ class Config:
     @property
     def allow_user_library_pages(self) -> bool:
         return self.get_bool("UI", "allow_user_library_pages")
+
+    @property
+    def accent(self) -> str:
+        value = self.get("UI", "accent")
+        return value if value in ACCENT_COLORS else "violet"
 
     @property
     def transcode_watts(self) -> int:
