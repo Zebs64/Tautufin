@@ -62,7 +62,10 @@ class MigrationTests(unittest.TestCase):
     def test_new_database_reaches_schema_v7_without_cursor(self):
         database.init(self.db_path)
 
-        self.assertEqual(database.query_one("SELECT version FROM schema_version"), {"version": 7})
+        self.assertEqual(
+            database.query_one("SELECT version FROM schema_version"),
+            {"version": database.MIGRATIONS[-1][0]},
+        )
         self.assertIsNone(database.get_sync_cursor())
         self.assertEqual(database.integrity_check()["integrity"], ["ok"])
         self.assertEqual(database.integrity_check()["foreign_key_violations"], 0)
@@ -93,7 +96,10 @@ class MigrationTests(unittest.TestCase):
                 row.pop("source_date_last_refreshed", None)
                 row.pop("source_etag", None)
 
-        self.assertEqual(database.query_one("SELECT version FROM schema_version"), {"version": 7})
+        self.assertEqual(
+            database.query_one("SELECT version FROM schema_version"),
+            {"version": database.MIGRATIONS[-1][0]},
+        )
         self.assertEqual(after_upgrade, before)
         self.assertEqual(after_second_init, before)
         self.assertIsNone(database.get_sync_cursor())
@@ -143,7 +149,10 @@ class DatabaseV6MigrationTests(unittest.TestCase):
         database.init(self.db_path)
         database.init(self.db_path)
 
-        self.assertEqual(database.query_one("SELECT version FROM schema_version"), {"version": 7})
+        self.assertEqual(
+            database.query_one("SELECT version FROM schema_version"),
+            {"version": database.MIGRATIONS[-1][0]},
+        )
         self.assertEqual(
             database.query_one("SELECT name, source_etag FROM items WHERE item_id = 'item-1'"),
             {"name": "Film conservé", "source_etag": None},
@@ -194,7 +203,10 @@ class DatabaseV7MigrationTests(unittest.TestCase):
         database.init(self.db_path)
         database.init(self.db_path)
 
-        self.assertEqual(database.query_one("SELECT version FROM schema_version"), {"version": 7})
+        self.assertEqual(
+            database.query_one("SELECT version FROM schema_version"),
+            {"version": database.MIGRATIONS[-1][0]},
+        )
         self.assertEqual(
             database.query_one(
                 """

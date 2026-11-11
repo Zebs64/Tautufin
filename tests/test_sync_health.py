@@ -218,7 +218,10 @@ class SyncHealthTests(unittest.TestCase):
             database.query_one("SELECT value FROM sync_state WHERE key = 'protected-key'"),
             {"value": "keep"},
         )
-        self.assertEqual(database.query_one("SELECT version FROM schema_version"), {"version": 7})
+        self.assertEqual(
+            database.query_one("SELECT version FROM schema_version"),
+            {"version": database.MIGRATIONS[-1][0]},
+        )
 
     def test_status_combines_legacy_progress_with_persistent_health(self):
         database.set_sync_health({"status": "success", "last_success_at": "saved"})
