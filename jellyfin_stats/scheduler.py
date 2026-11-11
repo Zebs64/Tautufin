@@ -463,6 +463,10 @@ class Scheduler:
         self._tasks: list[asyncio.Task] = []
 
     async def start(self) -> None:
+        try:
+            await asyncio.to_thread(self.monitor.restore)
+        except Exception:
+            logger.exception("Restauration des lectures en cours impossible")
         self._tasks = [
             asyncio.create_task(self._poll_loop()),
             asyncio.create_task(self._sync_loop()),
@@ -477,12 +481,10 @@ class Scheduler:
     async def stop(self) -> None:
         for task in self._tasks:
             task.cancel()
-        # Finalise proprement les sessions encore suivies à l'arrêt.
-        if self.config.jellyfin_configured:
-            with_sessions = list(self.monitor._sessions.values())
-            for tracked in with_sessions:
-                self.monitor._sessions.pop(tracked.key, None)
-                await asyncio.to_thread(self.monitor._finalize, tracked)
+        # Les lectures en cours ne sont pas finalisées : elles restent dans
+        # active_sessions et reprennent au redémarrage, au lieu d'être coupées
+        # en deux (ou perdues si la première partie est sous les seuils).
+        await asyncio.to_thread(self.monitor.persist)
 
     async def _poll_loop(self) -> None:
         while True:

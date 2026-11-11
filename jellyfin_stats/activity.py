@@ -7,16 +7,23 @@ jour les sessions suivies et accumule le temps réellement regardé (le temps
 finalisée. Le webhook (plugin Jellyfin Webhook) accélère la prise en compte
 des pauses et des stops mais n'est pas requis.
 
+Les sessions suivies sont recopiées dans la table ``active_sessions`` à chaque
+cycle : un redémarrage de l'appli (mise à jour, crash) les reprend au lieu de
+les couper en deux ou de les perdre.
+
 Filtres à la finalisation (comportement Tautulli, condition OR) : la session
 est enregistrée si AU MOINS UN des seuils actifs est atteint ; si les deux
 sont à 0, tout est enregistré.
 """
 
+import dataclasses
 import json
 import logging
+import sqlite3
 import threading
 import time
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from . import database
 from .database import now_iso
@@ -168,10 +175,10 @@ class TrackedSession:
     watched_seconds: float = 0.0
     position_ticks: int = 0
     paused: bool = False
+    # Dernière présence dans le polling, en heure murale (time.time()) : elle
+    # est persistée et doit garder son sens après un redémarrage, ce que ne
+    # permet pas time.monotonic().
     last_seen: float = 0.0
-    # Instant (monotonic) où la session a disparu du polling ; 0 = présente.
-    # Sert au délai de grâce avant finalisation (cf. poll).
-    missing_since: float = 0.0
     info: dict = field(default_factory=dict)  # détails « now playing » (transcodage…)
 
     def percent_complete(self) -> float | None:
@@ -179,17 +186,82 @@ class TrackedSession:
             return None
         return min(100.0, self.position_ticks / TICKS_PER_SECOND / self.runtime_seconds * 100)
 
+    def to_state(self) -> str:
+        return json.dumps(dataclasses.asdict(self))
+
+    @classmethod
+    def from_state(cls, state: str) -> "TrackedSession":
+        """Lève ValueError ou TypeError si l'état est illisible ou incomplet."""
+        data = json.loads(state)
+        if not isinstance(data, dict):
+            raise ValueError("état de session inattendu")
+        known = {f.name for f in dataclasses.fields(cls)}
+        return cls(**{k: v for k, v in data.items() if k in known})
+
+
+def _wall_iso(timestamp: float) -> str:
+    """Heure murale → format de now_iso (heure locale, compris par SQLite)."""
+    return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
+
 
 class ActivityMonitor:
     def __init__(self, config):
         self.config = config
         self._sessions: dict[str, TrackedSession] = {}
         self._lock = threading.Lock()
+        self._persisted_empty = False
+
+    # --- Persistance des lectures en cours ---------------------------------
+
+    def restore(self) -> int:
+        """Recharge les lectures en cours enregistrées avant un arrêt. Une
+        ligne illisible est journalisée puis supprimée, sans bloquer le
+        démarrage. Renvoie le nombre de sessions restaurées."""
+        restored = 0
+        for row in database.query("SELECT session_key, state FROM active_sessions"):
+            try:
+                tracked = TrackedSession.from_state(row["state"])
+                if tracked.key != row["session_key"]:
+                    raise ValueError("clé incohérente")
+            except (ValueError, TypeError) as exc:
+                logger.warning(
+                    "Lecture en cours illisible ignorée (%s) : %s", row["session_key"], exc
+                )
+                database.execute(
+                    "DELETE FROM active_sessions WHERE session_key = ?", (row["session_key"],)
+                )
+                continue
+            with self._lock:
+                self._sessions.setdefault(tracked.key, tracked)
+            restored += 1
+        if restored:
+            logger.info("%d lecture(s) en cours restaurée(s)", restored)
+        return restored
+
+    def persist(self) -> None:
+        """Recopie l'état des sessions suivies dans ``active_sessions``. L'état
+        est copié sous le verrou mais écrit hors du verrou (une attente SQLite
+        ne bloque pas le dashboard). Un échec est retenté au cycle suivant."""
+        with self._lock:
+            states = [(t.key, t.to_state()) for t in self._sessions.values()]
+        if not states and self._persisted_empty:
+            return
+        try:
+            with database.db() as conn:
+                conn.execute("DELETE FROM active_sessions")
+                conn.executemany(
+                    "INSERT INTO active_sessions (session_key, state, updated_at) VALUES (?, ?, ?)",
+                    [(key, state, now_iso()) for key, state in states],
+                )
+        except sqlite3.Error:
+            logger.warning("Persistance des lectures en cours impossible", exc_info=True)
+            return
+        self._persisted_empty = not states
 
     # --- Polling ------------------------------------------------------------
 
     def poll(self, api) -> None:
-        now = time.monotonic()
+        now = time.time()
         current: dict[str, tuple[dict, dict]] = {}
         for session in api.get_sessions():
             item = session.get("NowPlayingItem")
@@ -211,15 +283,18 @@ class ActivityMonitor:
                 else:
                     delta = now - tracked.last_seen
                     if not tracked.paused:
-                        # Borne le delta : si le poller a sauté des cycles, on
-                        # ne crédite pas plus de 3 intervalles d'un coup.
-                        tracked.watched_seconds += min(delta, self.config.poll_interval * 3)
+                        # Borne le delta : si le poller a sauté des cycles (ou
+                        # si l'appli était arrêtée), on ne crédite pas plus de
+                        # 3 intervalles d'un coup ; jamais de delta négatif si
+                        # l'horloge murale recule.
+                        tracked.watched_seconds += max(
+                            0.0, min(delta, self.config.poll_interval * 3)
+                        )
                 tracked.paused = bool(play_state.get("IsPaused"))
                 tracked.position_ticks = play_state.get("PositionTicks") or 0
                 tracked.play_method = play_state.get("PlayMethod") or tracked.play_method
                 tracked.info = _stream_details(session, item)
                 tracked.last_seen = now
-                tracked.missing_since = 0.0  # de retour : annule un éventuel délai
 
             # Délai de grâce : une session Jellyfin disparaît parfois du polling
             # un cycle ou deux (client Android, NowPlayingItem null transitoire,
@@ -227,12 +302,31 @@ class ActivityMonitor:
             # fragmenterait une lecture continue en multiples entrées. On attend
             # donc qu'elle soit absente depuis ``session_grace`` secondes.
             grace = self.config.session_grace
-            for key in [k for k in self._sessions if k not in current]:
-                tracked = self._sessions[key]
-                if not tracked.missing_since:
-                    tracked.missing_since = now
-                if now - tracked.missing_since >= grace:
-                    self._finalize(self._sessions.pop(key))
+            expired = [
+                t
+                for k, t in self._sessions.items()
+                if k not in current and now - t.last_seen >= grace
+            ]
+        for tracked in expired:
+            self._finalize_and_forget(tracked)
+        self.persist()
+
+    def _finalize_and_forget(self, tracked: TrackedSession) -> bool:
+        """Finalise puis seulement retire la session : si l'écriture échoue
+        (base verrouillée…), la lecture reste suivie et sera retentée."""
+        try:
+            self._finalize(tracked)
+        except Exception:
+            logger.exception(
+                "Finalisation impossible (%s par %s), nouvel essai au prochain cycle",
+                tracked.item_name,
+                tracked.user_name,
+            )
+            return False
+        with self._lock:
+            if self._sessions.get(tracked.key) is tracked:
+                del self._sessions[tracked.key]
+        return True
 
     def _new_tracked(self, key, session, item, now) -> TrackedSession:
         play_state = session.get("PlayState", {})
@@ -300,6 +394,7 @@ class ActivityMonitor:
             self.config.minimum_percent,
         )
         if not record:
+            database.execute("DELETE FROM active_sessions WHERE session_key = ?", (tracked.key,))
             logger.debug(
                 "Session ignorée (%s par %s) : %s", tracked.item_name, tracked.user_name, reason
             )
@@ -339,7 +434,9 @@ class ActivityMonitor:
                     library["library_id"] if library else None,
                     library["name"] if library else None,
                     tracked.started_at,
-                    now_iso(),
+                    # Dernière présence dans le polling : exacte même si la
+                    # finalisation a lieu après le délai de grâce ou un arrêt.
+                    _wall_iso(tracked.last_seen) if tracked.last_seen else now_iso(),
                     play_duration,
                     tracked.runtime_seconds,
                     tracked.percent_complete(),
@@ -357,6 +454,7 @@ class ActivityMonitor:
                 "UPDATE users SET last_activity = ? WHERE jellyfin_user_id = ?",
                 (now_iso(), tracked.jellyfin_user_id),
             )
+            conn.execute("DELETE FROM active_sessions WHERE session_key = ?", (tracked.key,))
         logger.info(
             "Session enregistrée : %s par %s (%ds vus, %s)",
             tracked.item_name,
@@ -384,17 +482,14 @@ class ActivityMonitor:
                 for t in self._sessions.values()
                 if t.jellyfin_user_id == user_id and t.item_id == item_id
             ]
-            if notif == "PlaybackStop":
-                for t in matches:
-                    self._sessions.pop(t.key, None)
-            elif notif == "PlaybackProgress":
+            if notif == "PlaybackProgress":
                 paused = payload.get("IsPaused")
                 if paused is not None:
                     for t in matches:
                         t.paused = bool(paused)
         if notif == "PlaybackStop":
             for t in matches:
-                self._finalize(t)
+                self._finalize_and_forget(t)
 
     # --- Lecture pour le dashboard ---------------------------------------------
 

@@ -54,6 +54,8 @@ utilisateurs, auto-hébergé.
   **et** backup [Streamystats](https://github.com/fredrikburmester/streamystats)
   (idempotent)
 - ⚡ **Estimation de conso** : électricité et coût imputables au transcodage
+- 💾 **Lectures en cours persistées** : un redémarrage (mise à jour de l'image,
+  crash) reprend les lectures en cours au lieu de les couper ou de les perdre
 - 🩺 **Santé de synchronisation persistante** dans Réglages : dernière tentative,
   dernier succès, mode, médias inspectés/enrichis/modifiés et erreur assainie
 - 🪶 **Synchronisation légère en deux passes** : inventaire par marqueur Jellyfin,

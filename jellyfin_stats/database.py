@@ -194,6 +194,20 @@ MIGRATIONS: list[tuple[int, list[str]]] = [
             "ALTER TABLE items ADD COLUMN source_etag TEXT",
         ],
     ),
+    (
+        8,
+        [
+            # Lectures en cours (TrackedSession sérialisée en JSON), recopiées à
+            # chaque cycle de polling pour survivre à un redémarrage.
+            """
+            CREATE TABLE active_sessions (
+                session_key TEXT PRIMARY KEY,
+                state       TEXT NOT NULL,
+                updated_at  DATETIME NOT NULL
+            )
+            """,
+        ],
+    ),
 ]
 
 

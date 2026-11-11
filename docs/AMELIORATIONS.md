@@ -37,7 +37,7 @@ sont ailleurs :
 | 7 | Derrière un reverse proxy : IP réelle, cookie `Secure` | Sécurité | Moyenne | S |
 | 8 | ✅ v0.2.3 — Servir Chart.js localement | Robustesse | Moyenne | S |
 | 9 | Limiter l'écriture `last_active` à chaque requête | Perf | Faible | S |
-| 10 | Persister les sessions de lecture en cours | Robustesse | **Très haute** | M |
+| 10 | ✅ v0.3.0 — Persister les sessions de lecture en cours | Robustesse | **Très haute** | M |
 | 11 | Stocker `series_id` dans l'historique | Données/Perf | Haute | M |
 | 12 | Dédoublonnage tolérant entre imports et capture live | Données | Haute | M |
 | 13 | Retirer du catalogue les médias supprimés de Jellyfin | Données | Moyenne | M |
@@ -59,6 +59,9 @@ Les n° 1, 2, 3, 6 et 8 sont faits en v0.2.3, le n° 5 en partie. Prochaine
 ## Robustesse de la synchronisation et de la capture
 
 ### 10. Persister les sessions de lecture en cours — valeur très haute, M
+
+**Statut : fait en v0.3.0** (table `active_sessions`, heure murale,
+`stopped_at` = dernière présence, finalisation avant retrait).
 
 **Problème.** L'état des lectures suivies est un simple dictionnaire en mémoire
 (`activity.py:186`, `self._sessions`). Conséquences :
@@ -84,8 +87,8 @@ chaque polling avec `watched_seconds`, `position_ticks`, `paused` et
 - celles qui ont disparu sont finalisées avec leur cumul enregistré.
 
 `Scheduler.stop` ne finalise plus rien, il se contente de laisser la table à
-jour. Bonus : `started_at` peut être estimé à `now - PositionTicks` au premier
-polling d'une session.
+jour. (Estimer `started_at` à `now - PositionTicks` serait faux pour une
+lecture reprise en cours de média : à ne pas faire.)
 
 **Fichiers.** `activity.py`, `scheduler.py`, `database.py` (migration v8),
 tests sur le cycle arrêt/reprise.
