@@ -22,3 +22,6 @@ data/jellyfin_stats.db*
 
 # Reference clone kept locally only
 tautulli_ref/
+
+# Local QA runs (screenshots, archives, reports)
+qa-artifacts/

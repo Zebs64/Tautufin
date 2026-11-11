@@ -1,15 +1,23 @@
+# Contexte de build minimal : le Dockerfile ne copie que jellyfin_stats/,
+# data/, main.py, config.ini.example et requirements.txt.
 .git
+.gitea
 .github
+.githooks
+.claude
 .venv
 venv
-__pycache__
+**/__pycache__
+**/*.pyc
 .pytest_cache
 .mypy_cache
 .ruff_cache
 config
 config.ini
 tautulli_ref
-*.db
-*.sqlite
-*.sqlite3
-*.pyc
+qa-artifacts
+docs
+tests
+**/*.db*
+**/*.sqlite
+**/*.sqlite3
