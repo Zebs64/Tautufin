@@ -110,18 +110,46 @@ def list_local_users() -> list[dict]:
     )
 
 
+class LastAdminError(Exception):
+    """Suppression refusée : ce compte est le dernier admin local."""
+
+
+def _revoke_local_sessions(conn, username: str) -> None:
+    conn.execute(
+        "DELETE FROM http_sessions WHERE auth_mode = 'local' AND username = ?", (username,)
+    )
+
+
 def delete_local_user(user_id: int) -> None:
-    database.execute("DELETE FROM local_users WHERE id = ?", (user_id,))
+    """Supprime un compte local et ferme ses sessions. Refuse de supprimer le
+    dernier admin local (compte de secours si Jellyfin est injoignable)."""
+    with database.db() as conn:
+        row = conn.execute(
+            "SELECT username, role FROM local_users WHERE id = ?", (user_id,)
+        ).fetchone()
+        if row is None:
+            return
+        if row["role"] == "admin":
+            admins = conn.execute(
+                "SELECT COUNT(*) FROM local_users WHERE role = 'admin'"
+            ).fetchone()[0]
+            if admins <= 1:
+                raise LastAdminError()
+        conn.execute("DELETE FROM local_users WHERE id = ?", (user_id,))
+        _revoke_local_sessions(conn, row["username"])
 
 
 def set_local_password(username: str, password: str) -> bool:
-    return (
-        database.execute(
+    """Change le mot de passe et ferme toutes les sessions du compte."""
+    password_hash = hash_password(password)
+    with database.db() as conn:
+        updated = conn.execute(
             "UPDATE local_users SET password_hash = ? WHERE username = ?",
-            (hash_password(password), username),
-        )
-        > 0
-    )
+            (password_hash, username),
+        ).rowcount
+        if updated:
+            _revoke_local_sessions(conn, username)
+    return updated > 0
 
 
 def has_local_admin() -> bool:
@@ -232,26 +260,40 @@ def resolve_session(cookie: str | None) -> CurrentUser | None:
     if row["expires_at"] < now_iso():
         database.execute("DELETE FROM http_sessions WHERE token = ?", (token,))
         return None
-    # Droits gérés par Tautufin (blocage / vision) résolus en direct, pour que
-    # toute modification admin prenne effet immédiatement (sans re-login).
+    # Rôle, lien Jellyfin et droits gérés par Tautufin (blocage / vision) sont
+    # relus à chaque requête : toute modification (compte local supprimé,
+    # admin Jellyfin rétrogradé, blocage…) prend effet sans re-login.
+    role = row["role"]
+    jellyfin_user_id = row["jellyfin_user_id"]
+    if row["auth_mode"] == "local":
+        local = database.query_one(
+            "SELECT role, jellyfin_user_id FROM local_users WHERE username = ?",
+            (row["username"],),
+        )
+        if local is None:
+            database.execute("DELETE FROM http_sessions WHERE token = ?", (token,))
+            return None
+        role, jellyfin_user_id = local["role"], local["jellyfin_user_id"]
     can_view_all = False
-    if row["jellyfin_user_id"]:
+    if jellyfin_user_id:
         flags = database.query_one(
-            "SELECT access_blocked, can_view_all FROM users WHERE jellyfin_user_id = ?",
-            (row["jellyfin_user_id"],),
+            "SELECT is_admin, access_blocked, can_view_all FROM users WHERE jellyfin_user_id = ?",
+            (jellyfin_user_id,),
         )
         if flags:
-            if flags["access_blocked"] and row["auth_mode"] == "jellyfin":
-                database.execute("DELETE FROM http_sessions WHERE token = ?", (token,))
-                return None
+            if row["auth_mode"] == "jellyfin":
+                if flags["access_blocked"]:
+                    database.execute("DELETE FROM http_sessions WHERE token = ?", (token,))
+                    return None
+                role = "admin" if flags["is_admin"] else "user"
             can_view_all = bool(flags["can_view_all"])
     database.execute("UPDATE http_sessions SET last_active = ? WHERE token = ?", (now_iso(), token))
     return CurrentUser(
         token=row["token"],
         auth_mode=row["auth_mode"],
         username=row["username"],
-        role=row["role"],
-        jellyfin_user_id=row["jellyfin_user_id"],
+        role=role,
+        jellyfin_user_id=jellyfin_user_id,
         can_view_all=can_view_all,
     )
 

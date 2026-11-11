@@ -782,8 +782,17 @@ def create_app(config: Config) -> FastAPI:
         return RedirectResponse("/settings", status_code=303)
 
     @app.post("/settings/local-users/{local_id}/delete")
-    def delete_local_user_route(local_id: int, user: CurrentUser = Depends(require_admin)):
-        auth.delete_local_user(local_id)
+    def delete_local_user_route(
+        request: Request, local_id: int, user: CurrentUser = Depends(require_admin)
+    ):
+        try:
+            auth.delete_local_user(local_id)
+        except auth.LastAdminError:
+            return _render_settings(
+                request,
+                user,
+                user_error="Impossible de supprimer le dernier compte admin local.",
+            )
         return RedirectResponse("/settings", status_code=303)
 
     @app.post("/settings/local-users/{local_id}/password")
