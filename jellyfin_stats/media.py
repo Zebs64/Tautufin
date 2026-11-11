@@ -127,6 +127,54 @@ def _timeline(where: str, params: list) -> dict:
     }
 
 
+FINISHED_PERCENT = 90.0
+
+
+def _add_progress(by_user: list[dict], meta: dict, item_id: str, where: str, params: list):
+    """Progression de chaque spectateur (carte « qui l'a vu, et jusqu'où ») :
+    épisodes vus sur le total connu pour une série, sinon % final de son
+    dernier visionnage (un film vu jusqu'au bout au moins une fois est fini)."""
+    if meta["type"] == "Series":
+        total = database.query_one(
+            "SELECT COUNT(*) AS n FROM items WHERE type = 'Episode' AND removed_at IS NULL"
+            " AND (series_id = ? OR series_name = ?)",
+            (item_id, meta["name"]),
+        )["n"]
+        watched = {
+            r["jellyfin_user_id"]: r["n"]
+            for r in database.query(
+                f"SELECT jellyfin_user_id, COUNT(DISTINCT item_id) AS n FROM session_history"
+                f" WHERE {where} GROUP BY jellyfin_user_id",
+                params,
+            )
+        }
+        for row in by_user:
+            seen = watched.get(row["jellyfin_user_id"], 0)
+            row["progress"] = min(100.0, seen * 100.0 / total) if total else None
+            row["finished"] = bool(total) and seen >= total
+            row["progress_label"] = (
+                f"{seen} / {total} épisodes"
+                if total
+                else f"{seen} épisode{'s' if seen > 1 else ''}"
+            )
+        return
+    for row in by_user:
+        viewings = history.get_history(
+            item_id=item_id, user_id=row["jellyfin_user_id"], page_size=history.PAGE_SIZE_MAX
+        )["rows"]
+        finals = [v["percent_complete"] for v in viewings if v["percent_complete"] is not None]
+        last = finals[0] if finals else None
+        row["finished"] = any(p >= FINISHED_PERCENT for p in finals)
+        row["progress"] = 100.0 if row["finished"] else last
+        if row["finished"]:
+            times = sum(p >= FINISHED_PERCENT for p in finals)
+            row["progress_label"] = "Vu en entier" + (f" · {times} fois" if times > 1 else "")
+        elif last is not None:
+            row["progress_label"] = f"En cours · {round(last)} %"
+        else:
+            row["progress_label"] = "Progression inconnue"
+
+
 def media_overview(item_id: str, user_id: str | None = None) -> dict | None:
     """Vue détaillée d'un média. ``user_id`` restreint aux lectures de cet
     utilisateur (None = tous, vue admin)."""
@@ -166,6 +214,7 @@ def media_overview(item_id: str, user_id: str | None = None) -> dict | None:
         """,
         params,
     )
+    _add_progress(by_user, meta, item_id, where, params)
     recent = history.get_history(
         user_id=user_id,
         page_size=25,

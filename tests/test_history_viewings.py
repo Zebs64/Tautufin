@@ -156,6 +156,49 @@ class GroupedHistoryTests(unittest.TestCase):
             ("U2", "2026-11-03 21:40:00"),
         )
 
+    def test_media_page_shows_how_far_each_viewer_went(self):
+        series, episodes = "5" * 32, ("6" * 32, "7" * 32)
+        database.execute(
+            "INSERT INTO items (item_id, type, name) VALUES (?, 'Series', 'Une série')", (series,)
+        )
+        for ep in episodes:
+            database.execute(
+                "INSERT INTO items (item_id, type, name, series_id, series_name)"
+                " VALUES (?, 'Episode', 'Épisode', ?, 'Une série')",
+                (ep, series),
+            )
+        for user_id, item, kind, percent in (
+            ("u3", FILM, "Movie", 30.0),
+            ("u1", episodes[0], "Episode", 97.0),
+        ):
+            database.execute(
+                "INSERT INTO session_history (source, jellyfin_user_id, user_name, item_id,"
+                " item_type, item_name, series_id, series_name, started_at, play_duration,"
+                " runtime_seconds, percent_complete)"
+                " VALUES ('live', ?, ?, ?, ?, 'x', ?, ?, '2026-11-06 20:00:00', 1800, 6000, ?)",
+                (
+                    user_id,
+                    user_id.upper(),
+                    item,
+                    kind,
+                    series if kind == "Episode" else None,
+                    "Une série" if kind == "Episode" else None,
+                    percent,
+                ),
+            )
+        database.init(self.db_path)
+
+        film = self._get(ADMIN, f"/media/{FILM}").text
+        show = self._get(ADMIN, f"/media/{series}").text
+        own = self._get(BOB, f"/media/{FILM}").text
+
+        self.assertEqual(film.count("Vu en entier"), 2)  # u1 (en 3 fois) et u2
+        self.assertIn("En cours · 30 %", film)
+        self.assertIn("1 / 2 épisodes", show)
+        self.assertIn("Ta progression", own)
+        self.assertNotIn("En cours · 30 %", own)  # isolation : seulement ses lectures
+        self.assertIn('class="page-ambient"', film)
+
     def test_csv_export_stays_per_segment(self):
         csv_text = self._get(ADMIN, "/api/history.csv").text
 
