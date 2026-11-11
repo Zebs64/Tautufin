@@ -1,0 +1,5 @@
+# Commits de mise en forme pure, ignorés par git blame
+# (git config blame.ignoreRevsFile .git-blame-ignore-revs)
+
+# style: apply ruff format
+ed10c78b377872c3961ca9add538fe4ba91da5c7
