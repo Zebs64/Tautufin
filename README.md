@@ -453,6 +453,22 @@ Section *Réglages → Maintenance* (admin) :
   sont conservés** ; les données Jellyfin sont repeuplées à la synchro suivante.
   Action irréversible — exportez un backup d'abord.
 
+### Mise à niveau vers v0.6.0
+
+Version d'interface, **sans changement de schéma** (retour à v0.5.1 possible) :
+intégration de Tautufin dans un onglet de Jellyfin (plugin Custom Tabs), voir
+[Intégration dans Jellyfin](#intégration-dans-jellyfin-custom-tabs).
+
+- **Connexion automatique** dans l'onglet avec la session Jellyfin, sans retaper
+  son mot de passe. Nouvelle clé `[Auth] jellyfin_web_origins` (adresse publique
+  de Jellyfin Web), réglable dans *Réglages → Accès* ; vide = désactivée.
+- **Mode intégré** : dans l'onglet, barre de navigation fine en pastilles, menu
+  du compte sous l'avatar, fond du thème Jellyfin. Hors iframe, rien ne change.
+- **Contenu de l'onglet** fourni dans *Réglages → Accès* : placement sous
+  l'en-tête Jellyfin mesuré en direct et reprise de la dernière page consultée.
+  Si vous aviez déjà un onglet Tautufin, remplacez tout son contenu par celui-ci.
+- **Déconnexion** : retour à la page de connexion sans reconnexion automatique.
+
 ### Mise à niveau vers v0.5.1
 
 Correctif d'interface, sans changement de schéma (retour à v0.5.0 possible) :
