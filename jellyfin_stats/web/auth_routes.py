@@ -3,8 +3,9 @@
 import logging
 import threading
 
-from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi import Body, FastAPI, Form, HTTPException, Request
 from fastapi.responses import (
+    JSONResponse,
     RedirectResponse,
 )
 
@@ -98,7 +99,32 @@ def register(app: FastAPI, context) -> None:
             "login.html",
             jellyfin_enabled=config.jellyfin_auth_enabled and config.jellyfin_configured,
             local_enabled=config.local_auth_enabled,
+            embed_origins=_embed_origins(),
         )
+
+    def _embed_origins() -> list[str]:
+        """Origines de Jellyfin Web dont la page de connexion, intégrée dans
+        un onglet personnalisé, accepte la session (liste vide = désactivé)."""
+        return config.jellyfin_web_origins if config.jellyfin_embed_login_enabled else []
+
+    def _set_session_cookie(response, request: Request, user: auth.CurrentUser) -> None:
+        response.set_cookie(
+            auth.SESSION_COOKIE,
+            auth.cookie_value(user),
+            max_age=config.session_lifetime,
+            httponly=True,
+            samesite="lax",
+            # HTTPS direct, ou via un proxy listé dans [Web] trusted_proxies.
+            secure=request.url.scheme == "https",
+        )
+
+    def _check_rate_limit(request: Request) -> None:
+        ip = request.client.host if request.client else "?"
+        if not rate_limiter.check(ip):
+            logger.warning("Rate limit login dépassé pour %s", ip)
+            raise HTTPException(
+                status_code=429, detail="Trop de tentatives, réessayez dans une minute."
+            )
 
     @app.post("/login")
     def login_submit(
@@ -107,12 +133,7 @@ def register(app: FastAPI, context) -> None:
         username: str = Form(...),
         password: str = Form(...),
     ):
-        ip = request.client.host if request.client else "?"
-        if not rate_limiter.check(ip):
-            logger.warning("Rate limit login dépassé pour %s", ip)
-            raise HTTPException(
-                status_code=429, detail="Trop de tentatives, réessayez dans une minute."
-            )
+        _check_rate_limit(request)
         user = None
         try:
             if mode == "jellyfin" and config.jellyfin_auth_enabled and config.jellyfin_configured:
@@ -128,6 +149,7 @@ def register(app: FastAPI, context) -> None:
                 active_tab=mode,
                 jellyfin_enabled=config.jellyfin_auth_enabled and config.jellyfin_configured,
                 local_enabled=config.local_auth_enabled,
+                embed_origins=_embed_origins(),
             )
         if user is None:
             return render(
@@ -137,18 +159,34 @@ def register(app: FastAPI, context) -> None:
                 active_tab=mode,
                 jellyfin_enabled=config.jellyfin_auth_enabled and config.jellyfin_configured,
                 local_enabled=config.local_auth_enabled,
+                embed_origins=_embed_origins(),
             )
         response = RedirectResponse("/", status_code=303)
-        response.set_cookie(
-            auth.SESSION_COOKIE,
-            auth.cookie_value(user),
-            max_age=config.session_lifetime,
-            httponly=True,
-            samesite="lax",
-            # HTTPS direct, ou via un proxy listé dans [Web] trusted_proxies.
-            secure=request.url.scheme == "https",
-        )
+        _set_session_cookie(response, request, user)
         logger.info("Login %s réussi : %s (%s)", mode, user.username, user.role)
+        return response
+
+    @app.post("/login/jellyfin-session")
+    def login_jellyfin_session(request: Request, token: str = Body("", embed=True)):
+        """Connexion automatique depuis un onglet personnalisé de Jellyfin :
+        la page de connexion reçoit par postMessage le jeton de la session
+        Jellyfin Web parente et le transmet ici. Jellyfin dit à qui il
+        appartient ; le jeton n'est ni stocké ni journalisé."""
+        if not config.jellyfin_embed_login_enabled:
+            raise HTTPException(status_code=404, detail="Connexion automatique désactivée.")
+        _check_rate_limit(request)
+        try:
+            user = auth.login_jellyfin_token(api, token)
+        except auth.AccessBlocked:
+            logger.warning("Connexion automatique refusée (accès bloqué)")
+            # Réponses JSON directes : le gestionnaire d'erreurs des pages
+            # changerait un 401 en redirection vers /login.
+            return JSONResponse({"detail": "Votre accès à Tautufin a été désactivé."}, 403)
+        if user is None:
+            return JSONResponse({"detail": "Session Jellyfin non reconnue."}, 401)
+        response = JSONResponse({"ok": True})
+        _set_session_cookie(response, request, user)
+        logger.info("Login jellyfin (onglet intégré) réussi : %s (%s)", user.username, user.role)
         return response
 
     @app.post("/logout")
@@ -156,6 +194,8 @@ def register(app: FastAPI, context) -> None:
         user = get_user(request)
         if user:
             auth.destroy_session(user.token)
-        response = RedirectResponse("/login", status_code=303)
+        # « manual » : pas de reconnexion automatique juste après une
+        # déconnexion volontaire (onglet personnalisé de Jellyfin).
+        response = RedirectResponse("/login?manual=1", status_code=303)
         response.delete_cookie(auth.SESSION_COOKIE)
         return response

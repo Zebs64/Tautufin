@@ -1034,6 +1034,9 @@ form.inline input { width: 210px; margin: 0; display: inline-block; padding: 6px
   color: #fff; background: linear-gradient(135deg, var(--accent), var(--accent-deep));
 }
 .auth-box .btn-primary { width: 100%; margin-top: 14px; }
+.embed-login { text-align: center; margin: 14px 0 4px; }
+.embed-login .btn { width: 100%; }
+.auth-box.embed-pending .tabs, .auth-box.embed-pending form { display: none; }
 
 /* --- Alertes / badges -------------------------------------------------------------- */
 .alert { padding: 11px 15px; border-radius: var(--radius-sm); margin: 10px 0; }

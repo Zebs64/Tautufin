@@ -15,6 +15,7 @@ from .. import (
 )
 from .. import users as users_mod
 from ..auth import CurrentUser
+from ..config import normalize_origins
 from ..proxy import normalize_trusted_proxies
 
 logger = logging.getLogger(__name__)
@@ -77,14 +78,17 @@ def register(app: FastAPI, context) -> None:
         local_auth_enabled: str = Form(None),
         allow_user_library_pages: str = Form(None),
         trusted_proxies: str = Form(""),
+        jellyfin_web_origins: str = Form(""),
     ):
         """Bloc « Accès » : authentification, sessions, droits d'interface,
-        reverse proxy."""
+        reverse proxy, connexion depuis un onglet personnalisé de Jellyfin."""
         try:
             trusted_proxies = normalize_trusted_proxies(trusted_proxies)
+            jellyfin_web_origins = normalize_origins(jellyfin_web_origins)
         except ValueError as exc:
             return _render_settings(request, user, access_error=str(exc))
         config.set("Web", "trusted_proxies", trusted_proxies)
+        config.set("Auth", "jellyfin_web_origins", jellyfin_web_origins)
         config.set("Auth", "session_lifetime", max(300, session_lifetime))
         config.set("Auth", "jellyfin_auth_enabled", bool(jellyfin_auth_enabled))
         config.set("Auth", "local_auth_enabled", bool(local_auth_enabled))

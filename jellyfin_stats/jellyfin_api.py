@@ -2,6 +2,7 @@
 
 Endpoints utilisés (référence : https://api.jellyfin.org) :
 - POST /Users/AuthenticateByName  — login par identifiants Jellyfin
+- GET  /Users/Me                  — login par jeton d'une session Jellyfin Web
 - GET  /System/Info               — test de connexion
 - GET  /Users, /Users/{id}        — liste et détail des utilisateurs
 - GET  /Sessions                  — sessions de lecture actives
@@ -54,12 +55,13 @@ class JellyfinAPI:
         path: str,
         token: str | None = None,
         base_url: str | None = None,
+        headers: dict[str, str] | None = None,
         **kwargs,
     ):
         base = (base_url or self.config.jellyfin_url).rstrip("/")
         if not base:
             raise JellyfinError("Serveur Jellyfin non configuré")
-        headers = self._auth_headers(token)
+        headers = headers or self._auth_headers(token)
         try:
             resp = httpx.request(
                 method,
@@ -95,6 +97,23 @@ class JellyfinAPI:
         except JellyfinError as exc:
             logger.info("Login Jellyfin refusé pour %r : %s", username, exc)
             return None
+
+    def get_current_user(self, user_token: str) -> dict | None:
+        """Utilisateur propriétaire d'un jeton de session Jellyfin, ou None si
+        Jellyfin le refuse. Le jeton ne sert qu'à cette requête."""
+        # Jeton seul, sans Client/Device/Version : Jellyfin réécrirait sinon
+        # le nom d'appareil et la version de la session Jellyfin Web de
+        # l'utilisateur (AuthorizationContext met à jour l'appareil du jeton).
+        headers = {"Authorization": f'MediaBrowser Token="{user_token}"'}
+        try:
+            user = self._request("GET", "/Users/Me", headers=headers)
+        except JellyfinError as exc:
+            logger.info("Jeton Jellyfin refusé : %s", exc)
+            return None
+        # Une clé API n'est rattachée à aucun utilisateur : pas d'Id.
+        if not isinstance(user, dict) or not user.get("Id"):
+            return None
+        return user
 
     # --- Lecture ------------------------------------------------------------
 

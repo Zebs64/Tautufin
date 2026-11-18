@@ -10,6 +10,18 @@
 
   {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
 
+  {% if embed_origins %}
+  {# Intégré dans un onglet personnalisé de Jellyfin : login.js demande la
+     session Jellyfin à la page parente (origines autorisées ci-dessous).
+     Pas de tentative automatique après un échec du formulaire : l'utilisateur
+     visait peut-être un autre compte. #}
+  <div class="embed-login" id="embed-login" data-origins="{{ embed_origins|join(' ') }}"
+       data-auto="{{ 'false' if error else 'true' }}" hidden>
+    <p class="muted" id="embed-login-status" role="status"></p>
+    <button type="button" class="btn" id="embed-login-retry" hidden>Utiliser ma session Jellyfin</button>
+  </div>
+  {% endif %}
+
   {% set tab = active_tab or ('jellyfin' if jellyfin_enabled else 'local') %}
   {% if jellyfin_enabled and local_enabled %}
   <div class="tabs">

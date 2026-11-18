@@ -328,6 +328,63 @@ Avec Docker, préciser le fichier de configuration du volume :
 docker compose exec tautufin python main.py --config /config/config.ini --reset-password <username>
 ```
 
+### Connexion depuis un onglet Jellyfin (Custom Tabs)
+
+Si Tautufin est intégré dans Jellyfin avec le plugin
+[Custom Tabs](https://github.com/IAmParadox27/jellyfin-plugin-custom-tabs), il
+peut reprendre la session Jellyfin déjà ouverte : pas besoin de retaper son mot
+de passe dans l'onglet.
+
+1. Dans **Réglages → Accès**, champ *Connexion depuis un onglet personnalisé de
+   Jellyfin*, indiquez l'adresse publique de Jellyfin Web telle qu'elle apparaît
+   dans le navigateur (ex. `https://jellyfin.example.com`), ou renseignez
+   `[Auth] jellyfin_web_origins` dans `config.ini`.
+2. Dans le HTML de l'onglet, ajoutez ce script à côté de l'iframe, en remplaçant
+   `TAUTUFIN` par l'adresse de Tautufin (celle du `src` de l'iframe, sans chemin)
+   et le sélecteur par celui de votre iframe :
+
+```html
+<script>
+(function () {
+  var TAUTUFIN = 'https://tautufin.example.com';
+  var IFRAME = 'iframe.tautufinCustomTabIframe';
+  if (window.tautufinSessionBridge) return; // l'onglet est re-rendu à chaque visite
+  window.tautufinSessionBridge = true;
+  window.addEventListener('message', function (event) {
+    var data = event.data;
+    if (event.origin !== TAUTUFIN || !data || data.type !== 'tautufin:jellyfin-session-request') return;
+    var fromTab = Array.prototype.some.call(document.querySelectorAll(IFRAME), function (f) {
+      return f.contentWindow === event.source;
+    });
+    var token = fromTab && window.ApiClient && ApiClient.accessToken();
+    if (token) event.source.postMessage({ type: 'tautufin:jellyfin-session', token: token }, TAUTUFIN);
+  });
+})();
+</script>
+```
+
+Fonctionnement : la page de connexion de Tautufin, quand elle est affichée dans
+l'iframe, demande la session à la page Jellyfin parente (uniquement si celle-ci a
+l'une des adresses autorisées). Le script ci-dessus lui renvoie le jeton de la
+session Jellyfin Web, que le serveur Tautufin fait vérifier par Jellyfin
+(`GET /Users/Me`) : l'utilisateur et son rôle viennent de la réponse de Jellyfin.
+Le jeton n'est ni stocké ni journalisé, et le blocage d'accès, la limite de
+tentatives et les droits s'appliquent comme pour un login classique.
+
+En contrepartie, une page servie par Tautufin dans l'onglet peut obtenir le
+jeton Jellyfin de l'utilisateur : n'autorisez cette fonction que si vous faites
+confiance à l'instance Tautufin (et à son reverse proxy) autant qu'à Jellyfin.
+
+- Jellyfin et Tautufin doivent être sur le **même site** (par exemple deux
+  sous-domaines du même domaine) : le cookie de session (`SameSite=Lax`) n'est
+  pas envoyé dans une iframe d'un autre site.
+- Après une **déconnexion** dans Tautufin, ou un échec de connexion par le
+  formulaire, la connexion automatique n'est pas relancée ; un bouton *Utiliser
+  ma session Jellyfin* permet de la redemander.
+- Une session Tautufin déjà ouverte n'est pas remplacée si un autre utilisateur
+  se connecte ensuite à Jellyfin dans le même navigateur : se déconnecter de
+  Tautufin d'abord.
+
 ### Rôles & droits
 
 | Capacité                                   | Admin | Vision | Utilisateur |

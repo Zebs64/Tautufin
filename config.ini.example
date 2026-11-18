@@ -30,6 +30,12 @@ jellyfin_auth_enabled = true
 # Activer ou non les comptes locaux (table local_users).
 local_auth_enabled = true
 
+# Adresse(s) publique(s) de Jellyfin Web (ex. https://jellyfin.example.com),
+# séparées par des virgules. Tautufin intégré dans un onglet du plugin
+# Custom Tabs reprend alors la session Jellyfin ouverte, sans redemander le
+# mot de passe (voir README). Vide = désactivé.
+jellyfin_web_origins =
+
 # Secret pour signer les cookies de session.
 # Généré automatiquement au premier lancement — ne pas partager.
 secret_key =

@@ -224,6 +224,15 @@
             des clients (limite de tentatives de connexion) et le HTTPS (cookie sécurisé).
             Pris en compte immédiatement.</span>
         </label>
+        <label>Connexion depuis un onglet personnalisé de Jellyfin
+          <input type="text" name="jellyfin_web_origins"
+                 value="{{ config.jellyfin_web_origins|join(', ') }}"
+                 placeholder="https://jellyfin.example.com" spellcheck="false" autocomplete="off">
+          <span class="muted">Adresse publique de Jellyfin Web, telle qu'affichée dans le
+            navigateur (plusieurs adresses séparées par des virgules). Tautufin intégré dans un
+            onglet du plugin Custom Tabs reprend alors la session Jellyfin, sans retaper le mot
+            de passe ; voir le README pour l'extrait à coller dans l'onglet. Vide = désactivé.</span>
+        </label>
         </div>
       </div>
       {% if access_error %}<div class="alert alert-error">{{ access_error }}</div>{% endif %}

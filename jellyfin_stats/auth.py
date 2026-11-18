@@ -8,6 +8,7 @@
 """
 
 import logging
+import re
 import secrets
 import threading
 import time
@@ -186,8 +187,31 @@ def login_jellyfin(api, username: str, password: str) -> CurrentUser | None:
     result = api.authenticate_by_name(username, password)
     if not result or "User" not in result:
         return None
-    jf_user = result["User"]
+    return _jellyfin_session(result["User"], username)
+
+
+# Jeton de session Jellyfin Web : 32 caractères hexadécimaux en pratique.
+# Borné et restreint car il est recopié dans l'en-tête Authorization.
+JELLYFIN_TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{16,128}$")
+
+
+def login_jellyfin_token(api, token: str) -> CurrentUser | None:
+    """Ouvre une session à partir du jeton d'une session Jellyfin Web déjà
+    ouverte (onglet personnalisé). L'identité et le rôle viennent de la
+    réponse de Jellyfin, jamais du navigateur ; le jeton n'est pas stocké."""
+    if not isinstance(token, str) or not JELLYFIN_TOKEN_RE.match(token):
+        return None
+    jf_user = api.get_current_user(token)
+    if not jf_user:
+        return None
+    return _jellyfin_session(jf_user, jf_user["Id"])
+
+
+def _jellyfin_session(jf_user: dict, fallback_name: str) -> CurrentUser:
+    """Utilisateur Jellyfin authentifié → cache local mis à jour, contrôle du
+    blocage, session Tautufin."""
     is_admin = bool(jf_user.get("Policy", {}).get("IsAdministrator"))
+    name = jf_user.get("Name", fallback_name)
     # Met à jour le cache local des utilisateurs Jellyfin.
     with database.db() as conn:
         conn.execute(
@@ -200,7 +224,7 @@ def login_jellyfin(api, username: str, password: str) -> CurrentUser | None:
                 is_active = 1,
                 last_activity = excluded.last_activity
             """,
-            (jf_user["Id"], jf_user.get("Name", username), int(is_admin), now_iso()),
+            (jf_user["Id"], name, int(is_admin), now_iso()),
         )
     # Accès à Tautufin révoqué par un admin (indépendant du compte Jellyfin).
     blocked = database.query_one(
@@ -210,7 +234,7 @@ def login_jellyfin(api, username: str, password: str) -> CurrentUser | None:
         raise AccessBlocked()
     return _create_session(
         auth_mode="jellyfin",
-        username=jf_user.get("Name", username),
+        username=name,
         role="admin" if is_admin else "user",
         jellyfin_user_id=jf_user["Id"],
     )

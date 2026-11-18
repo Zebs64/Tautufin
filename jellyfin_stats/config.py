@@ -5,6 +5,7 @@ import logging
 import os
 import secrets
 import threading
+from urllib.parse import urlsplit
 
 from .proxy import DEFAULT_TRUSTED_PROXIES, normalize_trusted_proxies
 
@@ -24,6 +25,11 @@ DEFAULTS = {
         "jellyfin_auth_enabled": "true",
         "local_auth_enabled": "true",
         "secret_key": "",
+        # Origines publiques de Jellyfin Web (ex. https://jellyfin.example.com),
+        # séparées par des virgules, autorisées à transmettre la session
+        # Jellyfin à Tautufin intégré dans un onglet personnalisé. Vide =
+        # connexion automatique désactivée.
+        "jellyfin_web_origins": "",
     },
     "Monitoring": {
         "minimum_duration": "300",
@@ -63,6 +69,38 @@ ACCENT_COLORS = {
 }
 
 
+def normalize_origins(value: str) -> str:
+    """« https://a.example/, http://b:8096 » → liste d'origines
+    ``schéma://hôte[:port]`` séparées par des virgules ; ValueError sinon."""
+    origins = []
+    for raw in value.replace("\n", ",").split(","):
+        raw = raw.strip()
+        if not raw:
+            continue
+        try:
+            parts = urlsplit(raw.rstrip("/"))
+            port = parts.port  # lève ValueError si invalide
+        except ValueError:
+            parts, port = None, None
+        if (
+            parts is None
+            or parts.scheme not in ("http", "https")
+            or not parts.hostname
+            or parts.path
+            or parts.query
+            or parts.fragment
+            or parts.username
+            or parts.password
+        ):
+            raise ValueError(
+                f"Origine invalide : {raw!r} (attendu : https://jellyfin.example.com, sans chemin)"
+            )
+        origin = f"{parts.scheme}://{parts.hostname}" + (f":{port}" if port else "")
+        if origin not in origins:
+            origins.append(origin)
+    return ", ".join(origins)
+
+
 class Config:
     """Wrapper configparser : lecture avec défauts, écriture atomique."""
 
@@ -70,6 +108,7 @@ class Config:
         self.path = os.path.abspath(path)
         self._lock = threading.Lock()
         self._warned_trusted_proxies = None
+        self._warned_web_origins = None
         self._parser = configparser.ConfigParser()
         if os.path.exists(self.path):
             self._parser.read(self.path, encoding="utf-8")
@@ -160,6 +199,28 @@ class Config:
     @property
     def local_auth_enabled(self) -> bool:
         return self.get_bool("Auth", "local_auth_enabled")
+
+    @property
+    def jellyfin_web_origins(self) -> list[str]:
+        """Origines de Jellyfin Web autorisées pour la connexion automatique ;
+        une valeur invalide (config.ini édité à la main) désactive la
+        fonction plutôt que d'être acceptée telle quelle."""
+        raw = self.get("Auth", "jellyfin_web_origins")
+        try:
+            value = normalize_origins(raw)
+        except ValueError as exc:
+            if raw != self._warned_web_origins:
+                logger.warning("[Auth] jellyfin_web_origins ignoré : %s", exc)
+                self._warned_web_origins = raw
+            return []
+        return [o for o in value.split(", ") if o]
+
+    @property
+    def jellyfin_embed_login_enabled(self) -> bool:
+        """Connexion automatique depuis un onglet personnalisé de Jellyfin."""
+        return bool(
+            self.jellyfin_web_origins and self.jellyfin_auth_enabled and self.jellyfin_configured
+        )
 
     @property
     def minimum_duration(self) -> int:
