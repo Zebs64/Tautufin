@@ -117,6 +117,8 @@ code {
 .nav-user { color: var(--text) !important; display: inline-flex; align-items: center; gap: 8px; }
 .nav-user .avatar { width: 26px; height: 26px; }
 .nav-toggle, .nav-toggle-label { display: none; }
+/* Menu du compte : utilisé seulement en mode intégré (voir plus bas). */
+.nav-account { display: none; }
 
 @media (max-width: 760px) {
   .nav-toggle-label { display: flex; margin-left: auto; padding: 12px; cursor: pointer; font-size: 1.4em; color: var(--text); }
@@ -124,6 +126,72 @@ code {
   .nav-toggle:checked ~ .nav-links { display: flex; }
   .nav-links a, .nav-logout button { margin: 2px 0; }
   .nav-logout button { width: 100%; text-align: left; }
+}
+
+/* --- Mode intégré (onglet Custom Tabs de Jellyfin) ------------------------------
+   Classe « embedded » posée sur <html> quand la page est dans une iframe
+   (base.html). Barre fine de pastilles sur une ligne, sans logo ni menu ☰,
+   avatar avec menu, fond transparent : le fond du thème Jellyfin continue
+   derrière les cartes. color-scheme doit être le même que celui de l'iframe,
+   sinon le navigateur peint un fond opaque derrière la page. */
+:root { --nav-h: 64px; }
+.embedded { --nav-h: 44px; color-scheme: dark; overscroll-behavior: contain; }
+.embedded body { background: transparent; }
+.embedded .footer { display: none; }
+.embedded .container { padding-top: 16px; }
+.embedded .navbar { flex-wrap: nowrap; height: var(--nav-h); padding: 0 6px 0 10px; gap: 6px; }
+.embedded .brand, .embedded .nav-toggle-label,
+.embedded .nav-links .nav-spacer, .embedded .nav-links .nav-user, .embedded .nav-links .nav-logout {
+  display: none;
+}
+.embedded .nav-links {
+  display: flex; flex: 1 1 auto; min-width: 0; position: relative;
+  flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 4px; padding: 0;
+  overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+}
+.embedded .nav-links::-webkit-scrollbar { display: none; }
+.embedded .nav-links a { flex: none; margin: 0; padding: 6px 13px; font-size: .92em; white-space: nowrap; }
+.embedded .nav-links.fade-end {
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent);
+}
+.embedded .nav-links.fade-start {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 32px);
+  mask-image: linear-gradient(90deg, transparent, #000 32px);
+}
+.embedded .nav-links.fade-start.fade-end {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 32px, #000 calc(100% - 32px), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 32px, #000 calc(100% - 32px), transparent);
+}
+.embedded .nav-account { display: block; position: relative; flex: none; }
+.nav-account summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 50%; color: var(--text); transition: background .2s;
+}
+.nav-account summary::-webkit-details-marker { display: none; }
+.nav-account summary:hover, .nav-account[open] summary { background: var(--bg-input-alpha); }
+.nav-account summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.nav-account .avatar { width: 28px; height: 28px; }
+.nav-account-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 200px;
+  display: flex; flex-direction: column; gap: 2px; padding: 6px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow-hover);
+}
+.nav-account-name { padding: 6px 10px 9px; margin-bottom: 4px; font-weight: 600; border-bottom: 1px solid var(--border); }
+.nav-account-menu form { margin: 0; }
+.nav-account-menu a, .nav-account-menu button {
+  display: flex; align-items: center; gap: 9px; width: 100%; padding: 8px 10px;
+  border: 0; border-radius: var(--radius-sm); background: none; color: var(--text);
+  font: inherit; text-align: left; cursor: pointer;
+}
+.nav-account-menu a:hover, .nav-account-menu button:hover { background: var(--bg-input-alpha); text-decoration: none; }
+
+.code-snippet {
+  display: block; width: 100%; margin: 10px 0 4px; padding: 10px 13px; resize: vertical;
+  background: var(--bg-input-alpha); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text); font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: .8em; line-height: 1.5; white-space: pre; overflow: auto;
 }
 
 /* --- Layout ---------------------------------------------------------------- */
@@ -205,7 +273,7 @@ h2 > .icon, h3 > .icon { color: var(--accent); margin-right: .2em; }
 /* Navigation de sections (réglages) : pastilles collées sous la barre du haut,
    la section visible est mise en avant par settings.js. */
 .settings-nav {
-  position: sticky; top: 64px; z-index: 6; display: flex; flex-wrap: wrap; gap: 6px;
+  position: sticky; top: var(--nav-h); z-index: 6; display: flex; flex-wrap: wrap; gap: 6px;
   margin: -6px 0 22px; padding: 8px; border-radius: 999px; width: fit-content; max-width: 100%;
   background: rgba(17, 24, 39, .72); border: 1px solid var(--border);
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
@@ -214,7 +282,7 @@ h2 > .icon, h3 > .icon { color: var(--accent); margin-right: .2em; }
   border-radius: 999px; color: var(--text-muted); font-size: .9em; transition: background .2s, color .2s; }
 .settings-nav a:hover { color: var(--text); background: var(--bg-input-alpha); text-decoration: none; }
 .settings-nav a.active { color: #fff; background: var(--accent-alpha); }
-.settings-section { scroll-margin-top: 130px; }
+.settings-section { scroll-margin-top: calc(var(--nav-h) + 66px); }
 .subhead { margin: 22px 0 4px; font-size: .95em; color: var(--text); }
 .subhead .icon { color: var(--accent); }
 .rights-legend { margin: 0 0 12px 1.2em; line-height: 1.6; }

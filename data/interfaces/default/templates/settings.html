@@ -240,6 +240,25 @@
     </div>
   </form>
 
+  <div class="card" id="onglet-jellyfin">
+    <h3>{{ icon('tv') }} Onglet Tautufin dans Jellyfin</h3>
+    <p class="muted">Contenu à coller dans un onglet du plugin
+      <a href="https://github.com/IAmParadox27/jellyfin-plugin-custom-tabs" target="_blank" rel="noopener">Custom Tabs</a>
+      (il remplace tout le contenu actuel de l'onglet). Tautufin s'affiche alors juste sous l'en-tête
+      de Jellyfin, avec une barre de navigation compacte et le fond du thème Jellyfin, et rouvre la
+      dernière page consultée. À recoller après une mise à jour de Tautufin qui le modifie.</p>
+    {% if not config.jellyfin_web_origins %}
+    <div class="alert alert-warn">Renseignez ci-dessus l'adresse publique de Jellyfin Web : sans elle,
+      ni la connexion automatique ni la reprise de la dernière page ne fonctionnent.</div>
+    {% endif %}
+    <textarea id="tab-snippet" class="code-snippet" rows="12" readonly spellcheck="false"
+      aria-label="Contenu de l'onglet Custom Tabs">{% filter forceescape %}{% include "_jellyfin_tab.html" %}{% endfilter %}</textarea>
+    <div class="actions">
+      <button type="button" class="btn" id="copy-tab-snippet">{{ icon('content_copy') }} Copier</button>
+      <span class="muted" id="copy-tab-snippet-status" role="status"></span>
+    </div>
+  </div>
+
   <div class="card">
     <h3>{{ icon('person') }} Comptes locaux</h3>
     {% if user_error %}<div class="alert alert-error">{{ user_error }}</div>{% endif %}

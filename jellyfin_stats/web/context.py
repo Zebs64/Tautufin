@@ -126,6 +126,9 @@ def make_context(config: Config) -> SimpleNamespace:
 
     def render(request, template, user=None, **ctx):
         ctx.setdefault("page", "")
+        # Origines de Jellyfin Web : la page intégrée dans un onglet leur
+        # signale la page affichée (reprise à la visite suivante).
+        ctx.setdefault("embed_origins", config.jellyfin_web_origins)
         logo = _branding_file("logo")
         ctx.update(
             user=user,

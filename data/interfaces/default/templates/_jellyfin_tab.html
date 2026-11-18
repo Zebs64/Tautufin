@@ -1,0 +1,109 @@
+<div class="tautufin-tab">
+  <iframe class="tautufin-tab-frame" src="__TAUTUFIN_ORIGIN__/" title="Tautufin" allowfullscreen></iframe>
+</div>
+<style>
+  /* Tautufin : plein écran sous l'en-tête Jellyfin, dont la hauteur est
+     mesurée par le script ci-dessous (--tautufin-top). */
+  .tautufin-tab {
+    position: fixed; z-index: 1;
+    top: var(--tautufin-top, 64px); left: 0; right: 0; bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  /* Fond transparent : le thème Jellyfin reste visible derrière Tautufin. */
+  .tautufin-tab-frame {
+    display: block; width: 100%; height: 100%; border: 0;
+    background: transparent; color-scheme: dark;
+  }
+</style>
+<script>
+(function () {
+  var TAUTUFIN = '__TAUTUFIN_ORIGIN__';
+  var FRAMES = 'iframe.tautufin-tab-frame';
+  var HEADERS = 'header.MuiAppBar-root, .skinHeader';
+  var LAST_PAGE = 'tautufin:lastPage';
+
+  // Dernière page vue, par utilisateur Jellyfin : { identifiant: chemin }.
+  function jellyfinUser() {
+    return (window.ApiClient && ApiClient.getCurrentUserId && ApiClient.getCurrentUserId()) || '-';
+  }
+  function lastPages() {
+    var pages = JSON.parse(sessionStorage.getItem(LAST_PAGE) || '{}');
+    return pages && typeof pages === 'object' ? pages : {};
+  }
+
+  // Le plugin recrée l'onglet à chaque visite : rouvrir la dernière page vue.
+  try {
+    var path = lastPages()[jellyfinUser()];
+    if (typeof path !== 'string' || !/^\/(?!\/)/.test(path)) path = null;
+    document.querySelectorAll(FRAMES).forEach(function (frame) {
+      if (path && path !== '/' && !frame.dataset.tautufinRestored) frame.src = TAUTUFIN + path;
+      frame.dataset.tautufinRestored = '1';
+    });
+  } catch (e) { /* stockage indisponible ou illisible : accueil Tautufin */ }
+
+  // Le reste ne s'installe qu'une fois par chargement de Jellyfin.
+  if (window.tautufinTab) { window.tautufinTab.watch(); return; }
+
+  function fromTab(source) {
+    return Array.prototype.some.call(document.querySelectorAll(FRAMES), function (frame) {
+      return frame.contentWindow === source;
+    });
+  }
+
+  // Placement : bas de l'en-tête Jellyfin visible (nouvelle ou ancienne disposition).
+  var currentTop = null;
+  function place() {
+    var bottom = 0;
+    document.querySelectorAll(HEADERS).forEach(function (header) {
+      var rect = header.getBoundingClientRect();
+      var style = getComputedStyle(header);
+      if (rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden') {
+        bottom = Math.max(bottom, rect.bottom);
+      }
+    });
+    var top = Math.max(0, Math.round(bottom)) + 'px';
+    if (top !== currentTop) {
+      currentTop = top;
+      document.documentElement.style.setProperty('--tautufin-top', top);
+    }
+  }
+  var observer = window.ResizeObserver ? new ResizeObserver(place) : null;
+  var observed = [];
+  function watch() {
+    // React peut remplacer l'en-tête : observer celui qui est en place.
+    var headers = Array.prototype.slice.call(document.querySelectorAll(HEADERS));
+    if (observer && (headers.length !== observed.length ||
+        headers.some(function (header, i) { return header !== observed[i]; }))) {
+      observer.disconnect();
+      headers.forEach(function (header) { observer.observe(header); });
+      observed = headers;
+    }
+    place();
+  }
+  window.tautufinTab = { watch: watch };
+  window.addEventListener('resize', place);
+  window.addEventListener('scroll', place, { passive: true });
+  window.addEventListener('hashchange', watch);
+  setInterval(function () { if (document.querySelector(FRAMES)) watch(); }, 1000);
+  watch();
+
+  window.addEventListener('message', function (event) {
+    var data = event.data;
+    if (event.origin !== TAUTUFIN || !data || !fromTab(event.source)) return;
+    if (data.type === 'tautufin:jellyfin-session-request') {
+      // Connexion automatique : jeton de la session Jellyfin, vérifié par Tautufin.
+      var token = window.ApiClient && ApiClient.accessToken();
+      if (token) {
+        event.source.postMessage({ type: 'tautufin:jellyfin-session', token: token }, TAUTUFIN);
+      }
+    } else if (data.type === 'tautufin:navigated' && typeof data.path === 'string' &&
+               /^\/(?!\/)[^\s\\]{0,2000}$/.test(data.path)) {
+      try {
+        var pages = lastPages();
+        pages[jellyfinUser()] = data.path;
+        sessionStorage.setItem(LAST_PAGE, JSON.stringify(pages));
+      } catch (e) { /* ignoré */ }
+    }
+  });
+})();
+</script>

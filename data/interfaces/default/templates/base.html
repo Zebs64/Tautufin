@@ -1,11 +1,16 @@
 <!DOCTYPE html>
-<html lang="fr" data-accent="{{ accent or 'violet' }}">
+<html lang="fr" data-accent="{{ accent or 'violet' }}"
+      {%- if user and embed_origins %} data-embed-origins="{{ embed_origins|join(' ') }}"{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Tautufin{% endblock %}</title>
   <link rel="icon" href="/branding/favicon">
   <link rel="stylesheet" href="/static/css/style.css?v={{ version }}">
+  {# Mode intégré (onglet Custom Tabs de Jellyfin) : posé avant le premier
+     rendu pour éviter tout clignotement. Uniquement de l'affichage. #}
+  <script>if (window.self !== window.top) document.documentElement.classList.add('embedded');</script>
+  <script src="/static/js/embed.js?v={{ version }}" defer></script>
 </head>
 <body>
 {% if user %}
@@ -42,6 +47,21 @@
       <button type="submit">Déconnexion</button>
     </form>
   </div>
+  {# Mode intégré : avatar seul, profil et déconnexion dans un petit menu. #}
+  <details class="nav-account">
+    <summary aria-label="Compte : {{ user.username }}">
+      {% if user.jellyfin_user_id %}
+      <img class="avatar" src="/image/user/{{ user.jellyfin_user_id }}" alt="">
+      {% else %}{{ icon('person') }}{% endif %}
+    </summary>
+    <div class="nav-account-menu">
+      <span class="nav-account-name">{{ user.username }}{% if user.is_admin %} <span class="badge badge-admin">admin</span>{% endif %}</span>
+      <a href="/profile">{{ icon('person') }} Mon profil</a>
+      <form method="post" action="/logout">
+        <button type="submit">{{ icon('logout') }} Déconnexion</button>
+      </form>
+    </div>
+  </details>
 </nav>
 {% endif %}
 <main class="container">

@@ -168,3 +168,22 @@ document.getElementById('clear-image-cache').addEventListener('click', async () 
     if (section) observer.observe(section);
   });
 })();
+
+// Onglet Custom Tabs : l'adresse de Tautufin est celle de cette page, telle que
+// le navigateur l'utilise (plus fiable que les en-têtes vus par le serveur).
+(() => {
+  const snippet = document.getElementById('tab-snippet');
+  if (!snippet) return;
+  snippet.value = snippet.value.replaceAll('__TAUTUFIN_ORIGIN__', window.location.origin);
+  const status = document.getElementById('copy-tab-snippet-status');
+  document.getElementById('copy-tab-snippet').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(snippet.value);
+      status.textContent = 'Copié.';
+    } catch (e) {
+      snippet.focus();
+      snippet.select();
+      status.textContent = 'Texte sélectionné : Ctrl+C pour copier.';
+    }
+  });
+})();
